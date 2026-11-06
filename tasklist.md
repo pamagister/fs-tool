@@ -79,11 +79,11 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 - [x] P1-T06 Implement deterministic sorting
 - [x] P1-T08 Implement MIME type detection
 - [x] P1-T09 Implement SHA-256 hashing
-- [ ] P1-T10 Implement scan completeness and error reporting
-- [ ] P1-T11 Add tests for inaccessible paths
-- [ ] P1-T12 Add tests for symlinks and path escapes
-- [ ] P1-T13 Add tests for allowed-root restrictions
-- [ ] P1-T14 Implement TOML configuration loader (`--config`, default location, precedence)
+- [x] P1-T10 Implement scan completeness and error reporting
+- [x] P1-T11 Add tests for inaccessible paths
+- [x] P1-T12 Add tests for symlinks and path escapes
+- [x] P1-T13 Add tests for allowed-root restrictions
+- [x] P1-T14 Implement TOML configuration loader (`--config`, default location, precedence)
 
 **Milestone:** A reusable and tested filesystem core.
 
