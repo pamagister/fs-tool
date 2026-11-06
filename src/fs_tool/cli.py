@@ -17,7 +17,7 @@ from click.exceptions import Exit as ClickExit
 from fs_tool import __version__
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
-from fs_tool.core.traversal import traverse
+from fs_tool.core.traversal import build_entry, traverse
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.safety.validation import validate_path
 
@@ -263,6 +263,49 @@ def inspect_tree(
     )
     typer.echo(envelope.to_json())
     return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
+
+
+@inspect_group.command(name="info")
+def inspect_info(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="File or directory to inspect."),
+) -> int:
+    """Inspect metadata for a single file or directory.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain inspect info /tmp/notes.txt``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+    try:
+        entry = build_entry(root, root)
+    except FsToolError as exc:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.info",
+            result=None,
+            errors=(Error(code=exc.code, message=exc.message, path=exc.path),),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return exc.exit_code
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_info
+
+        typer.echo(render_info(entry))
+        return EXIT_SUCCESS
+
+    entry_dict = asdict(entry)
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=True,
+        command="inspect.info",
+        result=entry_dict,
+        complete=True,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_SUCCESS
 
 
 def main(argv: list[str] | None = None) -> int:

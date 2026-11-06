@@ -73,8 +73,11 @@ def _entry_type(stat_result: os.stat_result | None, is_symlink: bool) -> EntryTy
     return EntryType.OTHER
 
 
-def _build_entry(path: Path, root: Path, follow_symlinks: bool = False) -> FilesystemEntry:
-    """Build a :class:`FilesystemEntry` without following symlinks."""
+def build_entry(path: Path, root: Path, follow_symlinks: bool = False) -> FilesystemEntry:
+    """Build a :class:`FilesystemEntry` for ``path`` without following symlinks.
+
+    ``rel_path`` is computed relative to ``root``.
+    """
     try:
         lst = path.lstat()
     except OSError as exc:
@@ -217,7 +220,7 @@ def traverse(
 
     def _append_entry(path: Path) -> None:
         try:
-            result.entries.append(_build_entry(path, root_path, follow_symlinks=follow_symlinks))
+            result.entries.append(build_entry(path, root_path, follow_symlinks=follow_symlinks))
         except FsToolError as exc:
             record_error(path, exc.message)
 

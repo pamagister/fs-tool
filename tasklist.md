@@ -110,11 +110,11 @@ Issue: #4 "Phase 2: Inspection Commands".
 
 ### `inspect info`
 
-- [ ] P2-T09 Implement single-path metadata inspection
-- [ ] P2-T10 Implement timestamps and permissions
-- [ ] P2-T11 Implement owner information
-- [ ] P2-T12 Implement MIME type information
-- [ ] P2-T13 Implement symlink information
+- [x] P2-T09 Implement single-path metadata inspection
+- [x] P2-T10 Implement timestamps and permissions
+- [x] P2-T11 Implement owner information
+- [x] P2-T12 Implement MIME type information
+- [x] P2-T13 Implement symlink information
 - [ ] P2-T14 Implement `--metadata` document extraction (PDF/ODF/OOXML)
 
 ### `inspect inventory`
@@ -310,6 +310,7 @@ Issue: #4 "Phase 2: Inspection Commands".
 | 2026-11-06 | 2 | P2-T07 | cli.py: inspect tree JSON result carries structured per-entry metadata (timestamps, mode, owner, MIME, ...); human-readable summaries remain in P5-T03. |
 | 2026-11-06 | 2 | P2-T08 | Deferred to Phase 6 (Python AST analysis per roadmap). |
 | 2026-11-06 | 2 | Review follow-up | Traversal errors now make scans incomplete and unsuccessful; incomplete plain output is diagnosed; Click usage errors are shown; root-option and tree-metadata contracts aligned with the specification. Regression tests cover missing/file roots, nested read failures, option diagnostics, and explicit root replacement. |
+| 2026-11-06 | 2 | P2-T09..P2-T13 | cli.py: inspect info command with single-path metadata (timestamps, permissions, owner, MIME, symlink); traversal._build_entry refactored to public build_entry; output/plain.py: render_info(); tests in tests/test_info.py; 9 new tests, 103 total passing; make check green. |
 
 ---
 
