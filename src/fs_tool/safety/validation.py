@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fs_tool.core.errors import ErrorCode, FsToolError
-from fs_tool.core.filesystem import normalize_path
+from fs_tool.core.filesystem import normalize_path, resolve_path
 
 
 class PathNotAllowedError(FsToolError):
@@ -49,10 +49,33 @@ def validate_path(
 ) -> Path:
     """Return the normalized path if it is within an allowed root.
 
-    Raises :class:`PathNotAllowedError` (exit code 3) otherwise.
+    Both the lexically normalized path and the symlink-resolved path
+    must lie within an allowed root, so symlinks cannot be used to
+    escape an allowed root. Raises :class:`PathNotAllowedError`
+    (exit code 3) otherwise.
     """
     roots = tuple(allowed_roots) if allowed_roots is not None else default_allowed_roots()
-    normalized = normalize_path(path)
-    if any(is_within_root(normalized, root) for root in roots):
-        return normalized
-    raise PathNotAllowedError(path, roots)
+    candidates = (normalize_path(path), resolve_path(path))
+    for candidate in candidates:
+        if not any(is_within_root(candidate, root) for root in roots):
+            raise PathNotAllowedError(path, roots)
+    return candidates[0]
+
+
+def symlink_components(path: str | Path) -> list[Path]:
+    """Return the components of ``path`` that are symbolic links.
+
+    Uses ``lstat`` so symlinks are never followed. Components are
+    returned from the filesystem root toward ``path``.
+    """
+    resolved = normalize_path(path)
+    links: list[Path] = []
+    current: Path = resolved
+    while True:
+        if current.is_symlink():
+            links.append(current)
+        if current == current.parent:
+            break
+        current = current.parent
+    links.reverse()
+    return links

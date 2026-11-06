@@ -73,7 +73,7 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 - [x] P1-T01 Implement path normalization
 - [x] P1-T02 Implement allowed-root restrictions (Home + CWD default)
-- [ ] P1-T03 Implement path traversal protection
+- [x] P1-T03 Implement path traversal protection
 - [ ] P1-T04 Implement symlink detection and handling
 - [ ] P1-T05 Implement recursive directory traversal
 - [ ] P1-T06 Implement deterministic sorting
@@ -271,6 +271,7 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 1 | P1-T03 | safety/validation.py: validate_path now also rejects symlink-resolved escapes (traversal protection); symlink_components() detects symlink components via lstat without following links. |
 | 2026-11-06 | 1 | P1-T02 | safety/validation.py: allowed-root validation; default roots home + CWD (CWD of / not implicit); PathNotAllowedError maps to exit code 3; tests in tests/test_safety.py. |
 | 2026-11-06 | 1 | P1-T01 | core/filesystem.py: normalize_path (lexical, ~ expansion, absolute, collapses ./..) and resolve_path (symlink-aware); tests in tests/test_traversal.py. |
 | 2026-11-06 | 0 | P0-T01 | Removed legacy template artefacts (GUI, config-cli-gui, config.yaml, PyInstaller builds, GPX examples, init.sh, template scripts, .idea run configs, HISTORY.md). |

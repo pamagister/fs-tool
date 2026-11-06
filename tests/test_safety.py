@@ -12,6 +12,7 @@ from fs_tool.safety.validation import (
     PathNotAllowedError,
     default_allowed_roots,
     is_within_root,
+    symlink_components,
     validate_path,
 )
 
@@ -72,3 +73,41 @@ def test_is_within_root() -> None:
 
 def test_normalize_path_inside_root_passes(tmp_path: Path) -> None:
     assert normalize_path(str(tmp_path / "a" / ".." / "b")) == tmp_path / "b"
+
+
+def test_symlink_within_roots_is_allowed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    escape_target = tmp_path / "escape_target.txt"
+    escape_target.write_text("secret")
+    link_dir = tmp_path / "linkdir"
+    link_dir.symlink_to(tmp_path)  # symlink to an allowed directory
+    # Lexically under cwd, but resolution stays under cwd here: allowed.
+    assert validate_path(link_dir / "escape_target.txt") == normalize_path(
+        link_dir / "escape_target.txt"
+    )
+
+
+def test_symlink_outside_roots_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    outside = Path("/tmp/fs-tool-safety-outside")
+    outside.mkdir(exist_ok=True)
+    (outside / "secret.txt").write_text("secret")
+    link = tmp_path / "link.outside"
+    link.symlink_to(outside)
+    with pytest.raises(PathNotAllowedError):
+        validate_path(link / "secret.txt")
+
+
+def test_broken_symlink_is_reported_as_symlink(tmp_path: Path) -> None:
+    link = tmp_path / "broken"
+    link.symlink_to(tmp_path / "nonexistent")
+    assert symlink_components(link) == [link]
+
+
+def test_symlink_components_are_detected(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "file.txt").write_text("x")
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    assert symlink_components(link / "file.txt") == [link]
