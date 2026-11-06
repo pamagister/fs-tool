@@ -806,10 +806,11 @@ Terminal output should remain optional and must never influence the underlying f
 fs-tool/
 │
 ├── AGENTS.md
+├── AGENTS_WORKFLOW_STANDARD.md
+├── AGENTS_WORKFLOW_AUTOPILOT.md
 ├── README.md
 ├── plan.md
 ├── tasklist.md
-├── workflow.md
 ├── pyproject.toml
 ├── uv.lock
 ├── .gitignore

@@ -17,11 +17,14 @@ Current state: Phase 0 (Project Foundation and Baseline) is complete.
 - D5: Document metadata in initial scope: PDF via optional `[metadata]` extra (`pypdf`); ODF/OOXML via stdlib.
 - D6: Allowed Roots default: Home + CWD; explicit `--allow-root` values replace these defaults.
 - D7: Output default `auto` (TTY → Plain, pipe → JSON); `--format auto|json|plain`.
-- D8: One GitHub Issue per phase; 3–6 commits per phase; then push; then monitor CI.
+- D8: One GitHub Issue per phase (reuse a suitable open issue or create one);
+  push after 3–6 task commits or at phase end, then monitor CI.
 
 ## Workflow
 
-See `workflow.md`. Every task follows: inspect → plan → implement → add/extend tests → `make check` → fix → commit → (every 3–6 commits) push → monitor CI → update this tasklist.
+See `AGENTS_WORKFLOW_AUTOPILOT.md`. Each task follows: inspect → implement →
+add/extend tests → `make check` → fix → update this tasklist → commit. Push
+after 3–6 commits or at phase end, then monitor CI.
 
 ---
 

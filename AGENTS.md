@@ -57,9 +57,11 @@ Check the Makefile and project configuration rather than assuming a command exis
 
 Additional instructions are maintained separately:
 - `AGENTS_GIT.md`: Git, GitHub and repository interaction.
-- `AGENTS_WORKFLOW.md`: Implementation modes and execution workflows.
+- `AGENTS_WORKFLOW_STANDARD.md`: Bounded one-shot implementation tasks.
+- `AGENTS_WORKFLOW_AUTOPILOT.md`: Autonomous, plan/tasklist-driven implementation.
 
 **Read specialized instruction files only when relevant to the current task.**
-- For normal implementation tasks, consult `AGENTS_WORKFLOW.md`.
+- For normal implementation tasks, consult `AGENTS_WORKFLOW_STANDARD.md`.
 - For Git/GitHub operations, consult `AGENTS_GIT.md`.
-- For autonomous implementation of larger plans, consult both.
+- For autonomous implementation of larger plans, consult
+  `AGENTS_WORKFLOW_AUTOPILOT.md` and `AGENTS_GIT.md`.
