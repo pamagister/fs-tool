@@ -127,7 +127,9 @@ def test_tree_file_root_reports_incomplete_scan(tmp_path: Path) -> None:
     assert code == EXIT_INCOMPLETE
     assert data["success"] is False
     assert data["complete"] is False
-    assert "Not a directory" in data["errors"][0]["message"]
+    error = data["errors"][0]
+    assert error["path"] == str(file_path)
+    assert "directory" in error["message"].lower()
 
 
 def test_tree_nested_scan_error_reports_incomplete(
