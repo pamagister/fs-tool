@@ -225,8 +225,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 - [x] P4-T25 Implement no-overwrite protection
 - [x] P4-T26 Add tests for conflicts and safety restrictions
 
-**Milestone reached:** Safe and verifiable filesystem modifications.
-`make check` passed: 197 tests, Ruff formatting/lint, and mypy.
+**Milestone:** Safe and verifiable filesystem modifications (local checks green; GitHub Actions rerun pending).
 
 ---
 
@@ -283,6 +282,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 4 | CI follow-up | The first pushed CI run exposed Windows-only mypy narrowing of rename-dispatch variables. Initialized the platform selector before branching; `mypy --platform win32 src/`, `make check` (197 tests), and the targeted operation tests pass. Rerun CI pending. |
 | 2026-11-06 | 4 | Milestone | `make check` passed with 197 tests; Ruff formatting/lint and mypy clean. |
 | 2026-11-06 | 4 | P4-T19..P4-T26 | Added file, directory, and symlink moves with same-filesystem checks, filesystem-root refusal, filename-change authorization, dry-run, and structured result verification. Uses atomic no-replace rename primitives on Linux/macOS and non-replacing `os.rename` on Windows; rejects unsupported POSIX platforms rather than risking overwrite. Added conflict-race, rename, symlink, root, and directory tests. |
 | 2026-11-06 | 4 | P4-T11..P4-T18 | Added preflighted regular-file and recursive directory copying; publication uses an exclusive hard-link step, file data is SHA-256 verified, and mode/timestamps are preserved. Added explicit symlink error/copy/skip policies, special-entry rejection, dry-run, no-overwrite checks, and structured partial-failure reporting with tests. |

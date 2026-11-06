@@ -30,13 +30,12 @@ def _rename_no_replace(source: Path, destination: Path) -> None:
         os.rename(source, destination)
         return
 
-    if sys.platform == "linux":
-        symbol = "renameat2"
-        flags = 1  # RENAME_NOREPLACE
-    elif sys.platform == "darwin":
+    symbol = "renameat2"
+    flags = 1  # RENAME_NOREPLACE
+    if sys.platform == "darwin":
         symbol = "renameatx_np"
         flags = 4  # RENAME_EXCL
-    else:
+    elif sys.platform != "linux":
         raise FsToolError(
             f"Atomic no-overwrite moves are not supported on {sys.platform}.",
             code=ErrorCode.OPERATION_FAILED,
