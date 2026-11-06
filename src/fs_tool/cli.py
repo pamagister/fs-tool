@@ -862,6 +862,85 @@ def duplicates_files(
     return EXIT_INCOMPLETE if not dup_result.complete else EXIT_SUCCESS
 
 
+@compare_group.command(name="trees")
+def compare_trees_cmd(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Source directory to compare."),
+    destination: Path = typer.Argument(..., help="Destination directory to compare."),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries to scan per tree."
+    ),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+) -> int:
+    """Compare two directory trees.
+
+    Identifies identical, missing, changed, unexpected, type-conflict,
+    and unsupported entries using relative paths and SHA-256 hashing.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain compare trees ~/Docs ~/Docs_Backup``.
+    """
+    source_root = validate_path(source, tuple(ctx.obj.allow_root))
+    dest_root = validate_path(destination, tuple(ctx.obj.allow_root))
+
+    from fs_tool.core.analysis.comparison import compare_trees
+
+    comparison = compare_trees(
+        source_root,
+        dest_root,
+        max_entries=max_entries,
+        ignore_dirs=frozenset(ignore_dir),
+        ignore_patterns=tuple(ignore_pattern),
+    )
+
+    result: dict[str, Any] = {
+        "source": str(source_root),
+        "destination": str(dest_root),
+        "identical": comparison.identical,
+        "missing": comparison.missing,
+        "changed": comparison.changed,
+        "unexpected": comparison.unexpected,
+        "type_conflicts": comparison.type_conflicts,
+        "unsupported": comparison.unsupported,
+        "complete": comparison.complete,
+    }
+
+    error_tuples = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=message, path=str(source_root))
+        for message in comparison.errors
+    )
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_compare
+
+        typer.echo(render_compare(result))
+        if not comparison.complete:
+            print("fs-tool: error: comparison incomplete", file=sys.stderr)
+        for message in comparison.errors:
+            print(f"fs-tool: error: {message}", file=sys.stderr)
+        return EXIT_INCOMPLETE if not comparison.complete else EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=comparison.complete,
+        command="compare.trees",
+        result=result,
+        errors=error_tuples,
+        complete=comparison.complete,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_INCOMPLETE if not comparison.complete else EXIT_SUCCESS
+
+
 def main(argv: list[str] | None = None) -> int:
     """Application entry point.
 

@@ -150,3 +150,23 @@ def render_duplicates(groups: list[dict[str, Any]]) -> str:
         for file_path in files:
             lines.append(f"    {file_path}")
     return "\n".join(lines)
+
+
+def render_compare(result: dict[str, Any]) -> str:
+    """Render comparison results as plain-text lines."""
+    lines: list[str] = []
+    for category in (
+        "identical",
+        "missing",
+        "changed",
+        "unexpected",
+        "type_conflicts",
+        "unsupported",
+    ):
+        items = result.get(category, [])
+        if items:
+            lines.append(f"{category} ({len(items)}):")
+            for item in items:
+                lines.append(f"  {item}")
+    lines.append(f"complete: {result.get('complete', False)}")
+    return "\n".join(lines)
