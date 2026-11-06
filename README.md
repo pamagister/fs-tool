@@ -2,7 +2,11 @@
 
 # Welcome to fs-tool
 
-A feature-rich Python project template with auto-generated CLI, GUI and parameterized configuration.
+fs-tool is a lightweight, secure and agent-friendly command-line application for analyzing, 
+organizing and restructuring local filesystems. 
+Its primary purpose is to provide an interface for inspecting directory structures, 
+understanding file contents and metadata, identifying duplicates, comparing directory trees, 
+and performing file operations.
 
 [![Github CI Status](https://github.com/pamagister/fs-tool/actions/workflows/main.yml/badge.svg)](https://github.com/pamagister/fs-tool/actions)
 [![GitHub release](https://img.shields.io/github/v/release/pamagister/fs-tool)](https://github.com/pamagister/fs-tool/releases)
@@ -13,159 +17,63 @@ A feature-rich Python project template with auto-generated CLI, GUI and paramete
 [![Downloads](https://pepy.tech/badge/fs-tool)](https://pepy.tech/project/fs-tool/)
 
 
-This template provides a solid foundation for your next Python project, incorporating best practices for testing, automation, and distribution. It streamlines the development process with a comprehensive set of pre-configured tools and workflows, allowing you to focus on writing code.
+## Project Vision
 
----
+`fs-tool` is a lightweight, secure and agent-friendly command-line application for analyzing, organizing and restructuring local filesystems.
 
-## How to use this template
+Its primary purpose is to provide a reliable interface for inspecting directory structures, understanding file contents and metadata, identifying duplicates, comparing directory trees, and performing controlled file operations.
 
-Getting started on developing your own project based on this template
+The tool should be useful both for interactive human users and for automated workflows.
 
-> **DO NOT FORK** 
-> This project is meant to be used from **[Use this template](https://github.com/pamagister/fs-tool/generate)** feature.
+## Guiding Principle
 
----
+**The agent makes decisions; fs-tool provides the information and executes filesystem operations safely and deterministically.**
 
-1. **Create a new repository using GitHub template**  
-   Click on **[Use this template](https://github.com/pamagister/fs-tool/generate)**.
+The application must remain independent of any particular AI agent, MCP implementation or external automation framework.
 
-2. **Give a name to your project**  
-   For example: `my-python-project`  
-   *(Hyphens may be used as project name; they are converted during renaming internally to underscores for packages.)*
+## Design Philosophy
 
-3. **Set write permissions**  
-   Go to: `Repository -> Settings -> Actions -> General -> Workflow permissions`  
-   Select: `Read and write permissions`, then click **Save**.
+- Prefer simplicity over unnecessary abstraction.
+- Keep the Python filesystem core independent of the CLI.
+- Use structured JSON output as the primary interface.
+- Provide readable human-oriented output as an alternative.
+- Make filesystem operations predictable, transparent and verifiable.
+- Never silently overwrite or delete user data.
+- Require explicit authorization for potentially risky operations.
+- Favor deterministic results and reproducible inventories.
+- Keep dependencies minimal.
 
-4. **Trigger rename workflow**  
-   Navigate to `Actions` tab → Select **Rename Action** → Run workflow on the `main` branch.
+## Future Agentic Workflow
 
-5. **Wait for the workflow to finish**
+The long-term vision is to enable AI agents, especially OpenCode, to organize complex directory structures autonomously under controlled conditions.
 
-6. **Clone the repository**  
-   Run:  
-   ```bash
-   git clone [your-github-url]
-   ```
+A typical workflow:
 
-7. **Open the project in your IDE**
+1. Inspect and inventory the existing filesystem.
+2. Analyze filenames, metadata, file types and contents where appropriate.
+3. Identify duplicates, inconsistencies and organizational opportunities.
+4. Propose a target directory structure.
+5. Generate a concrete restructuring plan.
+6. Validate the plan and identify potential conflicts.
+7. Execute approved operations using fs-tool.
+8. Verify the resulting filesystem against the original inventory and intended changes.
 
-8. **Install dependencies and create virtual environment**
-   Run:
+The agent is responsible for reasoning, planning and deciding what should happen. The CLI is responsible for executing individual operations safely and reporting their results.
 
-   ```bash
-   make install
-   ```
+## Development Rules
 
-9. **Configure your IDE**
-   Set `.venv` as the local Python virtual environment.
+- Python 3.13+, managed with `uv`.
+- Use Typer for the CLI.
+- Use type hints and clear module boundaries.
+- Prefer Python standard-library functionality where practical.
+- Follow PEP 8 and use four spaces for indentation.
+- Keep line length at approximately 100 characters.
+- Write tests for filesystem operations and safety-critical behavior.
+- Document CLI commands and their JSON output schemas.
+- Do not introduce MCP-specific dependencies into the core application.
 
-10. **Adjust project metadata**
-    Modify `pyproject.toml` (e.g., project description, authors, license, etc.)
+## Scope
 
-11. **Clean up template scripts**
-    Delete the files:
+The initial implementation focuses exclusively on the filesystem CLI.
 
-    * `rename_project.yml`
-    * `rename_project.sh`
-
-12. **Format your codebase**
-    Run:
-
-    ```bash
-    make fmt
-    ```
-
-    This will auto-format your files and reorder imports (based on any name changes).
-
-13. **Enable pre-commit hooks**
-    Run:
-
-    ```bash
-    uv run pre-commit install
-    ```
-
-14. **Add repository to ReadTheDocs**
-    Visit: [https://app.readthedocs.org/dashboard/import/](https://app.readthedocs.org/dashboard/import/)
-
-15. **Configure PyPI publishing**
-
-    * Generate a **PyPI API token** from your PyPI account.
-    * Go to **GitHub → Settings → Secrets and variables → Actions**.
-    * Add the secret as `PYPI_API_TOKEN`.
-
-16. **Release your first version**
-    Run:
-
-    ```bash
-    make release
-    ```
-    
----
-
-## Feature overview
-
-* 📦 **Package Management:** Utilizes [uv](https://docs.astral.sh/uv/getting-started/), an extremely fast Python package manager, with dependencies managed in `pyproject.toml`.
-* ✅ **Code Formatting and Linting:** Pre-commit hook with the [RUFF auto-formatter](https://docs.astral.sh/ruff/) to ensure consistent code style.
-* 🧪 **Testing:** Unit testing framework with [pytest](https://docs.pytest.org/en/latest/).
-* 📊 **Code coverage reports** using [codecov](https://about.codecov.io/sign-up/)
-* 🔄 **CI/CD:**  [GitHub Actions](https://github.com/features/actions) for automated builds (Windows, macOS), unit tests, and code checks.
-* 💾 **Automated Builds:** GitHub pipeline for automatically building a Windows executable and a macOS installer.
-* 💬 **Parameter-Driven Automation:**
-    * Automatic generation of a configuration file from parameter definitions.
-    * Automatic generation of a Command-Line Interface (CLI) from the same parameters.
-    * Automatic generation of CLI API documentation.
-    * Automatic generation of change log using **gitchangelog** to keep a HISTORY.md file up to date.
-* 📃 **Documentation:** Configuration for publishing documentation on [Read the Docs](https://about.readthedocs.com/) using [mkdocs](https://www.mkdocs.org/) .
-* 🖼️ **Minimalist GUI:** Comes with a basic GUI based on [tkinker](https://tkdocs.com/tutorial/index.html) that includes an auto-generated settings menu based on your defined parameters.
-* 🖥️ **Workflow Automation:** A `Makefile` is included to simplify and automate common development tasks.
-* 🛳️ **Release pipeline:** Automated releases unsing the Makefile `make release` command, which creates a new tag and pushes it to the remote repo. The `release` pipeline will automatically create a new release on GitHub and trigger a release on  [PyPI](https://pypi.org.
-    * **[setuptools](https://pypi.org/project/setuptools/)** is used to package the project and manage dependencies.
-    * **[setuptools-scm](https://pypi.org/project/setuptools-scm/)** is used to automatically generate the `_version.py` file from the `pyproject.toml` file.
-
----
-
-## Installation
-
-Get an impression of how your own project could be installed and look like.
-
-Download from [PyPI](https://pypi.org/).
-
-💾 For more installation options see [install](docs/getting-started/install.md).
-
-```bash
-pip install fs-tool
-```
-
-Run GUI from command line
-
-```bash
-fs-tool-gui
-```
-
-Run application from command line using CLI
-
-```bash
-python -m fs_tool.cli [OPTIONS] path/to/file
-```
-
-```bash
-fs-tool-cli [OPTIONS] path/to/file
-```
-
----
-
-## Troubleshooting
-
-### Problems with release pipeline
-
-If you get this error below:
-```bash
-/home/runner/work/_temp/xxxx_xxx.sh: line 1: .github/release_message.sh: Permission denied
-```
-
-You have to run these commands in your IDE Terminal or the git bash and then push the changes.
-```bash
-git update-index --chmod=+x ./.github/release_message.sh
-```
-
+Agent orchestration, autonomous planning, MCP adapters and advanced LLM integrations are future extensions and must not unnecessarily influence the initial architecture.
