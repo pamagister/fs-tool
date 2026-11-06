@@ -10,7 +10,13 @@ from pathlib import Path
 
 import pytest
 
-from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_INVALID_ARGS, EXIT_SUCCESS, main
+from fs_tool.cli import (
+    EXIT_ACCESS_DENIED,
+    EXIT_INVALID_ARGS,
+    EXIT_SUCCESS,
+    main,
+)
+from fs_tool.core.metadata import HAS_PYPDF
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLE_FILES = PROJECT_ROOT / "res" / "example_filesystem_unstructured"
@@ -141,6 +147,7 @@ def test_info_mime_type(tmp_path: Path) -> None:
     assert result["mime_type"] == "application/pdf"
 
 
+@pytest.mark.skipif(not HAS_PYPDF, reason="pypdf not installed")
 def test_info_metadata_pdf() -> None:
     pdf_path = EXAMPLE_FILES / "Der Goldschatz partygame.pdf"
     assert pdf_path.is_file(), f"test fixture missing: {pdf_path}"
