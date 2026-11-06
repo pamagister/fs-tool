@@ -26,7 +26,7 @@ def read_json(source: Path, *extra: str) -> tuple[int, dict]:
 def test_read_json_shape(tmp_path: Path) -> None:
     file_path = tmp_path / "notes.txt"
     content = "hello world\n"
-    file_path.write_text(content)
+    file_path.write_bytes(content.encode("utf-8"))
     code, data = read_json(file_path)
     assert code == EXIT_SUCCESS
     assert data["success"] is True
@@ -129,7 +129,7 @@ def test_read_plain_truncation_warning(tmp_path: Path, capsys: pytest.CaptureFix
 def test_read_utf8_content(tmp_path: Path) -> None:
     file_path = tmp_path / "unicode.txt"
     content = "Héllo Wörld 🌍\n"
-    file_path.write_text(content, encoding="utf-8")
+    file_path.write_bytes(content.encode("utf-8"))
     code, data = read_json(file_path)
     assert code == EXIT_SUCCESS
     assert data["result"]["content"] == content
