@@ -75,7 +75,7 @@ virtualenv:       ## Create a virtual environment.
 release:          ## Check, create, and push a version tag to trigger GitHub release workflows.
 	set -euo pipefail
 	$(MAKE) check
-	if [[ -n "$$(git status --porcelain)" ]]; then \
+	if [[ -n "$$(git status --porcelain --untracked-files=no)" ]]; then \
 		echo "Commit or discard all working-tree changes before releasing." >&2; \
 		exit 1; \
 	fi
