@@ -8,15 +8,17 @@ metadata is represented as None, never silently omitted.
 
 from __future__ import annotations
 
+import importlib
 import re
 import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from xml.etree import ElementTree
 
+# pypdf is an optional dependency (``[metadata]`` extra). Detect at runtime
+# so the module imports cleanly without it.
 try:
-    from pypdf import PdfReader
-
+    importlib.import_module("pypdf")
     HAS_PYPDF = True
 except ImportError:  # pragma: no cover - optional dependency
     HAS_PYPDF = False
@@ -103,7 +105,8 @@ def _extract_pdf_metadata(path: Path) -> dict[str, str | None] | None:
     if not HAS_PYPDF:
         return None
     try:
-        reader = PdfReader(str(path))
+        pypdf = importlib.import_module("pypdf")
+        reader = pypdf.PdfReader(str(path))
         info = reader.metadata
         if info is None:
             return None
