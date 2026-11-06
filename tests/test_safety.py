@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ def test_default_roots_are_home_and_cwd(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert tmp_path in roots
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX '/' root semantics")
 def test_default_roots_do_not_implicitly_allow_root_directory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
