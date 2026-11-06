@@ -6,7 +6,7 @@ Status:
 - `[x]` Completed
 - `[~]` Deferred
 
-Current state: Implementation has not started. Phase 0 (Project Foundation and Baseline) is next.
+Current state: Phase 0 (Project Foundation and Baseline) is complete.
 
 ## Decisions (see plan.md section 2)
 
@@ -29,41 +29,39 @@ See `workflow.md`. Every task follows: inspect → plan → implement → add/ex
 
 Issue: #2 "Cleanup legacy stuff" (existing GitHub issue; repurpose for Phase 0).
 
-- [ ] P0-T01 Clean up legacy template artefacts
-  - Remove GUI, `config-cli-gui`, legacy `config.yaml`, PyInstaller/GUI builds, GPX examples, `init.sh`, template scripts, `.idea` run configs.
-  - Reset `HISTORY.md` or remove.
-  - Acceptance: Repo contains no GUI/config-cli-gui/PyInstaller artefacts; `make test` and `make lint` run without missing-module errors.
-- [ ] P0-T02 Repair `pyproject.toml`
+- [x] P0-T01 Clean up legacy template artefacts
+  - Removed GUI, config-cli-gui, legacy config.yaml, PyInstaller/GUI builds, GPX examples, init.sh, template scripts, .idea run configs, HISTORY.md.
+  - Acceptance: no GUI/config-cli-gui/PyInstaller artefacts remain; make test and make lint run without missing-module errors.
+- [x] P0-T02 Repair `pyproject.toml`
   - Typer dependency, Python >=3.11, optional `[metadata]` extra (`pypdf`), entry point `fs_tool.cli:main`, package discovery `src/`, Ruff/Mypy/Coverage/Pytest config.
   - Acceptance: `uv lock` succeeds; `fs-tool --version` importable after install.
-- [ ] P0-T03 Repair `Makefile`
+- [x] P0-T03 Repair `Makefile`
   - Targets: `install`, `fmt`, `lint`, `test`, `check`, `syncdocs`, `docs`, `build`, `clean`; no side effects in `fmt`.
   - Acceptance: `make lint`, `make fmt` and `make check` targets exist and execute.
-- [ ] P0-T04 Repair CI workflows
+- [x] P0-T04 Repair CI workflows
   - `uv sync --all-groups` plus metadata extra; matrix 3.11/3.13; Linux/macOS/Windows; fix release workflow (remove missing script references).
   - Acceptance: CI YAML is syntactically valid; no references to removed files.
-- [ ] P0-T05 Define internal data models
-  - `core/models.py`: `FilesystemEntry`, output envelope, error/warning structures.
-  - Acceptance: Data model matches plan.md section 8; mypy-clean.
-- [ ] P0-T06 Define common JSON response structure
-  - `output/json.py`: `schema_version`, `success`, `command`, `result`, `errors`, `warnings`, `complete`.
-  - Acceptance: Envelope matches plan.md section 4.3; round-trip JSON stable.
-- [ ] P0-T07 Implement centralized error handling
-  - `core/errors.py`: stable error codes, mapping to exit codes.
-  - Acceptance: Error codes map to exit codes 0–5; no broad exception swallowing.
-- [ ] P0-T08 Define process exit codes
-  - Documented in `cli.py`; exit codes 0/1/2/3/4/5.
-  - Acceptance: CLI returns correct exit codes for success/failure/conflict/access/incomplete.
-- [ ] P0-T09 Configure pytest and Ruff
-  - `pytest.ini`, Ruff config in `pyproject.toml`, coverage config.
-  - Acceptance: `make lint` and `make test` execute on empty/smoke suite.
-- [ ] P0-T10 Add initial README
-  - Sync from `docs/index.md`; remove GUI/executable references.
+- [x] P0-T05 Define internal data models
+  - `core/models.py`: `FilesystemEntry`, `EntryType` per plan.md section 8.
+  - Acceptance: data model matches plan.md section 8; mypy-clean.
+- [x] P0-T06 Define common JSON response structure
+  - `output/json.py`: `schema_version`, `success`, `command`, `result`, `errors`, `warnings`, `complete` per plan.md section 4.3.
+  - Acceptance: envelope matches plan.md section 4.3; stable round-trip JSON.
+- [x] P0-T07 Implement centralized error handling
+  - `core/errors.py`: stable error codes mapped to exit codes 1-5 via `EXIT_CODES`.
+  - Acceptance: error codes map to exit codes 1-5; no broad exception swallowing.
+- [x] P0-T08 Define process exit codes
+  - Documented in `cli.py`: 0/1/2/3/4/5.
+  - Acceptance: CLI returns correct exit codes for success/failure/invalid usage.
+- [x] P0-T09 Configure pytest and Ruff
+  - `pytest.ini`, Ruff config in `pyproject.toml`, coverage config in `pyproject.toml`.
+  - Acceptance: `make lint` and `make test` execute on smoke suite (config introduced with P0-T02).
+- [x] P0-T10 Add initial README
+  - Synced from `docs/index.md` via `make syncdocs`; GUI/executable references removed.
   - Acceptance: `make syncdocs` produces a valid README.
-- [ ] P0-T11 Add smoke tests
-  - `tests/conftest.py`, `tests/test_cli.py`, `tests/test_output.py`.
-  - `fs-tool --version`, `fs-tool --help`, JSON envelope, exit codes.
-  - Acceptance: `make test` green with smoke tests passing.
+- [x] P0-T11 Add smoke tests
+  - `tests/conftest.py`, `tests/test_cli.py`, `tests/test_output.py`: `--version`, `--help`, JSON envelope, exit codes.
+  - Acceptance: `make test` green with 27 smoke tests passing.
 
 **Milestone:** A working CLI with help output, version information and consistent JSON responses; `make check` green.
 
@@ -271,7 +269,17 @@ Issue: #2 "Cleanup legacy stuff" (existing GitHub issue; repurpose for Phase 0).
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
-|      |       |      |         |
+| 2026-11-06 | 0 | P0-T01 | Removed legacy template artefacts (GUI, config-cli-gui, config.yaml, PyInstaller builds, GPX examples, init.sh, template scripts, .idea run configs, HISTORY.md). |
+| 2026-11-06 | 0 | P0-T02 | Repaired pyproject.toml: typer, Python >=3.11, [metadata] extra (pypdf), fs_tool.cli:main entry point, src/ package discovery, ruff/mypy/coverage/pytest config; click pinned <8.2 for typer 0.12 help rendering. uv lock succeeds. |
+| 2026-11-06 | 0 | P0-T03 | Repaired Makefile: install, lock, fmt, lint, test, check, syncdocs, docs, build, clean targets; fmt has no side effects beyond formatting. Pre-commit hook now runs make check. |
+| 2026-11-06 | 0 | P0-T04 | Repaired CI: main.yml matrix 3.11/3.13 on linux/macOS/windows with uv sync + metadata extra; release.yml changelog from git log (removed missing release_message.sh); PyInstaller build workflows removed. |
+| 2026-11-06 | 0 | P0-T05 | core/models.py: FilesystemEntry and EntryType per plan.md section 8. |
+| 2026-11-06 | 0 | P0-T06 | output/json.py: envelope with schema_version/success/command/result/errors/warnings/complete; stable key order and round-trip JSON. |
+| 2026-11-06 | 0 | P0-T07 | core/errors.py: stable error codes mapped to exit codes 1-5 via EXIT_CODES; FsToolError base class. |
+| 2026-11-06 | 0 | P0-T08 | cli.py: exit codes 0/1/2/3/4/5 documented; CLI returns 0 for --version/--help, 2 for invalid usage. |
+| 2026-11-06 | 0 | P0-T09 | pytest.ini and pyproject.toml [tool.pytest]/[tool.ruff]/[tool.coverage] configuration (introduced with P0-T02). |
+| 2026-11-06 | 0 | P0-T10 | docs/index.md adjusted (Python >=3.11); README.md regenerated via make syncdocs from docs/index.md. |
+| 2026-11-06 | 0 | P0-T11 | Smoke tests: tests/conftest.py, tests/test_cli.py (27 tests), tests/test_output.py; make test green. |
 
 ---
 
