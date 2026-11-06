@@ -11,8 +11,8 @@ and performing file operations.
 [![Read the Docs](https://readthedocs.org/projects/fs-tool/badge/?version=stable)](https://fs-tool.readthedocs.io/en/stable/)
 [![License](https://img.shields.io/github/license/pamagister/fs-tool)](https://github.com/pamagister/fs-tool/blob/main/LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/pamagister/fs-tool)](https://github.com/pamagister/fs-tool/issues)
-[![PyPI](https://img.shields.io/pypi/v/fs-tool)](https://pypi.org/project/fs-tool/)
-[![Downloads](https://pepy.tech/badge/fs-tool)](https://pepy.tech/project/fs-tool/)
+[![PyPI](https://img.shields.io/pypi/v/fs-tool)](https://pypi.org/project/fs-tool-cli/)
+[![Downloads](https://pepy.tech/badge/fs-tool)](https://pepy.tech/project/fs-tool-cli/)
 
 
 ## Project Vision

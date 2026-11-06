@@ -1,5 +1,5 @@
 [project]
-name = "fs-tool"
+name = "fs-tool-cli"
 dynamic = ["version"]
 description = "Lightweight, secure CLI for inspecting and organizing local filesystems."
 authors = [

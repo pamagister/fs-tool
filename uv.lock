@@ -105,7 +105,7 @@ toml = [
 ]
 
 [[package]]
-name = "fs-tool"
+name = "fs-tool-cli"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
