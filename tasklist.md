@@ -69,7 +69,9 @@ Issue: #2 "Cleanup legacy stuff" (existing GitHub issue; repurpose for Phase 0).
 
 ## Phase 1 – Filesystem Core and Safety
 
-- [ ] P1-T01 Implement path normalization
+Issue: #3 "Phase 1: Filesystem Core and Safety".
+
+- [x] P1-T01 Implement path normalization
 - [ ] P1-T02 Implement allowed-root restrictions (Home + CWD default)
 - [ ] P1-T03 Implement path traversal protection
 - [ ] P1-T04 Implement symlink detection and handling
@@ -269,6 +271,7 @@ Issue: #2 "Cleanup legacy stuff" (existing GitHub issue; repurpose for Phase 0).
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 1 | P1-T01 | core/filesystem.py: normalize_path (lexical, ~ expansion, absolute, collapses ./..) and resolve_path (symlink-aware); tests in tests/test_traversal.py. |
 | 2026-11-06 | 0 | P0-T01 | Removed legacy template artefacts (GUI, config-cli-gui, config.yaml, PyInstaller builds, GPX examples, init.sh, template scripts, .idea run configs, HISTORY.md). |
 | 2026-11-06 | 0 | P0-T02 | Repaired pyproject.toml: typer, Python >=3.11, [metadata] extra (pypdf), fs_tool.cli:main entry point, src/ package discovery, ruff/mypy/coverage/pytest config; click pinned <8.2 for typer 0.12 help rendering. uv lock succeeds. |
 | 2026-11-06 | 0 | P0-T03 | Repaired Makefile: install, lock, fmt, lint, test, check, syncdocs, docs, build, clean targets; fmt has no side effects beyond formatting. Pre-commit hook now runs make check. |
