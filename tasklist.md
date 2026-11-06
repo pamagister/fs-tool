@@ -6,7 +6,7 @@ Status:
 - `[x]` Completed
 - `[~]` Deferred
 
-Current state: Phase 2 (Inspection Commands) is complete. Phase 3 (Search and Analysis) is in progress.
+Current state: Phase 2 (Inspection Commands) is complete. Phase 3 (Search and Analysis) is complete.
 
 ## Decisions (see plan.md section 2)
 
@@ -181,6 +181,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 - [x] P3-T24 Implement `schema_version` check for inventory files
 
 **Milestone:** Reliable filesystem analysis and integrity verification.
+`make check` green: 171 tests passing, ruff/format/mypy clean.
 
 ---
 
