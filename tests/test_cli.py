@@ -65,6 +65,8 @@ def test_command_group_help(cli: Any, command: str, capsys: Any) -> None:
 
 
 @pytest.mark.parametrize("command", ["inspect", "find", "duplicates", "compare", "verify", "write"])
-def test_command_group_requires_subcommand(cli: Any, command: str) -> None:
-    """A command group with no subcommand is a usage error: exit 2."""
-    assert cli([command]) == 2
+def test_command_group_bare_shows_help(cli: Any, command: str, capsys: Any) -> None:
+    """A command group with no subcommand shows its help: exit 0."""
+    assert cli([command]) == 0
+    output = capsys.readouterr().out
+    assert command in output

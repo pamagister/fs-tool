@@ -7,12 +7,18 @@ The package is also runnable as ``python -m fs_tool``.
 from __future__ import annotations
 
 import sys
+from dataclasses import asdict
+from pathlib import Path
 
 import typer
 from click.exceptions import ClickException
 from click.exceptions import Exit as ClickExit
 
+from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
+from fs_tool.core.traversal import traverse
+from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
+from fs_tool.safety.validation import validate_path
 
 try:
     from importlib.metadata import PackageNotFoundError
@@ -90,6 +96,54 @@ def _resolve_format(
     return format_value
 
 
+def merge_globals(
+    ctx: typer.Context,
+    *,
+    allow_root: list[str] | None = None,
+    config: str | None = None,
+    format_value: str | None = None,
+    json_output: bool | None = None,
+    plain_output: bool | None = None,
+    version: bool = False,
+) -> None:
+    """Merge subcommand-level global options into the CLI context.
+
+    The root callback has already populated the context from root-level
+    options; subcommand-level options override them. The configuration
+    may only restrict allowed roots, never expand them (decision D4).
+    """
+    if version:
+        typer.echo(f"fs-tool {__version__}")
+        raise typer.Exit(EXIT_SUCCESS)
+
+    if config is not None:
+        ctx.obj.config = config
+    if allow_root is not None:
+        # Re-resolve the config with the subcommand's CLI roots.
+        config_obj = load_config(
+            config_path=ctx.obj.config, cli_roots=tuple(Path(root) for root in allow_root)
+        )
+        ctx.obj.allow_root = [str(root) for root in config_obj.allowed_roots]
+    if format_value is not None:
+        ctx.obj.output_format = format_value
+    if json_output is not None:
+        ctx.obj.json_output = json_output
+    if plain_output is not None:
+        ctx.obj.plain_output = plain_output
+
+    if ctx.obj.json_output and ctx.obj.plain_output:
+        raise FsToolError(
+            "--json and --plain are mutually exclusive.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+    ctx.obj.output_format = _resolve_format(
+        ctx.obj.output_format,
+        ctx.obj.json_output,
+        ctx.obj.plain_output,
+        sys.stdout.isatty(),
+    )
+
+
 @app.callback()
 def _root(
     ctx: typer.Context,
@@ -113,27 +167,34 @@ def _root(
     ``--help``/``--version`` are documented exceptions to the JSON
     envelope (plan.md section 4.3).
     """
-    if version:
-        typer.echo(f"fs-tool {__version__}")
-        raise typer.Exit(EXIT_SUCCESS)
-
     ctx.obj = CliContext(
+        allow_root=[],
+        config=None,
+        output_format="auto",
+        json_output=False,
+        plain_output=False,
+    )
+    merge_globals(
+        ctx,
         allow_root=list(allow_root),
         config=config,
-        output_format=_resolve_format(format_value, json_output, plain_output, sys.stdout.isatty()),
+        format_value=format_value,
         json_output=json_output,
         plain_output=plain_output,
+        version=version,
     )
 
 
 # Command groups are registered without commands in Phase 0; commands
 # are implemented in later phases.
-inspect_group = typer.Typer(name="inspect", help="Inspect the filesystem.")
-find_group = typer.Typer(name="find", help="Find filesystem entries.")
-duplicates_group = typer.Typer(name="duplicates", help="Find duplicate files.")
-compare_group = typer.Typer(name="compare", help="Compare directory trees.")
-verify_group = typer.Typer(name="verify", help="Verify filesystem state.")
-write_group = typer.Typer(name="write", help="Write operations.")
+inspect_group = typer.Typer(name="inspect", help="Inspect the filesystem.", no_args_is_help=True)
+find_group = typer.Typer(name="find", help="Find filesystem entries.", no_args_is_help=True)
+duplicates_group = typer.Typer(
+    name="duplicates", help="Find duplicate files.", no_args_is_help=True
+)
+compare_group = typer.Typer(name="compare", help="Compare directory trees.", no_args_is_help=True)
+verify_group = typer.Typer(name="verify", help="Verify filesystem state.", no_args_is_help=True)
+write_group = typer.Typer(name="write", help="Write operations.", no_args_is_help=True)
 
 for group in (
     inspect_group,
@@ -144,6 +205,73 @@ for group in (
     write_group,
 ):
     app.add_typer(group)
+
+
+@inspect_group.command(name="tree")
+def inspect_tree(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Directory to traverse."),
+    max_depth: int | None = typer.Option(None, "--max-depth", help="Maximum recursion depth."),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries."
+    ),
+    dirs_only: bool = typer.Option(False, "--dirs-only", help="Directory entries only."),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+) -> int:
+    """Display a directory tree (JSON by default, plain with --plain).
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain tree /tmp``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+    result = traverse(
+        root,
+        max_depth=max_depth,
+        max_entries=max_entries,
+        dirs_only=dirs_only,
+        ignore_dirs=frozenset(ignore_dir),
+        ignore_patterns=tuple(ignore_pattern),
+    )
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_tree
+
+        typer.echo(render_tree(result.entries, root))
+        for error in result.errors:
+            print(
+                f"fs-tool: error: {error.message} ({error.path})",
+                file=sys.stderr,
+            )
+        return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
+
+    entry_dicts = [asdict(entry) for entry in result.entries]
+    errors = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
+        for error in result.errors
+    )
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=True,
+        command="inspect.tree",
+        result={
+            "root": str(root),
+            "entries": entry_dicts,
+            "count": len(entry_dicts),
+        },
+        errors=errors,
+        complete=result.complete,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
 
 
 def main(argv: list[str] | None = None) -> int:

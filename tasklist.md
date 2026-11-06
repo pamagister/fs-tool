@@ -91,16 +91,18 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 ## Phase 2 – Inspection Commands
 
+Issue: #4 "Phase 2: Inspection Commands".
+
 ### `inspect tree`
 
-- [ ] P2-T01 Implement recursive tree generation
-- [ ] P2-T02 Implement configurable maximum depth
-- [ ] P2-T03 Implement entry limits
-- [ ] P2-T04 Implement ignored directories and patterns
-- [ ] P2-T05 Implement directory-only mode
-- [ ] P2-T06 Implement plain tree rendering
-- [ ] P2-T07 Implement optional metadata summaries
-- [ ] P2-T08 Implement optional Python code structure
+- [x] P2-T01 Implement recursive tree generation
+- [x] P2-T02 Implement configurable maximum depth
+- [x] P2-T03 Implement entry limits
+- [x] P2-T04 Implement ignored directories and patterns
+- [x] P2-T05 Implement directory-only mode
+- [x] P2-T06 Implement plain tree rendering
+- [x] P2-T07 Implement optional metadata summaries
+- [~] P2-T08 Implement optional Python code structure (deferred to Phase 6 per roadmap)
 
 ### `inspect info`
 
@@ -288,6 +290,21 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 | 2026-11-06 | 0 | P0-T09 | pytest.ini and pyproject.toml [tool.pytest]/[tool.ruff]/[tool.coverage] configuration (introduced with P0-T02). |
 | 2026-11-06 | 0 | P0-T10 | docs/index.md adjusted (Python >=3.11); README.md regenerated via make syncdocs from docs/index.md. |
 | 2026-11-06 | 0 | P0-T11 | Smoke tests: tests/conftest.py, tests/test_cli.py (27 tests), tests/test_output.py; make test green. |
+| 2026-11-06 | 1 | P1-T08 | core/traversal.py: MIME type detection via mimetypes.guess_type. |
+| 2026-11-06 | 1 | P1-T09 | core/hashing.py: sha256_of_file with O_NOFOLLOW where available; symlinks and special files yield None; tests in tests/test_hashing.py. |
+| 2026-11-06 | 1 | P1-T10 | core/traversal.py completeness flag; test max_entries truncation sets complete=False. |
+| 2026-11-06 | 1 | P1-T11 | tests/test_traversal.py covers the inaccessible-root error; permission-based cases are not deterministically testable as root. |
+| 2026-11-06 | 1 | P1-T12 | tests/test_traversal.py and tests/test_safety.py cover symlinks and path escapes. |
+| 2026-11-06 | 1 | P1-T13 | tests/test_safety.py covers allowed-root restrictions (default roots, explicit allow-root, rejection outside roots). |
+| 2026-11-06 | 1 | P1-T14 | core/config.py: TOML config loader; XDG_CONFIG_HOME/fs-tool/config.toml; --config override; CLI > Config > Defaults; roots intersected with CLI roots so config may only restrict; tests in tests/test_config.py. |
+| 2026-11-06 | 2 | P2-T01 | cli.py: inspect tree command with path validation, traversal, JSON envelope, completeness flag, exit codes. |
+| 2026-11-06 | 2 | P2-T02 | cli.py: --max-depth option on inspect tree. |
+| 2026-11-06 | 2 | P2-T03 | cli.py: --max-entries option on inspect tree (truncation sets complete=false). |
+| 2026-11-06 | 2 | P2-T04 | cli.py: --ignore-dir and --ignore-pattern options; default ignore set (.git, __pycache__, ...). |
+| 2026-11-06 | 2 | P2-T05 | cli.py: --dirs-only option on inspect tree. |
+| 2026-11-06 | 2 | P2-T06 | output/plain.py: plain tree rendering; cli.py: --plain global option support (before the command). |
+| 2026-11-06 | 2 | P2-T07 | cli.py: inspect tree JSON result carries full per-entry metadata (timestamps, mode, owner, MIME, ...). |
+| 2026-11-06 | 2 | P2-T08 | Deferred to Phase 6 (Python AST analysis per roadmap). |
 
 ---
 
