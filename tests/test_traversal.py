@@ -162,3 +162,16 @@ def test_traversal_special_file_is_unsupported(tmp_path: Path) -> None:
     pipes = [e for e in result.entries if e.name == "pipe"]
     assert len(pipes) == 1
     assert pipes[0].type is EntryType.OTHER
+
+
+def test_traversal_entries_have_metadata(tmp_path: Path) -> None:
+    (tmp_path / "note.txt").write_text("hello")
+    result = traverse(tmp_path)
+    entry = result.entries[0]
+    assert entry.mode is not None and entry.mode.startswith(("-", "d", "l"))
+    assert entry.modified.endswith("+00:00")
+    assert entry.accessed.endswith("+00:00")
+    assert entry.changed.endswith("+00:00")
+    assert entry.created is None or entry.created.endswith("+00:00")
+    assert entry.owner is None or isinstance(entry.owner, str)
+    assert entry.dev_ino is not None

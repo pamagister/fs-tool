@@ -77,7 +77,7 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 - [x] P1-T04 Implement symlink detection and handling
 - [x] P1-T05 Implement recursive directory traversal
 - [x] P1-T06 Implement deterministic sorting
-- [ ] P1-T07 Implement file and directory metadata extraction
+- [x] P1-T07 Implement file and directory metadata extraction
 - [ ] P1-T08 Implement MIME type detection
 - [ ] P1-T09 Implement SHA-256 hashing
 - [ ] P1-T10 Implement scan completeness and error reporting
@@ -271,6 +271,7 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 1 | P1-T07 | core/traversal.py: entries carry accessed/changed/created timestamps, mode, owner (POSIX), dev:inode; tests assert metadata presence. |
 | 2026-11-06 | 1 | P1-T06 | core/traversal.py: children are deterministically sorted by name (sort_by parameter); tests prove stable ordering. |
 | 2026-11-06 | 1 | P1-T05 | core/traversal.py: recursive traversal with depth/entry limits, ignore dirs and patterns, dirs-only, symlink recording without following, error collection, completeness flag; tests in tests/test_traversal.py. |
 | 2026-11-06 | 1 | P1-T04 | symlink_components() detects symlink components via lstat without following links; traversal never follows symlinks by default. |

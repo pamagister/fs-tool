@@ -11,6 +11,7 @@ from __future__ import annotations
 import fnmatch
 import os
 import stat
+import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -97,6 +98,20 @@ def _build_entry(path: Path, root: Path, follow_symlinks: bool = False) -> Files
         except OSError:
             stat_result = None
 
+    owner: str | None = None
+    if sys.platform != "win32":
+        from pwd import getpwuid  # POSIX only; Windows has no pwd module
+
+        try:
+            owner = getpwuid(lst.st_uid).pw_name
+        except KeyError:  # pragma: no cover - POSIX without uid entry
+            owner = None
+
+    created: str | None = None
+    birthtime = getattr(lst, "st_birthtime", None)
+    if birthtime is not None:
+        created = _iso_timestamp(birthtime)
+
     return FilesystemEntry(
         path=str(path),
         name=path.name,
@@ -105,7 +120,11 @@ def _build_entry(path: Path, root: Path, follow_symlinks: bool = False) -> Files
         extension=path.suffix.lower() if path.suffix else None,
         size=lst.st_size,
         modified=_iso_timestamp(lst.st_mtime),
+        accessed=_iso_timestamp(lst.st_atime),
+        changed=_iso_timestamp(lst.st_ctime),
+        created=created,
         mode=stat.filemode(lst.st_mode),
+        owner=owner,
         is_symlink=is_symlink,
         target=target,
         dev_ino=f"{lst.st_dev}:{lst.st_ino}",
