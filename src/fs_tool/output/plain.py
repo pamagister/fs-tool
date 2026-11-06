@@ -120,3 +120,19 @@ def render_inventory(inventory: dict[str, Any], root: Path) -> str:
     if inventory.get("tree_hash"):
         lines.append(f"tree_hash: {inventory['tree_hash']}")
     return "\n".join(lines)
+
+
+def render_find(entries: list[FilesystemEntry], root: Path) -> str:
+    """Render search results as plain-text lines.
+
+    Each line shows rel_path, type, and size.
+    """
+    lines: list[str] = [f"find: {root}"]
+    for entry in entries:
+        rel_path = entry.rel_path or entry.name
+        line = f"  {rel_path} [{entry.type.value}]"
+        if entry.size is not None:
+            line += f" size={entry.size}"
+        lines.append(line)
+    lines.append(f"count: {len(entries)}")
+    return "\n".join(lines)

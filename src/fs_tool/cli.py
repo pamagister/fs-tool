@@ -20,6 +20,7 @@ from click.exceptions import ClickException
 from click.exceptions import Exit as ClickExit
 
 from fs_tool import __version__
+from fs_tool.core.analysis.search import find_entries, parse_size
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
@@ -581,6 +582,172 @@ def inspect_read(
     )
     typer.echo(envelope.to_json())
     return EXIT_SUCCESS
+
+
+@find_group.command(name="entries")
+def find_entries_cmd(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Directory to search."),
+    name: str | None = typer.Option(
+        None, "--name", help="Match filenames against a glob pattern (repeatable)."
+    ),
+    extension: str | None = typer.Option(
+        None, "--extension", help="Filter by file extension (e.g. py, .pdf)."
+    ),
+    entry_type: str | None = typer.Option(
+        None, "--type", help="Filter by entry type: file, directory, symlink, other."
+    ),
+    min_size: str | None = typer.Option(
+        None, "--min-size", help="Minimum file size (e.g. 1K, 2M, 1G)."
+    ),
+    max_size: str | None = typer.Option(
+        None, "--max-size", help="Maximum file size (e.g. 1K, 2M, 1G)."
+    ),
+    modified_after: str | None = typer.Option(
+        None, "--modified-after", help="Entries modified at or after this ISO-8601 timestamp."
+    ),
+    modified_before: str | None = typer.Option(
+        None, "--modified-before", help="Entries modified at or before this ISO-8601 timestamp."
+    ),
+    max_depth: int | None = typer.Option(None, "--max-depth", help="Maximum recursion depth."),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries to scan."
+    ),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+) -> int:
+    """Find filesystem entries matching filters.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain find entries ~/Documents --name "*.pdf"``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+
+    type_enum: EntryType | None = None
+    if entry_type is not None:
+        try:
+            type_enum = EntryType(entry_type.lower())
+        except ValueError:
+            envelope = Envelope(
+                schema_version=SCHEMA_VERSION,
+                success=False,
+                command="find.entries",
+                result=None,
+                errors=(
+                    Error(
+                        code=ErrorCode.INVALID_ARGUMENT,
+                        message=(
+                            f"Invalid --type value {entry_type!r}; "
+                            "use file, directory, symlink or other."
+                        ),
+                        path=str(root),
+                    ),
+                ),
+                complete=False,
+            )
+            typer.echo(envelope.to_json())
+            return EXIT_INVALID_ARGS
+
+    min_size_int: int | None = None
+    if min_size is not None:
+        try:
+            min_size_int = parse_size(min_size)
+        except ValueError as exc:
+            envelope = Envelope(
+                schema_version=SCHEMA_VERSION,
+                success=False,
+                command="find.entries",
+                result=None,
+                errors=(
+                    Error(
+                        code=ErrorCode.INVALID_ARGUMENT,
+                        message=f"Invalid --min-size value {min_size!r}: {exc}",
+                        path=str(root),
+                    ),
+                ),
+                complete=False,
+            )
+            typer.echo(envelope.to_json())
+            return EXIT_INVALID_ARGS
+
+    max_size_int: int | None = None
+    if max_size is not None:
+        try:
+            max_size_int = parse_size(max_size)
+        except ValueError as exc:
+            envelope = Envelope(
+                schema_version=SCHEMA_VERSION,
+                success=False,
+                command="find.entries",
+                result=None,
+                errors=(
+                    Error(
+                        code=ErrorCode.INVALID_ARGUMENT,
+                        message=f"Invalid --max-size value {max_size!r}: {exc}",
+                        path=str(root),
+                    ),
+                ),
+                complete=False,
+            )
+            typer.echo(envelope.to_json())
+            return EXIT_INVALID_ARGS
+
+    matching, errors = find_entries(
+        root,
+        name_pattern=name,
+        extension=extension,
+        entry_type=type_enum,
+        min_size=min_size_int,
+        max_size=max_size_int,
+        modified_after=modified_after,
+        modified_before=modified_before,
+        max_depth=max_depth,
+        max_entries=max_entries,
+        ignore_dirs=frozenset(ignore_dir),
+        ignore_patterns=tuple(ignore_pattern),
+    )
+
+    entry_dicts = [asdict(entry) for entry in matching]
+    error_tuples = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=message, path=str(root)) for message in errors
+    )
+    complete = len(errors) == 0
+
+    result: dict[str, Any] = {
+        "root": str(root),
+        "entries": entry_dicts,
+        "count": len(entry_dicts),
+        "complete": complete,
+    }
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_find
+
+        typer.echo(render_find(matching, root))
+        if not complete:
+            print("fs-tool: error: scan incomplete", file=sys.stderr)
+        for message in errors:
+            print(f"fs-tool: error: {message}", file=sys.stderr)
+        return EXIT_INCOMPLETE if not complete else EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=complete,
+        command="find.entries",
+        result=result,
+        errors=error_tuples,
+        complete=complete,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_INCOMPLETE if not complete else EXIT_SUCCESS
 
 
 def main(argv: list[str] | None = None) -> int:

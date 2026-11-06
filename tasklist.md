@@ -6,7 +6,7 @@ Status:
 - `[x]` Completed
 - `[~]` Deferred
 
-Current state: Phase 0 (Project Foundation and Baseline) is complete.
+Current state: Phase 2 (Inspection Commands) is complete. Phase 3 (Search and Analysis) is in progress.
 
 ## Decisions (see plan.md section 2)
 
@@ -142,13 +142,15 @@ Issue: #4 "Phase 2: Inspection Commands".
 
 ## Phase 3 – Search and Analysis
 
+Issue: #5 "Phase 3: Search and Analysis".
+
 ### `find`
 
-- [ ] P3-T01 Implement filename pattern matching
-- [ ] P3-T02 Implement extension filtering
-- [ ] P3-T03 Implement file type filtering
-- [ ] P3-T04 Implement size filtering
-- [ ] P3-T05 Implement modification date filtering
+- [x] P3-T01 Implement filename pattern matching
+- [x] P3-T02 Implement extension filtering
+- [x] P3-T03 Implement file type filtering
+- [x] P3-T04 Implement size filtering
+- [x] P3-T05 Implement modification date filtering
 
 ### `duplicates`
 
@@ -316,7 +318,7 @@ Issue: #4 "Phase 2: Inspection Commands".
 | 2026-11-06 | 2 | P2-T09..P2-T13 | cli.py: inspect info command with single-path metadata (timestamps, permissions, owner, MIME, symlink); traversal._build_entry refactored to public build_entry; output/plain.py: render_info(); tests in tests/test_info.py; 9 new tests, 103 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T14 | core/metadata.py: document metadata extraction (PDF via optional pypdf, ODF/OOXML via stdlib zipfile/ElementTree); size limit 100 MiB; read-only, no code execution; --metadata flag on inspect info; tests using res/example_filesystem_unstructured fixtures; 4 new tests, 107 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T15..P2-T20 | cli.py: inspect inventory command with --hash, --tree-hash, --max-depth, --max-entries, --ignore-dir, --ignore-pattern, --dirs-only; _compute_tree_hash() with canonical JSON (excludes path/dev_ino/generated_at); output/plain.py: render_inventory(); tests in tests/test_inventory.py; 13 new tests, 120 total passing; make check green. |
-| 2026-11-06 | 2 | P2-T21..P2-T24 | cli.py: inspect read command with bounded UTF-8 reading, --max-bytes, truncation reporting, symlink/binary/directory rejection; tests in tests/test_read.py; 10 new tests, 130 total passing; make check green. |
+| 2026-11-06 | 3 | P3-T01..P3-T05 | core/analysis/search.py: filter_entries() with name/extension/type/size/modified filters; find_entries() traversal wrapper; cli.py: find entries command with --name, --extension, --type, --min-size, --max-size, --modified-after, --modified-before options; output/plain.py: render_find(); tests in tests/test_find.py; 18 new tests, 148 total passing; make check green. |
 
 ---
 
