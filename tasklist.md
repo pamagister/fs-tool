@@ -74,9 +74,9 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 - [x] P1-T01 Implement path normalization
 - [x] P1-T02 Implement allowed-root restrictions (Home + CWD default)
 - [x] P1-T03 Implement path traversal protection
-- [ ] P1-T04 Implement symlink detection and handling
-- [ ] P1-T05 Implement recursive directory traversal
-- [ ] P1-T06 Implement deterministic sorting
+- [x] P1-T04 Implement symlink detection and handling
+- [x] P1-T05 Implement recursive directory traversal
+- [x] P1-T06 Implement deterministic sorting
 - [ ] P1-T07 Implement file and directory metadata extraction
 - [ ] P1-T08 Implement MIME type detection
 - [ ] P1-T09 Implement SHA-256 hashing
@@ -271,6 +271,9 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 1 | P1-T06 | core/traversal.py: children are deterministically sorted by name (sort_by parameter); tests prove stable ordering. |
+| 2026-11-06 | 1 | P1-T05 | core/traversal.py: recursive traversal with depth/entry limits, ignore dirs and patterns, dirs-only, symlink recording without following, error collection, completeness flag; tests in tests/test_traversal.py. |
+| 2026-11-06 | 1 | P1-T04 | symlink_components() detects symlink components via lstat without following links; traversal never follows symlinks by default. |
 | 2026-11-06 | 1 | P1-T03 | safety/validation.py: validate_path now also rejects symlink-resolved escapes (traversal protection); symlink_components() detects symlink components via lstat without following links. |
 | 2026-11-06 | 1 | P1-T02 | safety/validation.py: allowed-root validation; default roots home + CWD (CWD of / not implicit); PathNotAllowedError maps to exit code 3; tests in tests/test_safety.py. |
 | 2026-11-06 | 1 | P1-T01 | core/filesystem.py: normalize_path (lexical, ~ expansion, absolute, collapses ./..) and resolve_path (symlink-aware); tests in tests/test_traversal.py. |
