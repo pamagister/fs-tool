@@ -97,6 +97,9 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 Issue: #4 "Phase 2: Inspection Commands".
 
+**Milestone reached:** Complete read-only filesystem inspection.
+`make check` green: 130 tests passing, ruff/format/mypy clean.
+
 ### `inspect tree`
 
 - [x] P2-T01 Implement recursive tree generation
