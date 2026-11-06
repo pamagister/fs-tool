@@ -6,6 +6,7 @@ Terminal output is optional and never influences filesystem operations.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from fs_tool.core.models import EntryType, FilesystemEntry
 
@@ -93,4 +94,29 @@ def render_info(entry: FilesystemEntry) -> str:
         lines.append(f"sha256: {entry.sha256}")
     if entry.metadata:
         lines.append(f"metadata: {entry.metadata}")
+    return "\n".join(lines)
+
+
+def render_inventory(inventory: dict[str, Any], root: Path) -> str:
+    """Render an inventory as plain-text lines.
+
+    Each line shows rel_path, type, size, and optional SHA-256 hash.
+    """
+    lines: list[str] = [f"inventory: {root}"]
+    entries = inventory.get("entries", [])
+    for entry in entries:
+        rel_path = entry.get("rel_path", ".")
+        entry_type = entry.get("type", "unknown")
+        size = entry.get("size")
+        sha256 = entry.get("sha256")
+        line = f"  {rel_path} [{entry_type}]"
+        if size is not None:
+            line += f" size={size}"
+        if sha256 is not None:
+            line += f" sha256={sha256}"
+        lines.append(line)
+    lines.append(f"count: {inventory.get('count', len(entries))}")
+    lines.append(f"complete: {inventory.get('complete', False)}")
+    if inventory.get("tree_hash"):
+        lines.append(f"tree_hash: {inventory['tree_hash']}")
     return "\n".join(lines)

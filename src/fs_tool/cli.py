@@ -6,9 +6,13 @@ The package is also runnable as ``python -m fs_tool``.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
 from dataclasses import asdict, replace
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 from click.exceptions import ClickException
@@ -17,6 +21,8 @@ from click.exceptions import Exit as ClickExit
 from fs_tool import __version__
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
+from fs_tool.core.hashing import sha256_of_file
+from fs_tool.core.models import EntryType
 from fs_tool.core.traversal import build_entry, traverse
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.safety.validation import validate_path
@@ -314,6 +320,119 @@ def inspect_info(
     )
     typer.echo(envelope.to_json())
     return EXIT_SUCCESS
+
+
+def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHEMA_VERSION) -> str:
+    """Compute a deterministic tree hash over inventory entries.
+
+    Entries are sorted by ``rel_path``. The absolute ``path`` field is
+    excluded from each entry. The result is versioned via
+    ``schema_version``. ``generated_at`` is never part of the hash input.
+    """
+    ordered = sorted(entries, key=lambda entry: entry.get("rel_path") or "")
+    hashable = {
+        "schema_version": schema_version,
+        "entries": [
+            {k: v for k, v in entry.items() if k not in ("path", "dev_ino")} for entry in ordered
+        ],
+    }
+    canonical = json.dumps(hashable, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@inspect_group.command(name="inventory")
+def inspect_inventory(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Directory to inventory."),
+    hash_files: bool = typer.Option(False, "--hash", help="Calculate SHA-256 hashes for files."),
+    tree_hash: bool = typer.Option(
+        False,
+        "--tree-hash",
+        help="Calculate aggregate tree hash (complete scans only).",
+    ),
+    max_depth: int | None = typer.Option(None, "--max-depth", help="Maximum recursion depth."),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries."
+    ),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+    dirs_only: bool = typer.Option(False, "--dirs-only", help="Directory entries only."),
+) -> int:
+    """Create a deterministic inventory of a directory tree.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain inspect inventory /tmp``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+    result = traverse(
+        root,
+        max_depth=max_depth,
+        max_entries=max_entries,
+        dirs_only=dirs_only,
+        ignore_dirs=frozenset(ignore_dir),
+        ignore_patterns=tuple(ignore_pattern),
+    )
+
+    entry_dicts = [asdict(entry) for entry in result.entries]
+
+    if hash_files:
+        hashed: list[dict[str, Any]] = []
+        for entry, entry_dict in zip(result.entries, entry_dicts):
+            if entry.type is EntryType.FILE:
+                entry_dict["sha256"] = sha256_of_file(entry.path)
+            hashed.append(entry_dict)
+        entry_dicts = hashed
+
+    errors = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
+        for error in result.errors
+    )
+
+    tree_hash_value: str | None = None
+    if tree_hash and result.complete:
+        tree_hash_value = _compute_tree_hash(entry_dicts)
+
+    inventory: dict[str, Any] = {
+        "root": str(root),
+        "entries": entry_dicts,
+        "count": len(entry_dicts),
+        "generated_at": datetime.now(tz=UTC).isoformat(),
+        "complete": result.complete,
+    }
+    if tree_hash_value is not None:
+        inventory["tree_hash"] = tree_hash_value
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_inventory
+
+        typer.echo(render_inventory(inventory, root))
+        if not result.complete:
+            print("fs-tool: error: scan incomplete", file=sys.stderr)
+        for error in result.errors:
+            print(
+                f"fs-tool: error: {error.message} ({error.path})",
+                file=sys.stderr,
+            )
+        return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=result.complete,
+        command="inspect.inventory",
+        result=inventory,
+        errors=errors,
+        complete=result.complete,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
 
 
 def main(argv: list[str] | None = None) -> int:
