@@ -19,6 +19,9 @@ ask for confirmation at every implementation step.
 
 ## Phase Preparation
 
+!!! CREATE AN ISSUE FOR THE PHASE IF NONE EXISTS. Search open issues first and reuse one only if it accurately represents the phase; otherwise create a phase issue with `gh issue create`. Issue creation for phases is authorized in this mode. 
+Do not create separate issues for individual tasks or work packages.
+
 1. Read `AGENTS.md`, this file, `AGENTS_GIT.md`, `plan.md`, and `tasklist.md`.
 2. Inspect repository status and existing changes; preserve unrelated user work.
 3. Identify the current phase, its tasks, acceptance criteria, and manageable
