@@ -87,7 +87,7 @@ def test_render_tree_shows_symlink_target(tmp_path: Path) -> None:
 def test_render_info_shows_all_metadata_fields() -> None:
     """Info renderer shows all available metadata fields."""
     entry = FilesystemEntry(
-        path="/home/user/docs/report.pdf",
+        path=str(Path("home") / "user" / "docs" / "report.pdf"),
         name="report.pdf",
         rel_path="docs/report.pdf",
         type=EntryType.FILE,
@@ -106,7 +106,8 @@ def test_render_info_shows_all_metadata_fields() -> None:
     )
 
     output = render_info(entry)
-    assert "path: /home/user/docs/report.pdf" in output
+    expected_path = str(Path("home") / "user" / "docs" / "report.pdf")
+    assert f"path: {expected_path}" in output
     assert "name: report.pdf" in output
     assert "type: file" in output
     assert "rel_path: docs/report.pdf" in output
@@ -147,8 +148,8 @@ def test_render_inventory_shows_entries_and_count() -> None:
         "complete": True,
     }
 
-    output = render_inventory(inventory, Path("/tmp/root"))
-    assert "inventory: /tmp/root" in output
+    output = render_inventory(inventory, Path("root"))
+    assert "inventory: root" in output
     assert "a.txt [file] size=10 sha256=aaa" in output
     assert "sub [directory]" in output
     assert "b.txt [file] size=20 sha256=bbb" in output
@@ -165,7 +166,7 @@ def test_render_inventory_shows_tree_hash() -> None:
         "tree_hash": "deadbeef",
     }
 
-    output = render_inventory(inventory, Path("/tmp/root"))
+    output = render_inventory(inventory, Path("root"))
     assert "tree_hash: deadbeef" in output
 
 
@@ -173,22 +174,22 @@ def test_render_find_shows_matching_entries() -> None:
     """Find renderer lists matching entries with type and size."""
     entries = [
         FilesystemEntry(
-            path="/tmp/root/a.txt",
+            path=str(Path("root") / "a.txt"),
             name="a.txt",
             rel_path="a.txt",
             type=EntryType.FILE,
             size=100,
         ),
         FilesystemEntry(
-            path="/tmp/root/sub",
+            path=str(Path("root") / "sub"),
             name="sub",
             rel_path="sub",
             type=EntryType.DIRECTORY,
         ),
     ]
 
-    output = render_find(entries, Path("/tmp/root"))
-    assert "find: /tmp/root" in output
+    output = render_find(entries, Path("root"))
+    assert "find: root" in output
     assert "a.txt [file] size=100" in output
     assert "sub [directory]" in output
     assert "count: 2" in output
@@ -307,7 +308,7 @@ def test_all_renderers_produce_deterministic_output() -> None:
     """All renderers produce identical output for identical input."""
     entries = [
         FilesystemEntry(
-            path="/tmp/root/a.txt",
+            path=str(Path("root") / "a.txt"),
             name="a.txt",
             rel_path="a.txt",
             type=EntryType.FILE,
@@ -315,8 +316,8 @@ def test_all_renderers_produce_deterministic_output() -> None:
         )
     ]
 
-    first = render_tree(entries, Path("/tmp/root"))
-    second = render_tree(entries, Path("/tmp/root"))
+    first = render_tree(entries, Path("root"))
+    second = render_tree(entries, Path("root"))
     assert first == second
 
     info_entry = entries[0]
@@ -325,10 +326,10 @@ def test_all_renderers_produce_deterministic_output() -> None:
     assert first == second
 
     inventory = {"entries": [asdict(entries[0])], "count": 1, "complete": True}
-    first = render_inventory(inventory, Path("/tmp/root"))
-    second = render_inventory(inventory, Path("/tmp/root"))
+    first = render_inventory(inventory, Path("root"))
+    second = render_inventory(inventory, Path("root"))
     assert first == second
 
-    first = render_find(entries, Path("/tmp/root"))
-    second = render_find(entries, Path("/tmp/root"))
+    first = render_find(entries, Path("root"))
+    second = render_find(entries, Path("root"))
     assert first == second
