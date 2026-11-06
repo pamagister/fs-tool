@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" version="1.1" creator="gpx.py -- https://github.com/tkrajina/gpxpy">
+  <metadata>
+    <name>Segeln Ibiza 2024</name>
+  </metadata>
+  <wpt lat="39.5656539" lon="2.6391644">
+    <ele>2</ele>
+    <name>2024-08-24_19-24_Sat-Palma-Arenal</name>
+    <hdop>3.8</hdop>
+  </wpt>
+  <wpt lat="39.5066807" lon="2.7355872">
+    <ele>5</ele>
+    <name>2024-08-25_11-20_Sun-Arenal-Santa_Ponca</name>
+    <hdop>4.2</hdop>
+  </wpt>
+  <wpt lat="39.5141273" lon="2.4727185">
+    <ele>9</ele>
+    <name>2024-08-26_07-02_Mon-Santa_Ponca-Cala_Blanca_Ibiza</name>
+    <hdop>3.8</hdop>
+  </wpt>
+  <wpt lat="39.1021779" lon="1.4844344">
+    <ele>3</ele>
+    <name>2024-08-27_10-03_Tue-Cala_Blanca_Ibiza-Sant_Antoni</name>
+    <hdop>3.8</hdop>
+  </wpt>
+  <wpt lat="38.9767008" lon="1.3015526">
+    <ele>4</ele>
+    <name>2024-08-28_10-18_Wed-Sant_Antoini-Espalmador-Cala_Sabina</name>
+    <hdop>3.8</hdop>
+  </wpt>
+  <wpt lat="38.6778588" lon="1.383642">
+    <ele>2</ele>
+    <name>2024-08-29_11-56_Thu-Cala_Sabina-Cova_Rosa-Cala_Xarraca</name>
+    <hdop>3.8</hdop>
+  </wpt>
+  <wpt lat="39.1017881" lon="1.5018629">
+    <ele>10</ele>
+    <name>2024-08-30_06-40_Fri-Cala_Xarraca-Palma</name>
+    <hdop>3.8</hdop>
+  </wpt>
+</gpx>

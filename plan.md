@@ -871,6 +871,9 @@ fs-tool/
 
 This is a proposed structure, not a requirement to create every module immediately. Modules should only be introduced when they have a clear responsibility.
 
+Use res/example_filesystem_unstructured as an example directory that contains unsorted files. You can build tests upon these files, if needed. You can also verify if the cli works with these real files. Consider that tests also run in github actions CI.
+
+
 ---
 
 ## 12. Implementation Roadmap
