@@ -131,7 +131,10 @@ def test_traversal_records_symlink_without_following(tmp_path: Path) -> None:
     result = traverse(tmp_path)
     links = [e for e in result.entries if e.is_symlink]
     assert len(links) == 1
-    assert links[0].target == str(target)
+    recorded = links[0].target
+    if recorded.startswith("\\\\?\\"):
+        recorded = recorded[4:]
+    assert recorded == str(target)
     assert not any(e.name == target.name for e in result.entries)
 
 
