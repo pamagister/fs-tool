@@ -46,8 +46,11 @@ def test_path_under_cwd_is_allowed(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 
 def test_path_outside_roots_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    other = tmp_path.parent / "fs-tool-safety-test-outside"
-    other.mkdir(exist_ok=True)
+    if sys.platform == "win32":
+        other = Path("C:/Windows")
+    else:
+        other = tmp_path.parent / "fs-tool-safety-test-outside"
+        other.mkdir(exist_ok=True)
     with pytest.raises(PathNotAllowedError) as exc:
         validate_path(other / "file.txt")
     assert exc.value.code.name == "ROOT_NOT_ALLOWED"
@@ -91,9 +94,11 @@ def test_symlink_within_roots_is_allowed(tmp_path: Path, monkeypatch: pytest.Mon
 
 def test_symlink_outside_roots_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    outside = tmp_path.parent / "fs-tool-safety-outside"
-    outside.mkdir(exist_ok=True)
-    (outside / "secret.txt").write_text("secret")
+    if sys.platform == "win32":
+        outside = Path("C:/Windows")
+    else:
+        outside = tmp_path.parent / "fs-tool-safety-outside"
+        outside.mkdir(exist_ok=True)
     link = tmp_path / "link.outside"
     link.symlink_to(outside)
     with pytest.raises(PathNotAllowedError):
