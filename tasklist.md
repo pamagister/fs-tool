@@ -282,6 +282,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 4 | CI follow-up | Windows CI showed the root-refusal test authorized the runner's current-drive root while pytest's temp directory was on C:. Derive the tested root from `tmp_path.anchor`; rerun CI pending. |
 | 2026-11-06 | 4 | CI follow-up | Windows CI then exposed unsupported `os.utime(..., follow_symlinks=False)` in file metadata preservation. Apply timestamps through the open descriptor, with an unsupported-platform fallback, and add regression coverage; rerun CI pending. |
 | 2026-11-06 | 4 | CI follow-up | The first pushed CI run exposed Windows-only mypy narrowing of rename-dispatch variables. Initialized the platform selector before branching; `mypy --platform win32 src/`, `make check` (197 tests), and the targeted operation tests pass. Rerun CI pending. |
 | 2026-11-06 | 4 | Milestone | `make check` passed with 198 tests; Ruff formatting/lint and Linux/Windows-targeted mypy clean. |

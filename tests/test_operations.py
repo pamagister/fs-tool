@@ -713,14 +713,15 @@ def test_write_move_rejects_special_files(cli: Any, tmp_path: Path) -> None:
 
 
 def test_write_move_refuses_filesystem_root(cli: Any, tmp_path: Path) -> None:
+    filesystem_root = Path(tmp_path.anchor)
     code, data = run_json(
         cli,
         [
             "--allow-root",
-            str(Path("/")),
+            str(filesystem_root),
             "write",
             "move",
-            str(Path("/")),
+            str(filesystem_root),
             str(tmp_path / "root-moved"),
             "--dry-run",
         ],
