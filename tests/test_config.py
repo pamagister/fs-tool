@@ -37,7 +37,8 @@ def test_explicit_config_path_is_used(tmp_path: Path, monkeypatch: pytest.Monkey
     default_config = tmp_path / "config" / "fs-tool" / "config.toml"
     _write_config(default_config, '[fs-tool]\nallowed_roots = ["/other"]\n')
     custom = tmp_path / "custom.toml"
-    _write_config(custom, f'[fs-tool]\nallowed_roots = ["{tmp_path}"]\n')
+    custom_root = str(tmp_path).replace("\\", "/")
+    _write_config(custom, f'[fs-tool]\nallowed_roots = ["{custom_root}"]\n')
     config = load_config(custom, cli_roots=(tmp_path,))
     # The default config is not used; only the explicitly given one applies.
     assert config.allowed_roots == (tmp_path,)
@@ -50,7 +51,8 @@ def test_config_from_xdg_config_home(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.chdir(home)
     config_home = _isolate_env(tmp_path, monkeypatch)
     config_path = config_home / "fs-tool" / "config.toml"
-    _write_config(config_path, f'[fs-tool]\nallowed_roots = ["{home}"]\n')
+    home_root = str(home).replace("\\", "/")
+    _write_config(config_path, f'[fs-tool]\nallowed_roots = ["{home_root}"]\n')
     config = load_config()
     assert config.allowed_roots == (home,)
 
@@ -61,9 +63,10 @@ def test_config_may_restrict_default_roots(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.chdir(home)
     config_path = tmp_path / "config.toml"
+    home_root = str(home).replace("\\", "/")
     _write_config(
         config_path,
-        f'[fs-tool]\nallowed_roots = ["{home}", "/mnt/nas"]\n',
+        f'[fs-tool]\nallowed_roots = ["{home_root}", "/mnt/nas"]\n',
     )
     config = load_config(config_path)
     assert config.allowed_roots == (home,)
