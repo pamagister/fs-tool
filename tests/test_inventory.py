@@ -58,13 +58,14 @@ def test_inventory_json_shape(tmp_path: Path) -> None:
     assert "delta.log" in names
 
 
-def test_inventory_entries_have_rel_path(tmp_path: Path) -> None:
+def test_inventory_entries_use_relative_paths_only(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = inventory_json(root)
     assert code == EXIT_SUCCESS
     for entry in data["result"]["entries"]:
         assert entry["rel_path"] is not None
-        assert Path(entry["path"]).relative_to(root) == Path(entry["rel_path"])
+        assert "path" not in entry
+        assert not Path(entry["rel_path"]).is_absolute()
 
 
 def test_inventory_with_hash(tmp_path: Path) -> None:
@@ -127,6 +128,20 @@ def test_inventory_max_entries_truncates(tmp_path: Path) -> None:
     assert data["success"] is False
     assert data["complete"] is False
     assert len(data["result"]["entries"]) == 2
+
+
+def test_inventory_hash_failure_is_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _make_tree(tmp_path)
+    monkeypatch.setattr("fs_tool.cli.sha256_of_file", lambda path: None)
+    code, data = inventory_json(root, "--hash", "--tree-hash")
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert data["result"]["complete"] is False
+    assert "tree_hash" not in data["result"]
+    assert any("Cannot hash" in error["message"] for error in data["errors"])
 
 
 def test_inventory_ignore_pattern(tmp_path: Path) -> None:

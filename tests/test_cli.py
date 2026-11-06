@@ -23,12 +23,12 @@ def test_help(cli: Any) -> None:
     assert cli(["--help"]) == 0
 
 
-def test_help_lists_command_groups(cli: Any, capsys: Any) -> None:
-    """The command groups from plan.md section 4.1 appear in help output."""
+def test_help_lists_commands(cli: Any, capsys: Any) -> None:
+    """The commands from plan.md section 4.1 appear in help output."""
     cli(["--help"])
     output = capsys.readouterr().out
-    for group in ("inspect", "find", "duplicates", "compare", "verify", "write"):
-        assert group in output
+    for command in ("inspect", "find", "duplicates", "compare", "verify", "write"):
+        assert command in output
 
 
 def test_no_arguments_shows_help(cli: Any) -> None:
@@ -46,11 +46,18 @@ def test_unknown_command_shows_diagnostic(cli: Any, capsys: pytest.CaptureFixtur
     assert "No such command" in capsys.readouterr().err
 
 
-def test_global_option_after_command_shows_diagnostic(
-    cli: Any, capsys: pytest.CaptureFixture[str]
+def test_global_option_after_command(
+    cli: Any, tmp_path: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert cli(["inspect", "tree", ".", "--format", "plain"]) == 2
-    assert "--format" in capsys.readouterr().err
+    (tmp_path / "note.txt").write_text("hello")
+    assert cli(["--allow-root", str(tmp_path), "inspect", "tree", str(tmp_path), "--plain"]) == 0
+    output = capsys.readouterr().out
+    assert "note.txt" in output
+
+
+def test_allow_root_after_command(cli: Any, tmp_path: Any) -> None:
+    (tmp_path / "note.txt").write_text("hello")
+    assert cli(["inspect", "info", str(tmp_path / "note.txt"), "--allow-root", str(tmp_path)]) == 0
 
 
 def test_json_and_plain_are_mutually_exclusive(cli: Any) -> None:
@@ -76,9 +83,15 @@ def test_command_group_help(cli: Any, command: str, capsys: Any) -> None:
     assert command in output
 
 
-@pytest.mark.parametrize("command", ["inspect", "find", "duplicates", "compare", "verify", "write"])
+@pytest.mark.parametrize("command", ["inspect", "verify", "write"])
 def test_command_group_bare_shows_help(cli: Any, command: str, capsys: Any) -> None:
     """A command group with no subcommand shows its help: exit 0."""
     assert cli([command]) == 0
     output = capsys.readouterr().out
     assert command in output
+
+
+@pytest.mark.parametrize("command", ["find", "duplicates", "compare"])
+def test_direct_command_requires_argument(cli: Any, command: str) -> None:
+    """Direct analysis commands require their path arguments: exit 2."""
+    assert cli([command]) == 2

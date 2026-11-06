@@ -83,7 +83,7 @@ def load_config(
     3. Defaults otherwise.
     """
     from fs_tool.core.filesystem import normalize_path
-    from fs_tool.safety.validation import default_allowed_roots
+    from fs_tool.safety.validation import default_allowed_roots, is_within_root
 
     path = Path(config_path) if config_path is not None else _default_config_path()
 
@@ -109,9 +109,14 @@ def load_config(
 
     if config_roots is not None:
         config_roots = tuple(dict.fromkeys(normalize_path(root) for root in config_roots))
-        # Intersection keeps CLI/default authorization: the configuration
-        # may only restrict roots, never expand them.
-        effective = tuple(root for root in base if root in config_roots)
+        # Keep configured roots that lie within an authorized base root.
+        # A broader configured root is ignored, so the configuration may
+        # only restrict access, never expand it.
+        effective = tuple(
+            root
+            for root in config_roots
+            if any(is_within_root(root, base_root) for base_root in base)
+        )
         return AppConfig(allowed_roots=effective)
 
     return AppConfig(allowed_roots=base)

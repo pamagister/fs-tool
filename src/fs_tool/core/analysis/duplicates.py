@@ -96,6 +96,8 @@ def find_duplicates(
 
     # Hash candidates with more than one same-size file.
     groups: list[DuplicateGroup] = []
+    errors = [error.message for error in result.errors]
+    complete = result.complete
     for size, candidates in by_size.items():
         if len(candidates) < 2:
             continue
@@ -103,6 +105,8 @@ def find_duplicates(
         for path, _dev_ino in candidates:
             digest = sha256_of_file(path)
             if digest is None:
+                complete = False
+                errors.append(f"Cannot hash {path}; duplicate detection is incomplete.")
                 continue
             by_hash.setdefault(digest, []).append(path)
         for digest, paths in by_hash.items():
@@ -118,8 +122,4 @@ def find_duplicates(
 
     groups.sort(key=lambda g: (-g.count, g.sha256))
 
-    return DuplicateResult(
-        groups=groups,
-        errors=[error.message for error in result.errors],
-        complete=result.complete,
-    )
+    return DuplicateResult(groups=groups, errors=errors, complete=complete)

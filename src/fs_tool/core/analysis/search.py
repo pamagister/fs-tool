@@ -106,7 +106,7 @@ def matches_modified_before(entry: FilesystemEntry, timestamp: str) -> bool:
 def filter_entries(
     entries: list[FilesystemEntry],
     *,
-    name_pattern: str | None = None,
+    name_patterns: tuple[str, ...] = (),
     extension: str | None = None,
     entry_type: EntryType | None = None,
     min_size: int | None = None,
@@ -116,12 +116,13 @@ def filter_entries(
 ) -> list[FilesystemEntry]:
     """Return entries matching all given filters.
 
-    Filters are combined with logical AND. An entry must satisfy every
-    specified filter to be included.
+    Filters are combined with logical AND; multiple name patterns are
+    combined with logical OR. An entry must satisfy every specified
+    filter to be included.
     """
     result: list[FilesystemEntry] = []
     for entry in entries:
-        if name_pattern is not None and not matches_name(entry, name_pattern):
+        if name_patterns and not any(matches_name(entry, pattern) for pattern in name_patterns):
             continue
         if extension is not None and not matches_extension(entry, extension):
             continue
@@ -155,15 +156,18 @@ def parse_size(value: str) -> int:
         number_part = value
         multiplier = 1
     try:
-        return int(float(number_part) * multiplier)
-    except ValueError as exc:
+        result = int(float(number_part) * multiplier)
+    except (ValueError, OverflowError) as exc:
         raise ValueError(f"invalid size value: {value!r}") from exc
+    if result < 0:
+        raise ValueError(f"size must not be negative: {value!r}")
+    return result
 
 
 def find_entries(
     root: Path,
     *,
-    name_pattern: str | None = None,
+    name_patterns: tuple[str, ...] = (),
     extension: str | None = None,
     entry_type: EntryType | None = None,
     min_size: int | None = None,
@@ -174,12 +178,13 @@ def find_entries(
     max_entries: int | None = None,
     ignore_dirs: frozenset[str] | None = None,
     ignore_patterns: tuple[str, ...] = (),
-) -> tuple[list[FilesystemEntry], list[str]]:
+) -> tuple[list[FilesystemEntry], list[str], bool]:
     """Traverse ``root`` and return entries matching all filters.
 
-    Returns a tuple of ``(matching_entries, error_messages)`` where
-    error_messages describes traversal errors encountered during the
-    scan.
+    Returns a tuple of ``(matching_entries, error_messages, complete)``
+    where error_messages describes traversal errors encountered during
+    the scan and ``complete`` is False when the scan was truncated or
+    could not read part of the tree.
     """
     from fs_tool.core.traversal import traverse
 
@@ -196,7 +201,7 @@ def find_entries(
 
     matching = filter_entries(
         result.entries,
-        name_pattern=name_pattern,
+        name_patterns=name_patterns,
         extension=extension,
         entry_type=entry_type,
         min_size=min_size,
@@ -205,4 +210,4 @@ def find_entries(
         modified_before=modified_before,
     )
 
-    return matching, errors
+    return matching, errors, result.complete

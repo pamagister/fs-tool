@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
@@ -31,31 +32,81 @@ class VerificationResult:
     complete: bool = True
 
 
+def _invalid_inventory(path: Path, message: str) -> FsToolError:
+    """Build a consistent error for malformed inventory files."""
+    return FsToolError(message, code=ErrorCode.INVALID_ARGUMENT, path=str(path))
+
+
 def _load_inventory(path: Path) -> dict[str, object]:
     """Load and validate an inventory JSON file.
 
+    Accepts both a bare inventory object (with top-level ``entries``)
+    and the full JSON envelope emitted by ``inspect inventory`` (where
+    the inventory is nested under ``result``). The schema version is
+    read from the envelope when present.
+
     Raises :class:`FsToolError` if the file cannot be read, is not
-    valid JSON, or has an unsupported schema version.
+    valid JSON, has an unsupported schema version, or has an unexpected
+    structure.
     """
     try:
         with path.open("r", encoding="utf-8") as f:
-            data: dict[str, object] = json.load(f)
+            data = json.load(f)
     except (OSError, json.JSONDecodeError) as exc:
-        raise FsToolError(
-            f"Cannot load inventory file {path}: {exc}",
-            code=ErrorCode.INVALID_ARGUMENT,
-            path=str(path),
-        ) from exc
+        raise _invalid_inventory(path, f"Cannot load inventory file {path}: {exc}") from exc
+
+    if not isinstance(data, dict):
+        raise _invalid_inventory(path, f"Invalid inventory file {path}: expected a JSON object.")
 
     schema_version = data.get("schema_version")
+    inventory: dict[str, object] = data
+    result_data = data.get("result")
+    if "entries" not in data and isinstance(result_data, dict):
+        inventory = result_data
+        schema_version = data.get("schema_version", inventory.get("schema_version"))
+
     if schema_version != 1:
-        raise FsToolError(
+        raise _invalid_inventory(
+            path,
             f"Unsupported inventory schema_version: {schema_version!r}; expected 1.",
-            code=ErrorCode.INVALID_ARGUMENT,
-            path=str(path),
         )
 
-    return data
+    entries = inventory.get("entries")
+    if not isinstance(entries, list):
+        raise _invalid_inventory(path, f"Invalid inventory file {path}: 'entries' must be a list.")
+
+    valid_types = {entry_type.value for entry_type in EntryType}
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise _invalid_inventory(
+                path, f"Invalid inventory entry at index {index}: expected an object."
+            )
+        rel_path = entry.get("rel_path")
+        if not isinstance(rel_path, str) or not rel_path:
+            raise _invalid_inventory(
+                path,
+                f"Invalid inventory entry at index {index}: 'rel_path' must be a non-empty string.",
+            )
+        entry_type = entry.get("type")
+        if not isinstance(entry_type, str) or entry_type not in valid_types:
+            raise _invalid_inventory(
+                path,
+                f"Invalid inventory entry {rel_path!r}: 'type' must be one of "
+                f"{', '.join(sorted(valid_types))}.",
+            )
+        sha256 = entry.get("sha256")
+        if sha256 is not None and not isinstance(sha256, str):
+            raise _invalid_inventory(
+                path, f"Invalid inventory entry {rel_path!r}: 'sha256' must be a string or null."
+            )
+
+    complete = inventory.get("complete", True)
+    if not isinstance(complete, bool):
+        raise _invalid_inventory(
+            path, f"Invalid inventory file {path}: 'complete' must be a boolean."
+        )
+
+    return inventory
 
 
 def _build_entry_map(entries: list[FilesystemEntry]) -> dict[str, FilesystemEntry]:
@@ -85,9 +136,7 @@ def verify_inventory(
     """
     data = _load_inventory(inventory_path)
 
-    inventory_entries = data.get("entries", [])
-    if not isinstance(inventory_entries, list):
-        inventory_entries = []
+    inventory_entries = cast(list[object], data["entries"])
     inventory_map: dict[str, dict[str, object]] = {}
     for entry in inventory_entries:
         if not isinstance(entry, dict):
@@ -107,6 +156,11 @@ def verify_inventory(
     result = VerificationResult()
     result.errors = [error.message for error in target_result.errors]
     result.complete = target_result.complete
+    if not bool(data.get("complete", True)):
+        result.complete = False
+        result.errors.append(
+            "Inventory was generated from an incomplete scan; verification is incomplete."
+        )
 
     target_map = _build_entry_map(target_result.entries)
 
@@ -132,7 +186,18 @@ def verify_inventory(
             result.changed.append(rel_path)
             continue
 
-        # Size mismatch
+        # Symlinks: compare the recorded target. Directory sizes are
+        # filesystem-specific and not portable, so only regular files
+        # are compared by size below.
+        if tgt_entry.type is EntryType.SYMLINK:
+            inv_target = inv_entry.get("target")
+            if isinstance(inv_target, str) and tgt_entry.target != inv_target:
+                result.changed.append(rel_path)
+            continue
+        if tgt_entry.type is not EntryType.FILE:
+            continue
+
+        # Size mismatch (regular files only)
         inv_size = inv_entry.get("size")
         if inv_size is not None and tgt_entry.size is not None:
             if inv_size != tgt_entry.size:
@@ -145,8 +210,8 @@ def verify_inventory(
         if inv_hash is not None:
             tgt_hash = sha256_of_file(tgt_entry.path)
             if tgt_hash is None:
-                result.hash_mismatch.append(rel_path)
-                result.changed.append(rel_path)
+                result.complete = False
+                result.errors.append(f"Cannot hash {rel_path}; verification is incomplete.")
             elif tgt_hash != inv_hash:
                 result.hash_mismatch.append(rel_path)
                 result.changed.append(rel_path)
@@ -214,7 +279,17 @@ def verify_tree(
             result.changed.append(rel_path)
             continue
 
-        # Size mismatch
+        # Symlinks: compare targets. Directory sizes are
+        # filesystem-specific and not portable, so only regular files
+        # are compared by size below.
+        if src_entry.type is EntryType.SYMLINK:
+            if src_entry.target != dst_entry.target:
+                result.changed.append(rel_path)
+            continue
+        if src_entry.type is not EntryType.FILE:
+            continue
+
+        # Size mismatch (regular files only)
         if src_entry.size is not None and dst_entry.size is not None:
             if src_entry.size != dst_entry.size:
                 result.size_mismatch.append(rel_path)
@@ -226,8 +301,8 @@ def verify_tree(
             src_hash = sha256_of_file(src_entry.path)
             dst_hash = sha256_of_file(dst_entry.path)
             if src_hash is None or dst_hash is None:
-                result.hash_mismatch.append(rel_path)
-                result.changed.append(rel_path)
+                result.complete = False
+                result.errors.append(f"Cannot hash {rel_path}; verification is incomplete.")
             elif src_hash != dst_hash:
                 result.hash_mismatch.append(rel_path)
                 result.changed.append(rel_path)

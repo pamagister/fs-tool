@@ -130,8 +130,10 @@ def compare_trees(
         dst_hash = sha256_of_file(dst_entry.path)
 
         if src_hash is None or dst_hash is None:
-            # Cannot hash one or both files; treat as changed
-            result.changed.append(rel_path)
+            # Cannot verify content; report the comparison as incomplete
+            # instead of claiming the file changed.
+            result.complete = False
+            result.errors.append(f"Cannot hash {rel_path}; comparison is incomplete.")
         elif src_hash == dst_hash:
             result.identical.append(rel_path)
         else:

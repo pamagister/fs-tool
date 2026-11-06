@@ -10,6 +10,7 @@ files.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -83,7 +84,7 @@ def _format_import(node: ast.AST) -> str:
     if isinstance(node, ast.Import):
         return ", ".join(alias.name for alias in node.names)
     if isinstance(node, ast.ImportFrom):
-        module = node.module or ""
+        module = "." * node.level + (node.module or "")
         names = ", ".join(alias.name for alias in node.names)
         return f"from {module} import {names}"
     return ""
@@ -143,18 +144,90 @@ def _extract_function(
     )
 
 
+def _instance_attribute_name(target: ast.expr) -> str | None:
+    """Return the attribute name for a ``self.<name>`` assignment target."""
+    if (
+        isinstance(target, ast.Attribute)
+        and isinstance(target.value, ast.Name)
+        and target.value.id == "self"
+    ):
+        return target.attr
+    return None
+
+
+def _assignment_target_names(target: ast.expr) -> Iterator[str]:
+    """Yield ``self.<name>`` names from an assignment target."""
+    name = _instance_attribute_name(target)
+    if name is not None:
+        yield name
+        return
+    if isinstance(target, ast.Tuple | ast.List):
+        for element in target.elts:
+            yield from _assignment_target_names(element)
+    elif isinstance(target, ast.Starred):
+        yield from _assignment_target_names(target.value)
+
+
+def _iter_nodes_outside_nested_scopes(node: ast.AST) -> Iterator[ast.AST]:
+    """Yield descendant nodes without entering nested functions or classes.
+
+    A nested function or class has its own ``self`` (or no ``self``), so
+    attributes assigned there must not be attributed to the enclosing
+    class.
+    """
+    for child in ast.iter_child_nodes(node):
+        yield child
+        if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+            continue
+        yield from _iter_nodes_outside_nested_scopes(child)
+
+
+def _extract_instance_attributes(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[PythonAttribute]:
+    """Extract ``self.<name>`` assignments from a method body."""
+    attributes: list[PythonAttribute] = []
+    seen: set[tuple[str, int]] = set()
+    for child in _iter_nodes_outside_nested_scopes(node):
+        targets: list[ast.expr] = []
+        line: int | None = None
+        if isinstance(child, ast.AnnAssign):
+            targets.append(child.target)
+            line = child.lineno
+        elif isinstance(child, ast.Assign):
+            targets.extend(child.targets)
+            line = child.lineno
+        if line is None:
+            continue
+        for target in targets:
+            for name in _assignment_target_names(target):
+                key = (name, line)
+                if key in seen:
+                    continue
+                seen.add(key)
+                attributes.append(
+                    PythonAttribute(
+                        name=name,
+                        line=line,
+                        is_class_attribute=False,
+                    )
+                )
+    return sorted(attributes, key=lambda attribute: attribute.line)
+
+
 def _extract_class(
     node: ast.ClassDef,
     include_docstrings: bool,
 ) -> PythonClass:
-    """Extract a class definition from an AST node, including methods
-    and class-level attributes."""
+    """Extract a class definition from an AST node, including methods,
+    class-level attributes and instance attributes assigned to ``self``."""
     methods: list[PythonFunction] = []
     attributes: list[PythonAttribute] = []
 
     for item in node.body:
         if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
             methods.append(_extract_function(item, include_docstrings))
+            attributes.extend(_extract_instance_attributes(item))
         elif isinstance(item, ast.AnnAssign) and item.target is not None:
             if isinstance(item.target, ast.Name):
                 attributes.append(

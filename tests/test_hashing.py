@@ -66,6 +66,16 @@ def test_sha256_distinguishes_different_contents(tmp_path: Path) -> None:
     assert sha256_of_file(a) != sha256_of_file(b)
 
 
+def test_sha256_rejects_path_replaced_after_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "data.bin"
+    path.write_bytes(b"content")
+    # Simulate the path being replaced by a directory between lstat and open.
+    monkeypatch.setattr("fs_tool.core.hashing.os.fstat", lambda fd: tmp_path.stat())
+    assert sha256_of_file(path) is None
+
+
 def test_sha256_identical_contents_same_digest(tmp_path: Path) -> None:
     a = tmp_path / "a.txt"
     b = tmp_path / "b.txt"

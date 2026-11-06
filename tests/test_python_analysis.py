@@ -161,6 +161,34 @@ class Calculator:
     assert cls.attributes[0].is_class_attribute is True
 
 
+def test_analyze_instance_attributes(tmp_path: Path) -> None:
+    """Instance attributes assigned to self are captured."""
+    path = write_py(
+        tmp_path,
+        "instance.py",
+        """\
+class Counter:
+    total: int = 0
+
+    def __init__(self, start: int) -> None:
+        self.value = start
+        self.items: list[int] = []
+
+    def reset(self) -> None:
+        self.value = 0
+""",
+    )
+
+    result = analyze_python_file(path)
+    assert result is not None
+    cls = result.classes[0]
+    class_attributes = [a for a in cls.attributes if a.is_class_attribute]
+    instance_attributes = [a for a in cls.attributes if not a.is_class_attribute]
+    assert [a.name for a in class_attributes] == ["total"]
+    assert sorted(a.name for a in instance_attributes) == ["items", "value", "value"]
+    assert all(a.line > 0 for a in instance_attributes)
+
+
 def test_analyze_decorators(tmp_path: Path) -> None:
     """Decorators are captured on functions and classes."""
     path = write_py(
@@ -365,3 +393,70 @@ def add(a: int, b: int) -> int:
 def test_size_limit_is_positive() -> None:
     """The size limit constant is a positive integer."""
     assert MAX_PYTHON_ANALYSIS_SIZE > 0
+
+
+def test_analyze_relative_imports(tmp_path: Path) -> None:
+    """Relative imports keep their leading dots."""
+    path = write_py(
+        tmp_path,
+        "relative.py",
+        """\
+from . import sibling
+from ..package import thing
+from .module import value
+""",
+    )
+
+    result = analyze_python_file(path)
+    assert result is not None
+    assert result.imports == [
+        "from . import sibling",
+        "from ..package import thing",
+        "from .module import value",
+    ]
+
+
+def test_analyze_instance_attributes_ignore_nested_scopes(tmp_path: Path) -> None:
+    """Attributes assigned to another scope's ``self`` are not captured."""
+    path = write_py(
+        tmp_path,
+        "nested_scope.py",
+        """\
+class Outer:
+    def method(self):
+        self.outer = 1
+
+        def inner():
+            self.inner = 2
+
+        class Nested:
+            def method(self):
+                self.nested = 3
+""",
+    )
+
+    result = analyze_python_file(path)
+    assert result is not None
+    cls = result.classes[0]
+    instance_attributes = [a for a in cls.attributes if not a.is_class_attribute]
+    assert [a.name for a in instance_attributes] == ["outer"]
+
+
+def test_analyze_instance_attributes_from_tuple_targets(tmp_path: Path) -> None:
+    """Tuple and starred assignment targets are captured."""
+    path = write_py(
+        tmp_path,
+        "tuple_targets.py",
+        """\
+class Multi:
+    def __init__(self):
+        self.a, self.b = 1, 2
+        self.c, *self.rest = [1, 2, 3]
+""",
+    )
+
+    result = analyze_python_file(path)
+    assert result is not None
+    cls = result.classes[0]
+    names = sorted(a.name for a in cls.attributes if not a.is_class_attribute)
+    assert names == ["a", "b", "c", "rest"]

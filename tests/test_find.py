@@ -1,4 +1,4 @@
-"""Tests for the ``find entries`` command (plan.md Phase 3, P3-T01..P3-T05)."""
+"""Tests for the ``find`` command (plan.md Phase 3, P3-T01..P3-T05)."""
 
 from __future__ import annotations
 
@@ -10,11 +10,18 @@ from pathlib import Path
 
 import pytest
 
-from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_INVALID_ARGS, EXIT_SUCCESS, main
+from fs_tool.cli import (
+    EXIT_ACCESS_DENIED,
+    EXIT_INCOMPLETE,
+    EXIT_INVALID_ARGS,
+    EXIT_SUCCESS,
+    main,
+)
+from fs_tool.core.analysis.search import parse_size
 
 
 def argv_for(source: Path, *extra: str) -> list[str]:
-    return ["--allow-root", str(source.parent), "find", "entries", str(source), *extra]
+    return ["--allow-root", str(source.parent), "find", str(source), *extra]
 
 
 def find_json(source: Path, *extra: str) -> tuple[int, dict]:
@@ -45,7 +52,7 @@ def test_find_json_shape(tmp_path: Path) -> None:
     code, data = find_json(root)
     assert code == EXIT_SUCCESS
     assert data["success"] is True
-    assert data["command"] == "find.entries"
+    assert data["command"] == "find"
     assert data["complete"] is True
     assert data["errors"] == []
     result = data["result"]
@@ -69,6 +76,37 @@ def test_find_name_pattern(tmp_path: Path) -> None:
     assert code == EXIT_SUCCESS
     names = [e["name"] for e in data["result"]["entries"]]
     assert names == ["alpha.txt", "link.txt", "delta.txt", "zeta.txt"]
+
+
+def test_find_name_patterns_are_combined_with_or(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--name", "*.txt", "--name", "*.py")
+    assert code == EXIT_SUCCESS
+    names = [e["name"] for e in data["result"]["entries"]]
+    assert names == [
+        "alpha.txt",
+        "beta.py",
+        "link.txt",
+        "delta.txt",
+        "epsilon.py",
+        "zeta.txt",
+    ]
+
+
+def test_find_invalid_modified_timestamp_is_rejected(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--modified-after", "not-a-timestamp")
+    assert code == EXIT_INVALID_ARGS
+    assert data["success"] is False
+    assert "--modified-after" in data["errors"][0]["message"]
+
+
+def test_find_invalid_modified_before_timestamp_is_rejected(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--modified-before", "2024-99-99")
+    assert code == EXIT_INVALID_ARGS
+    assert data["success"] is False
+    assert "--modified-before" in data["errors"][0]["message"]
 
 
 def test_find_extension_filter(tmp_path: Path) -> None:
@@ -155,6 +193,34 @@ def test_find_size_with_suffix(tmp_path: Path) -> None:
     assert "medium.txt" in names
 
 
+@pytest.mark.parametrize("value", ["inf", "-inf", "nan", "-1K"])
+def test_parse_size_rejects_non_finite_and_negative_values(value: str) -> None:
+    with pytest.raises(ValueError):
+        parse_size(value)
+
+
+def test_parse_size_accepts_binary_suffixes() -> None:
+    assert parse_size("1024") == 1024
+    assert parse_size("1K") == 1024
+    assert parse_size("2.5M") == int(2.5 * 1024**2)
+
+
+def test_find_rejects_infinite_size(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--min-size", "inf")
+    assert code == EXIT_INVALID_ARGS
+    assert data["success"] is False
+    assert "Invalid --min-size value" in data["errors"][0]["message"]
+
+
+def test_find_rejects_negative_size(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--min-size=-1K")
+    assert code == EXIT_INVALID_ARGS
+    assert data["success"] is False
+    assert "must not be negative" in data["errors"][0]["message"]
+
+
 def test_find_modified_after(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     future = datetime.now(tz=UTC).replace(year=2099).isoformat()
@@ -188,13 +254,13 @@ def test_find_no_matches(tmp_path: Path) -> None:
 
 
 def test_find_outside_allowed_root(tmp_path: Path) -> None:
-    code = main(["--allow-root", str(tmp_path), "find", "entries", "/etc/hostname"])
+    code = main(["--allow-root", str(tmp_path), "find", "/etc/hostname"])
     assert code == EXIT_ACCESS_DENIED
 
 
 def test_find_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     root = _make_tree(tmp_path)
-    code = main(["--allow-root", str(tmp_path), "--plain", "find", "entries", str(root)])
+    code = main(["--allow-root", str(tmp_path), "--plain", "find", str(root)])
     assert code == EXIT_SUCCESS
     output = capsys.readouterr().out
     assert f"find: {root}" in output
@@ -214,8 +280,16 @@ def test_find_incomplete_scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
     monkeypatch.setattr("fs_tool.core.traversal.os.scandir", scandir)
     code, data = find_json(tmp_path)
-    from fs_tool.cli import EXIT_INCOMPLETE
-
     assert code == EXIT_INCOMPLETE
     assert data["success"] is False
     assert data["complete"] is False
+
+
+def test_find_max_entries_is_incomplete(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--max-entries", "2")
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert data["result"]["complete"] is False
+    assert data["result"]["count"] == 2

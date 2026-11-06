@@ -1,4 +1,4 @@
-"""Tests for the ``duplicates files`` command (plan.md Phase 3, P3-T06..P3-T10)."""
+"""Tests for the ``duplicates`` command (plan.md Phase 3, P3-T06..P3-T10)."""
 
 from __future__ import annotations
 
@@ -9,11 +9,17 @@ from pathlib import Path
 
 import pytest
 
-from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_INVALID_ARGS, EXIT_SUCCESS, main
+from fs_tool.cli import (
+    EXIT_ACCESS_DENIED,
+    EXIT_INCOMPLETE,
+    EXIT_INVALID_ARGS,
+    EXIT_SUCCESS,
+    main,
+)
 
 
 def argv_for(source: Path, *extra: str) -> list[str]:
-    return ["--allow-root", str(source.parent), "duplicates", "files", str(source), *extra]
+    return ["--allow-root", str(source.parent), "duplicates", str(source), *extra]
 
 
 def duplicates_json(source: Path, *extra: str) -> tuple[int, dict]:
@@ -51,7 +57,7 @@ def test_duplicates_json_shape(tmp_path: Path) -> None:
     code, data = duplicates_json(root)
     assert code == EXIT_SUCCESS
     assert data["success"] is True
-    assert data["command"] == "duplicates.files"
+    assert data["command"] == "duplicates"
     assert data["complete"] is True
     assert data["errors"] == []
     result = data["result"]
@@ -107,17 +113,31 @@ def test_duplicates_no_duplicates(tmp_path: Path) -> None:
 
 
 def test_duplicates_outside_allowed_root(tmp_path: Path) -> None:
-    code = main(["--allow-root", str(tmp_path), "duplicates", "files", "/etc/hostname"])
+    code = main(["--allow-root", str(tmp_path), "duplicates", "/etc/hostname"])
     assert code == EXIT_ACCESS_DENIED
 
 
 def test_duplicates_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     root = _make_dup_tree(tmp_path)
-    code = main(["--allow-root", str(tmp_path), "--plain", "duplicates", "files", str(root)])
+    code = main(["--allow-root", str(tmp_path), "--plain", "duplicates", str(root)])
     assert code == EXIT_SUCCESS
     output = capsys.readouterr().out
     assert "duplicate groups:" in output
     assert "count=" in output
+
+
+def test_duplicates_hash_failure_is_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _make_dup_tree(tmp_path)
+    monkeypatch.setattr("fs_tool.core.analysis.duplicates.sha256_of_file", lambda path: None)
+    code, data = duplicates_json(root)
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert data["result"]["complete"] is False
+    assert data["result"]["duplicate_groups"] == []
+    assert any("Cannot hash" in error["message"] for error in data["errors"])
 
 
 def test_duplicates_invalid_min_size(tmp_path: Path) -> None:

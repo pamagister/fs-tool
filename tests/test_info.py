@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import sys
+import zipfile
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -12,6 +14,7 @@ import pytest
 
 from fs_tool.cli import (
     EXIT_ACCESS_DENIED,
+    EXIT_INCOMPLETE,
     EXIT_INVALID_ARGS,
     EXIT_SUCCESS,
     main,
@@ -172,6 +175,11 @@ def test_info_metadata_odf() -> None:
     for key in ("author", "title", "subject", "created", "modified"):
         assert key in metadata, f"metadata missing key: {key}"
         assert metadata[key] is None or isinstance(metadata[key], str)
+    assert metadata["author"] == "Paul L."
+    assert metadata["title"] is None
+    assert metadata["subject"] is None
+    assert metadata["created"] == "2011-06-05T22:57:17.68"
+    assert metadata["modified"] == "2011-06-08T12:58:03.17"
 
 
 def test_info_metadata_ooxml() -> None:
@@ -185,6 +193,11 @@ def test_info_metadata_ooxml() -> None:
     for key in ("author", "title", "subject", "created", "modified"):
         assert key in metadata, f"metadata missing key: {key}"
         assert metadata[key] is None or isinstance(metadata[key], str)
+    assert metadata["author"] == "Paul"
+    assert metadata["title"] == "Allgemeine Hinweise"
+    assert metadata["subject"] is None
+    assert metadata["created"] == "2005-11-05T19:28:00Z"
+    assert metadata["modified"] is not None
 
 
 def test_info_metadata_unsupported_returns_none(tmp_path: Path) -> None:
@@ -194,3 +207,60 @@ def test_info_metadata_unsupported_returns_none(tmp_path: Path) -> None:
     assert code == EXIT_SUCCESS
     result = data["result"]
     assert result["metadata"] is None
+
+
+def test_info_hash(tmp_path: Path) -> None:
+    file_path = tmp_path / "note.txt"
+    content = b"hello world"
+    file_path.write_bytes(content)
+
+    code, data = info_json(file_path, "--hash")
+    assert code == EXIT_SUCCESS
+    assert data["result"]["sha256"] == hashlib.sha256(content).hexdigest()
+
+
+def test_info_hash_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    file_path = tmp_path / "note.txt"
+    content = b"hello world"
+    file_path.write_bytes(content)
+
+    code = main(
+        ["--allow-root", str(tmp_path), "--plain", "inspect", "info", str(file_path), "--hash"]
+    )
+    assert code == EXIT_SUCCESS
+    assert f"sha256: {hashlib.sha256(content).hexdigest()}" in capsys.readouterr().out
+
+
+def test_info_hash_failure_is_incomplete(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    file_path = tmp_path / "note.txt"
+    file_path.write_text("hello")
+    monkeypatch.setattr("fs_tool.cli.sha256_of_file", lambda path: None)
+
+    code, data = info_json(file_path, "--hash")
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert data["result"]["sha256"] is None
+    assert data["errors"][0]["code"] == "INCOMPLETE_SCAN"
+
+
+def test_info_hash_directory_has_no_hash(tmp_path: Path) -> None:
+    directory = tmp_path / "subdir"
+    directory.mkdir()
+
+    code, data = info_json(directory, "--hash")
+    assert code == EXIT_SUCCESS
+    assert data["result"]["sha256"] is None
+
+
+def test_metadata_rejects_oversized_zip_member(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    odt_path = tmp_path / "oversized.odt"
+    with zipfile.ZipFile(odt_path, "w") as archive:
+        archive.writestr("meta.xml", "<meta>" + ("x" * 512) + "</meta>")
+    monkeypatch.setattr("fs_tool.core.metadata.MAX_ZIP_MEMBER_SIZE", 32)
+
+    code, data = info_json(odt_path, "--metadata")
+    assert code == EXIT_SUCCESS
+    assert data["result"]["metadata"] is None

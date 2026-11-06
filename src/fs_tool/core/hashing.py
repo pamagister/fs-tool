@@ -34,6 +34,8 @@ def sha256_of_file(path: str | Path) -> str | None:
     flags = os.O_RDONLY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW  # never follow a symlink at open time
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK  # do not block if the path became a FIFO
     try:
         fd = os.open(p, flags)
     except OSError:
@@ -42,6 +44,15 @@ def sha256_of_file(path: str | Path) -> str | None:
     digest = hashlib.sha256()
     try:
         with os.fdopen(fd, "rb") as f:
+            opened = os.fstat(f.fileno())
+            if (
+                not stat.S_ISREG(opened.st_mode)
+                or opened.st_dev != st.st_dev
+                or opened.st_ino != st.st_ino
+            ):
+                # The path was replaced or is no longer a regular file
+                # between lstat and open.
+                return None
             for chunk in iter(lambda: f.read(CHUNK_SIZE), b""):
                 digest.update(chunk)
     except OSError:

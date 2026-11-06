@@ -27,6 +27,11 @@ except ImportError:  # pragma: no cover - optional dependency
 # reading excessively large documents.
 MAX_METADATA_SIZE = 100 * 1024 * 1024
 
+# Maximum uncompressed size accepted for a single metadata XML member.
+# Guards against zip bombs that declare a small archive containing a
+# huge XML document.
+MAX_ZIP_MEMBER_SIZE = 10 * 1024 * 1024
+
 # Document extensions grouped by format.
 _PDF_EXTENSIONS = {".pdf"}
 _ODF_EXTENSIONS = {".odt", ".ods", ".odp", ".odg"}
@@ -124,16 +129,31 @@ def _extract_pdf_metadata(path: Path) -> dict[str, str | None] | None:
     }
 
 
+def _read_zip_member(archive: zipfile.ZipFile, name: str) -> bytes | None:
+    """Read one metadata member without exceeding the zip-bomb limit."""
+    try:
+        info = archive.getinfo(name)
+    except KeyError:
+        return None
+    if info.file_size > MAX_ZIP_MEMBER_SIZE:
+        return None
+    try:
+        data = archive.read(name)
+    except (zipfile.BadZipFile, OSError, KeyError, RuntimeError, EOFError, ValueError):
+        return None
+    if len(data) > MAX_ZIP_MEMBER_SIZE:
+        return None
+    return data
+
+
 def _extract_odf_metadata(path: Path) -> dict[str, str | None] | None:
     """Extract metadata from an ODF file (ODT/ODS/ODP/ODG) via zipfile/ElementTree."""
     try:
         with zipfile.ZipFile(path) as archive:
-            names = archive.namelist()
-            meta_name = "meta.xml"
-            if meta_name not in names:
-                return None
-            xml_text = archive.read(meta_name)
-    except (zipfile.BadZipFile, OSError, KeyError):
+            xml_text = _read_zip_member(archive, "meta.xml")
+    except (zipfile.BadZipFile, OSError):
+        return None
+    if xml_text is None:
         return None
 
     try:
@@ -143,26 +163,19 @@ def _extract_odf_metadata(path: Path) -> dict[str, str | None] | None:
 
     def find_text(local_name: str, prefix: str = "dc") -> str | None:
         ns = _ODF_NS.get(prefix, "")
-        tag = f"{{{ns}}}{local_name}"
-        element = root.find(tag)
-        return element.text if element is not None else None
+        element = root.find(f".//{{{ns}}}{local_name}")
+        return element.text if element is not None and element.text else None
 
-    created = find_text("date")
-    # ODF also stores creation/modification dates in meta: elements
-    if created is None:
-        for local_name in ("creation-date", "modification-date"):
-            tag = f"{{{_ODF_NS['meta']}}}{local_name}"
-            element = root.find(tag)
-            if element is not None and element.text:
-                created = element.text
-                break
-
+    # ODF stores bibliographic fields (dc:creator, dc:title, dc:subject)
+    # and system dates (meta:creation-date, dc:date) below office:meta.
+    # Use a descendant search because the root element is
+    # office:document-meta.
     return {
-        "author": find_text("creator"),
+        "author": find_text("creator") or find_text("initial-creator", "meta"),
         "title": find_text("title"),
         "subject": find_text("subject"),
-        "created": created,
-        "modified": None,
+        "created": find_text("creation-date", "meta"),
+        "modified": find_text("date") or find_text("modification-date", "meta"),
     }
 
 
@@ -170,12 +183,10 @@ def _extract_ooxml_metadata(path: Path) -> dict[str, str | None] | None:
     """Extract metadata from an OOXML file (DOCX/XLSX/PPTX) via zipfile/ElementTree."""
     try:
         with zipfile.ZipFile(path) as archive:
-            names = archive.namelist()
-            core_name = "docProps/core.xml"
-            if core_name not in names:
-                return None
-            xml_text = archive.read(core_name)
-    except (zipfile.BadZipFile, OSError, KeyError):
+            xml_text = _read_zip_member(archive, "docProps/core.xml")
+    except (zipfile.BadZipFile, OSError):
+        return None
+    if xml_text is None:
         return None
 
     try:

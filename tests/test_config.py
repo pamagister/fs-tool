@@ -84,6 +84,48 @@ def test_config_never_expands_cli_roots(tmp_path: Path, monkeypatch: pytest.Monk
     assert config.allowed_roots == ()
 
 
+def test_config_may_narrow_authorized_root_to_subdirectory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _isolate_env(tmp_path, monkeypatch)
+    authorized = tmp_path / "authorized"
+    narrowed = authorized / "project"
+    narrowed.mkdir(parents=True)
+    config_path = tmp_path / "config.toml"
+    narrowed_root = str(narrowed).replace("\\", "/")
+    _write_config(
+        config_path,
+        f'[fs-tool]\nallowed_roots = ["{narrowed_root}"]\n',
+    )
+
+    config = load_config(config_path, cli_roots=(authorized,))
+
+    assert config.allowed_roots == (narrowed,)
+
+
+def test_config_ignores_broader_configured_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _isolate_env(tmp_path, monkeypatch)
+    authorized = tmp_path / "authorized"
+    narrowed = authorized / "project"
+    narrowed.mkdir(parents=True)
+    config_path = tmp_path / "config.toml"
+    broader_root = str(tmp_path).replace("\\", "/")
+    narrowed_root = str(narrowed).replace("\\", "/")
+    _write_config(
+        config_path,
+        f'[fs-tool]\nallowed_roots = ["{broader_root}", "{narrowed_root}"]\n',
+    )
+
+    config = load_config(config_path, cli_roots=(authorized,))
+
+    # The broader parent root is ignored; only the narrowing subdirectory remains.
+    assert config.allowed_roots == (narrowed,)
+
+
 def test_cli_roots_replace_default_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     _isolate_env(tmp_path, monkeypatch)

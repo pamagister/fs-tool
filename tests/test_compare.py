@@ -1,4 +1,4 @@
-"""Tests for the ``compare trees`` command (plan.md Phase 3, P3-T11..P3-T18)."""
+"""Tests for the ``compare`` command (plan.md Phase 3, P3-T11..P3-T18)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_SUCCESS, main
+from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_INCOMPLETE, EXIT_SUCCESS, main
 
 
 def argv_for(source: Path, destination: Path, *extra: str) -> list[str]:
@@ -17,7 +17,6 @@ def argv_for(source: Path, destination: Path, *extra: str) -> list[str]:
         "--allow-root",
         str(source.parent),
         "compare",
-        "trees",
         str(source),
         str(destination),
         *extra,
@@ -75,7 +74,7 @@ def test_compare_json_shape(tmp_path: Path) -> None:
     code, data = compare_json(source, destination)
     assert code == EXIT_SUCCESS
     assert data["success"] is True
-    assert data["command"] == "compare.trees"
+    assert data["command"] == "compare"
     assert data["complete"] is True
     assert data["errors"] == []
     result = data["result"]
@@ -112,7 +111,6 @@ def test_compare_outside_allowed_root(tmp_path: Path) -> None:
             "--allow-root",
             str(tmp_path),
             "compare",
-            "trees",
             str(source),
             "/etc/hostname",
         ]
@@ -128,7 +126,6 @@ def test_compare_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]
             str(tmp_path),
             "--plain",
             "compare",
-            "trees",
             str(source),
             str(destination),
         ]
@@ -141,6 +138,20 @@ def test_compare_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     assert "unexpected" in output
     assert "type_conflicts" in output
     assert "complete:" in output
+
+
+def test_compare_hash_failure_is_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source, destination = _make_compare_trees(tmp_path)
+    monkeypatch.setattr("fs_tool.core.analysis.comparison.sha256_of_file", lambda path: None)
+    code, data = compare_json(source, destination)
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert data["result"]["complete"] is False
+    assert data["result"]["changed"] == []
+    assert any("Cannot hash" in error["message"] for error in data["errors"])
 
 
 def test_compare_subdirectory(tmp_path: Path) -> None:

@@ -24,8 +24,8 @@ from fs_tool.core.analysis.search import find_entries, parse_size
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
-from fs_tool.core.models import EntryType
-from fs_tool.core.traversal import build_entry, traverse
+from fs_tool.core.models import EntryType, FilesystemEntry
+from fs_tool.core.traversal import TraversalError, build_entry, traverse
 from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
@@ -189,22 +189,10 @@ def _root(
 # Command groups are registered without commands in Phase 0; commands
 # are implemented in later phases.
 inspect_group = typer.Typer(name="inspect", help="Inspect the filesystem.", no_args_is_help=True)
-find_group = typer.Typer(name="find", help="Find filesystem entries.", no_args_is_help=True)
-duplicates_group = typer.Typer(
-    name="duplicates", help="Find duplicate files.", no_args_is_help=True
-)
-compare_group = typer.Typer(name="compare", help="Compare directory trees.", no_args_is_help=True)
 verify_group = typer.Typer(name="verify", help="Verify filesystem state.", no_args_is_help=True)
 write_group = typer.Typer(name="write", help="Write operations.", no_args_is_help=True)
 
-for group in (
-    inspect_group,
-    find_group,
-    duplicates_group,
-    compare_group,
-    verify_group,
-    write_group,
-):
+for group in (inspect_group, verify_group, write_group):
     app.add_typer(group)
 
 
@@ -286,6 +274,9 @@ def inspect_info(
         "--metadata",
         help="Extract document metadata (PDF/ODF/OOXML) or Python source analysis.",
     ),
+    hash_file: bool = typer.Option(
+        False, "--hash", help="Calculate the SHA-256 hash of a regular file."
+    ),
 ) -> int:
     """Inspect metadata for a single file or directory.
 
@@ -324,6 +315,31 @@ def inspect_info(
                 meta["python"] = module_to_dict(py_module)
         entry = replace(entry, metadata=meta or None)
 
+    if hash_file:
+        digest = sha256_of_file(root) if entry.type is EntryType.FILE else None
+        entry = replace(entry, sha256=digest)
+        if entry.type is EntryType.FILE and digest is None:
+            message = f"Cannot hash {root}"
+            if ctx.obj.output_format == "plain":
+                print(f"fs-tool: error: {message}", file=sys.stderr)
+                return EXIT_INCOMPLETE
+            envelope = Envelope(
+                schema_version=SCHEMA_VERSION,
+                success=False,
+                command="inspect.info",
+                result=asdict(entry),
+                errors=(
+                    Error(
+                        code=ErrorCode.INCOMPLETE_SCAN.value,
+                        message=message,
+                        path=str(root),
+                    ),
+                ),
+                complete=False,
+            )
+            typer.echo(envelope.to_json())
+            return EXIT_INCOMPLETE
+
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_info
 
@@ -340,6 +356,17 @@ def inspect_info(
     )
     typer.echo(envelope.to_json())
     return EXIT_SUCCESS
+
+
+def _inventory_entry_dict(entry: FilesystemEntry) -> dict[str, Any]:
+    """Serialize an entry for an inventory without its absolute path.
+
+    Inventories are portable: entries are addressed by ``rel_path``
+    relative to the declared root (plan.md section 5.1).
+    """
+    data = asdict(entry)
+    data.pop("path", None)
+    return data
 
 
 def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHEMA_VERSION) -> str:
@@ -402,15 +429,21 @@ def inspect_inventory(
         ignore_patterns=tuple(ignore_pattern),
     )
 
-    entry_dicts = [asdict(entry) for entry in result.entries]
-
-    if hash_files:
-        hashed: list[dict[str, Any]] = []
-        for entry, entry_dict in zip(result.entries, entry_dicts):
-            if entry.type is EntryType.FILE:
-                entry_dict["sha256"] = sha256_of_file(entry.path)
-            hashed.append(entry_dict)
-        entry_dicts = hashed
+    entry_dicts: list[dict[str, Any]] = []
+    for entry in result.entries:
+        entry_dict = _inventory_entry_dict(entry)
+        if hash_files and entry.type is EntryType.FILE:
+            digest = sha256_of_file(entry.path)
+            entry_dict["sha256"] = digest
+            if digest is None:
+                result.complete = False
+                result.errors.append(
+                    TraversalError(
+                        path=entry.path,
+                        message=f"Cannot hash {entry.path}",
+                    )
+                )
+        entry_dicts.append(entry_dict)
 
     errors = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
@@ -602,12 +635,12 @@ def inspect_read(
     return EXIT_SUCCESS
 
 
-@find_group.command(name="entries")
-def find_entries_cmd(
+@app.command(name="find")
+def find_cmd(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="Directory to search."),
-    name: str | None = typer.Option(
-        None, "--name", help="Match filenames against a glob pattern (repeatable)."
+    name: list[str] = typer.Option(
+        [], "--name", help="Match filenames against a glob pattern (repeatable)."
     ),
     extension: str | None = typer.Option(
         None, "--extension", help="Filter by file extension (e.g. py, .pdf)."
@@ -644,8 +677,7 @@ def find_entries_cmd(
 ) -> int:
     """Find filesystem entries matching filters.
 
-    Global options such as ``--plain`` and ``--allow-root`` precede
-    the command, e.g. ``fs-tool --plain find entries ~/Documents --name "*.pdf"``.
+    Example: ``fs-tool find ~/Documents --name "*.pdf" --plain``.
     """
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
@@ -657,7 +689,7 @@ def find_entries_cmd(
             envelope = Envelope(
                 schema_version=SCHEMA_VERSION,
                 success=False,
-                command="find.entries",
+                command="find",
                 result=None,
                 errors=(
                     Error(
@@ -682,7 +714,7 @@ def find_entries_cmd(
             envelope = Envelope(
                 schema_version=SCHEMA_VERSION,
                 success=False,
-                command="find.entries",
+                command="find",
                 result=None,
                 errors=(
                     Error(
@@ -704,7 +736,7 @@ def find_entries_cmd(
             envelope = Envelope(
                 schema_version=SCHEMA_VERSION,
                 success=False,
-                command="find.entries",
+                command="find",
                 result=None,
                 errors=(
                     Error(
@@ -718,9 +750,38 @@ def find_entries_cmd(
             typer.echo(envelope.to_json())
             return EXIT_INVALID_ARGS
 
-    matching, errors = find_entries(
+    for option_name, timestamp in (
+        ("--modified-after", modified_after),
+        ("--modified-before", modified_before),
+    ):
+        if timestamp is None:
+            continue
+        try:
+            datetime.fromisoformat(timestamp)
+        except ValueError:
+            envelope = Envelope(
+                schema_version=SCHEMA_VERSION,
+                success=False,
+                command="find",
+                result=None,
+                errors=(
+                    Error(
+                        code=ErrorCode.INVALID_ARGUMENT,
+                        message=(
+                            f"Invalid {option_name} value {timestamp!r}; "
+                            "expected an ISO-8601 timestamp."
+                        ),
+                        path=str(root),
+                    ),
+                ),
+                complete=False,
+            )
+            typer.echo(envelope.to_json())
+            return EXIT_INVALID_ARGS
+
+    matching, errors, complete = find_entries(
         root,
-        name_pattern=name,
+        name_patterns=tuple(name),
         extension=extension,
         entry_type=type_enum,
         min_size=min_size_int,
@@ -737,7 +798,6 @@ def find_entries_cmd(
     error_tuples = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=message, path=str(root)) for message in errors
     )
-    complete = len(errors) == 0
 
     result: dict[str, Any] = {
         "root": str(root),
@@ -759,7 +819,7 @@ def find_entries_cmd(
     envelope = Envelope(
         schema_version=SCHEMA_VERSION,
         success=complete,
-        command="find.entries",
+        command="find",
         result=result,
         errors=error_tuples,
         complete=complete,
@@ -768,8 +828,8 @@ def find_entries_cmd(
     return EXIT_INCOMPLETE if not complete else EXIT_SUCCESS
 
 
-@duplicates_group.command(name="files")
-def duplicates_files(
+@app.command(name="duplicates")
+def duplicates_cmd(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="Directory to search for duplicates."),
     min_size: str = typer.Option(
@@ -797,8 +857,7 @@ def duplicates_files(
     Uses file size as an initial filter, then SHA-256 hashing for
     same-size candidates. Hardlinks are not counted as duplicates.
 
-    Global options such as ``--plain`` and ``--allow-root`` precede
-    the command, e.g. ``fs-tool --plain duplicates files ~/Archive``.
+    Example: ``fs-tool duplicates ~/Archive --plain``.
     """
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
@@ -808,7 +867,7 @@ def duplicates_files(
         envelope = Envelope(
             schema_version=SCHEMA_VERSION,
             success=False,
-            command="duplicates.files",
+            command="duplicates",
             result=None,
             errors=(
                 Error(
@@ -871,7 +930,7 @@ def duplicates_files(
     envelope = Envelope(
         schema_version=SCHEMA_VERSION,
         success=dup_result.complete,
-        command="duplicates.files",
+        command="duplicates",
         result=result,
         errors=error_tuples,
         complete=dup_result.complete,
@@ -880,8 +939,8 @@ def duplicates_files(
     return EXIT_INCOMPLETE if not dup_result.complete else EXIT_SUCCESS
 
 
-@compare_group.command(name="trees")
-def compare_trees_cmd(
+@app.command(name="compare")
+def compare_cmd(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="Source directory to compare."),
     destination: Path = typer.Argument(..., help="Destination directory to compare."),
@@ -904,8 +963,7 @@ def compare_trees_cmd(
     Identifies identical, missing, changed, unexpected, type-conflict,
     and unsupported entries using relative paths and SHA-256 hashing.
 
-    Global options such as ``--plain`` and ``--allow-root`` precede
-    the command, e.g. ``fs-tool --plain compare trees ~/Docs ~/Docs_Backup``.
+    Example: ``fs-tool compare ~/Docs ~/Docs_Backup --plain``.
     """
     source_root = validate_path(source, tuple(ctx.obj.allow_root))
     dest_root = validate_path(destination, tuple(ctx.obj.allow_root))
@@ -950,7 +1008,7 @@ def compare_trees_cmd(
     envelope = Envelope(
         schema_version=SCHEMA_VERSION,
         success=comparison.complete,
-        command="compare.trees",
+        command="compare",
         result=result,
         errors=error_tuples,
         complete=comparison.complete,
@@ -1275,6 +1333,56 @@ def write_move(
     return _emit_write_report(ctx, report)
 
 
+_GLOBAL_FLAGS = frozenset({"--json", "--plain", "--version"})
+_GLOBAL_VALUE_OPTIONS = frozenset({"--allow-root", "--config", "--format"})
+
+
+def _hoist_global_options(args: list[str]) -> list[str]:
+    """Move root-level global options before the command.
+
+    Click requires group options to precede the command name, but the
+    plan documents forms such as ``fs-tool inspect tree ~/Projects
+    --plain``. Moving these options keeps both forms working without
+    duplicating the definitions on every subcommand.
+    """
+    global_args: list[str] = []
+    remaining: list[str] = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--":
+            remaining.extend(args[index:])
+            break
+        if arg in _GLOBAL_FLAGS:
+            global_args.append(arg)
+            index += 1
+            continue
+
+        matched_option = False
+        for option in _GLOBAL_VALUE_OPTIONS:
+            if arg == option:
+                global_args.append(arg)
+                if index + 1 < len(args):
+                    global_args.append(args[index + 1])
+                    index += 2
+                else:
+                    index += 1
+                matched_option = True
+                break
+            if arg.startswith(f"{option}="):
+                global_args.append(arg)
+                index += 1
+                matched_option = True
+                break
+        if matched_option:
+            continue
+
+        remaining.append(arg)
+        index += 1
+
+    return global_args + remaining
+
+
 def main(argv: list[str] | None = None) -> int:
     """Application entry point.
 
@@ -1287,7 +1395,7 @@ def main(argv: list[str] | None = None) -> int:
     * 4 - operation conflict
     * 5 - incomplete scan or verification
     """
-    args = list(sys.argv[1:] if argv is None else argv)
+    args = _hoist_global_options(list(sys.argv[1:] if argv is None else argv))
 
     # ``--version`` is handled up front: typer only invokes the root
     # callback when a subcommand is selected
