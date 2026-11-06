@@ -27,6 +27,7 @@ from fs_tool.core.hashing import sha256_of_file
 from fs_tool.core.models import EntryType
 from fs_tool.core.traversal import build_entry, traverse
 from fs_tool.operations.common import OperationReport
+from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.safety.validation import validate_path
@@ -1200,6 +1201,34 @@ def write_mkdir(
         )
     except FsToolError as exc:
         return _emit_write_error(ctx, "write.mkdir", exc)
+    return _emit_write_report(ctx, report)
+
+
+@write_group.command(name="copy")
+def write_copy(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="File or directory to copy."),
+    destination: Path = typer.Argument(..., help="New destination path."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the planned operation only."),
+    yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
+    symlinks: str = typer.Option(
+        "error",
+        "--symlinks",
+        help="Symbolic-link policy: error, copy or skip (default: error).",
+    ),
+) -> int:
+    """Copy files or directory trees without following symlinks implicitly."""
+    try:
+        report = copy_path(
+            source,
+            destination,
+            allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            dry_run=dry_run,
+            yes=yes,
+            symlinks=symlinks,
+        )
+    except FsToolError as exc:
+        return _emit_write_error(ctx, "write.copy", exc)
     return _emit_write_report(ctx, report)
 
 

@@ -6,6 +6,7 @@ import os
 import stat
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
 
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.safety.validation import validate_path
@@ -80,7 +81,7 @@ def require_directory(path: Path) -> os.stat_result:
     return info
 
 
-def raise_operation_os_error(action: str, path: Path, error: OSError) -> None:
+def raise_operation_os_error(action: str, path: Path, error: OSError) -> NoReturn:
     """Translate a filesystem error into a stable fs-tool error."""
     if isinstance(error, PermissionError):
         code = ErrorCode.ACCESS_DENIED

@@ -205,14 +205,14 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 ### `write copy`
 
-- [ ] P4-T11 Implement regular file copying
-- [ ] P4-T12 Implement safe destination creation
-- [ ] P4-T13 Preserve metadata where appropriate
-- [ ] P4-T14 Verify copied contents
-- [ ] P4-T15 Implement recursive directory copying
-- [ ] P4-T16 Define explicit symlink handling
-- [ ] P4-T17 Implement Dry-Run
-- [ ] P4-T18 Add tests for conflicts and partial failures
+- [x] P4-T11 Implement regular file copying
+- [x] P4-T12 Implement safe destination creation
+- [x] P4-T13 Preserve metadata where appropriate
+- [x] P4-T14 Verify copied contents
+- [x] P4-T15 Implement recursive directory copying
+- [x] P4-T16 Define explicit symlink handling
+- [x] P4-T17 Implement Dry-Run
+- [x] P4-T18 Add tests for conflicts and partial failures
 
 ### `write move`
 
@@ -282,6 +282,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 4 | P4-T11..P4-T18 | Added preflighted regular-file and recursive directory copying; publication uses an exclusive hard-link step, file data is SHA-256 verified, and mode/timestamps are preserved. Added explicit symlink error/copy/skip policies, special-entry rejection, dry-run, no-overwrite checks, and structured partial-failure reporting with tests. |
 | 2026-11-06 | 4 | P4-T01..P4-T03, P4-T07..P4-T10 | Added shared operation reports and exact `--dry-run`/`--yes` authorization; `write mkdir` supports explicit parent creation, idempotent existing directories, conflicts, allowed-root validation, and JSON/plain reporting. Added seven mkdir behavior and safety tests. |
 | 2026-11-06 | 1 | P1-T07 | core/traversal.py: entries carry accessed/changed/created timestamps, mode, owner (POSIX), dev:inode; tests assert metadata presence. |
 | 2026-11-06 | 1 | P1-T06 | core/traversal.py: children are deterministically sorted by name (sort_by parameter); tests prove stable ordering. |
