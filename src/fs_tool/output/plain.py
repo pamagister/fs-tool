@@ -94,6 +94,29 @@ def render_info(entry: FilesystemEntry) -> str:
         lines.append(f"sha256: {entry.sha256}")
     if entry.metadata:
         lines.append(f"metadata: {entry.metadata}")
+        if isinstance(entry.metadata, dict) and entry.metadata.get("python"):
+            py = entry.metadata["python"]
+            lines.append("  python analysis:")
+            if py.get("docstring"):
+                lines.append(f"    docstring: {py['docstring']}")
+            if py.get("imports"):
+                lines.append(f"    imports: {', '.join(py['imports'])}")
+            for func in py.get("functions", []):
+                args = ", ".join(func.get("args", []))
+                ret = func.get("returns")
+                ret_str = f" -> {ret}" if ret else ""
+                async_str = "async " if func.get("is_async") else ""
+                lines.append(
+                    f"    {async_str}def {func['name']}({args}){ret_str} at line {func['line']}"
+                )
+            for cls in py.get("classes", []):
+                bases = f"({', '.join(cls['bases'])})" if cls.get("bases") else ""
+                lines.append(f"    class {cls['name']}{bases} at line {cls['line']}")
+                for method in cls.get("methods", []):
+                    args = ", ".join(method.get("args", []))
+                    lines.append(f"      def {method['name']}({args}) at line {method['line']}")
+                for attr in cls.get("attributes", []):
+                    lines.append(f"      attr {attr['name']} at line {attr['line']}")
     return "\n".join(lines)
 
 

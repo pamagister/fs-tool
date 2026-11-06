@@ -282,7 +282,9 @@ def inspect_info(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="File or directory to inspect."),
     metadata: bool = typer.Option(
-        False, "--metadata", help="Extract document metadata (PDF/ODF/OOXML)."
+        False,
+        "--metadata",
+        help="Extract document metadata (PDF/ODF/OOXML) or Python source analysis.",
     ),
 ) -> int:
     """Inspect metadata for a single file or directory.
@@ -306,9 +308,21 @@ def inspect_info(
         return exc.exit_code
 
     if metadata:
+        from fs_tool.core.analysis.python_analysis import (
+            analyze_python_file,
+            module_to_dict,
+        )
         from fs_tool.core.metadata import extract_metadata
 
-        entry = replace(entry, metadata=extract_metadata(root))
+        meta: dict[str, Any] = {}
+        doc_meta = extract_metadata(root)
+        if doc_meta is not None:
+            meta.update(doc_meta)
+        if root.suffix.lower() == ".py":
+            py_module = analyze_python_file(root)
+            if py_module is not None:
+                meta["python"] = module_to_dict(py_module)
+        entry = replace(entry, metadata=meta or None)
 
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_info

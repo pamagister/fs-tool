@@ -6,7 +6,7 @@ Status:
 - `[x]` Completed
 - `[~]` Deferred
 
-Current state: Phase 5 (Output and Presentation) is complete. Phase 6 (Additional Metadata and Analysis) is next.
+Current state: Phase 6 (Additional Metadata and Analysis) is complete. Phase 7 (Documentation and Release) is next.
 
 ## Decisions (see plan.md section 2)
 
@@ -249,16 +249,22 @@ Issue: #7 "Phase 5: Output and Presentation".
 
 ## Phase 6 – Additional Metadata and Analysis
 
-- [ ] P6-T01 Integrate Python AST analysis
-- [ ] P6-T02 Extract functions and classes
-- [ ] P6-T03 Extract method signatures and attributes
-- [ ] P6-T04 Support optional docstrings
-- [ ] P6-T05 Implement PDF metadata extraction (`pypdf` extra)
-- [ ] P6-T06 Implement ODF metadata extraction
-- [ ] P6-T07 Implement OOXML metadata extraction
-- [ ] P6-T08 Define optional dependency handling
+Issue: #8 "Phase 6: Additional Metadata and Analysis".
 
-**Milestone:** Extended file understanding without executing file contents.
+**Milestone reached:** Extended file understanding without executing file contents.
+`make check` green: 228 tests passing, ruff/format/mypy clean.
+
+Document metadata (P6-T05, P6-T06, P6-T07, P6-T08) already implemented in
+`core/metadata.py` with `pypdf` optional dependency handling.
+
+- [x] P6-T01 Integrate Python AST analysis
+- [x] P6-T02 Extract functions and classes
+- [x] P6-T03 Extract method signatures and attributes
+- [x] P6-T04 Support optional docstrings
+- [x] P6-T05 Implement PDF metadata extraction (`pypdf` extra)
+- [x] P6-T06 Implement ODF metadata extraction
+- [x] P6-T07 Implement OOXML metadata extraction
+- [x] P6-T08 Define optional dependency handling
 
 ---
 
@@ -333,6 +339,8 @@ Issue: #7 "Phase 5: Output and Presentation".
 | 2026-11-06 | 3 | P3-T06..P3-T10 | core/analysis/duplicates.py: DuplicateGroup/DuplicateResult, find_duplicates() with size-based candidate filtering, SHA-256 hashing, hardlink dedup, empty file handling; cli.py: duplicates files command with --min-size, --include-empty options; output/plain.py: render_duplicates(); tests in tests/test_duplicates.py; 7 new tests, 155 total passing; make check green. |
 | 2026-11-06 | 3 | P3-T19..P3-T24 | core/analysis/verification.py: VerificationResult, verify_inventory() with schema_version check, verify_tree() with size/hash comparison; cli.py: verify inventory and verify tree commands; output/plain.py: render_verify(); tests in tests/test_verify.py; 11 new tests, 171 total passing; make check green. |
 | 2026-11-06 | 5 | P5-T01..P5-T08 | output/plain.py: renderers for tree/info/inventory/find/duplicates/compare/verify already existed across earlier phases; tests/test_plain_output.py: 14 new tests covering deterministic rendering, empty states, None-field omission, and all discrepancy categories; 212 total passing; make check green. |
+| 2026-11-06 | 6 | P6-T01..P6-T04 | core/analysis/python_analysis.py: PythonModule/PythonFunction/PythonClass/PythonAttribute dataclasses, analyze_python_file() using ast module (no import/execution), size limit, module_to_dict() serialization; cli.py: --metadata on .py files includes Python analysis in metadata dict; output/plain.py: structured Python analysis rendering; tests/test_python_analysis.py: 16 new tests covering modules, functions, classes, methods, signatures, attributes, decorators, async, docstrings, size limit, syntax errors, CLI integration; 228 total passing; make check green. |
+| 2026-11-06 | 6 | P6-T05..P6-T08 | core/metadata.py: PDF (pypdf), ODF, OOXML document metadata extraction already implemented in Phase 2 with optional pypdf dependency handling via HAS_PYPDF flag; tests in tests/test_info.py; make check green. |
 
 ---
 
