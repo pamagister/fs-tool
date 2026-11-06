@@ -190,8 +190,8 @@ If you prefer not to install `make`, create a simple Bash script:
 
 ```bash
 #!/bin/bash
-isort python-template-project/
-black -l 100 python-template-project/
+isort fs-tool/
+black -l 100 fs-tool/
 black -l 100 tests/
 ```
 

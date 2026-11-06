@@ -8,25 +8,25 @@
 Download from [PyPI](https://pypi.org/):
 
 ```bash
-pip install python-template-project
+pip install fs-tool
 ```
 
 ### Run CLI from command line
 ```bash
-python-template-project [OPTIONS] path/to/file
+fs-tool [OPTIONS] path/to/file
 ```
 
 ### Run GUI from command line
 ```bash
-python-template-project-gui
+fs-tool-gui
 ```
 
 ## 🔽 Executable
 
 Download the latest executable:
 
-- [⬇️ Download for Windows](https://github.com/pamagister/python-template-project/releases/latest/download/installer-win.zip)
-- [⬇️ Download for macOS](https://github.com/pamagister/python-template-project/releases/latest/download/package-macos.zip)
+- [⬇️ Download for Windows](https://github.com/pamagister/fs-tool/releases/latest/download/installer-win.zip)
+- [⬇️ Download for macOS](https://github.com/pamagister/fs-tool/releases/latest/download/package-macos.zip)
 
 
 ## 👩🏼‍💻 Run from source
@@ -40,7 +40,7 @@ git clone
 ### Navigate to the project directory
 
 ```bash
-cd python-template-project
+cd fs-tool
 ```
 
 ### Install dependencies
@@ -54,13 +54,13 @@ uv pip install -e .[dev,docs]
 ### Run with CLI from source
 
 ```bash
-python -m python_template_project.cli [OPTIONS] path/to/file
+python -m fs_tool.cli [OPTIONS] path/to/file
 ```
 
 
 ### Run with GUI from source
 
 ```bash
-python -m python_template_project.gui
+python -m fs_tool.gui
 ```
 

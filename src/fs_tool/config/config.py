@@ -169,7 +169,7 @@ class ConfigParameterManager(ConfigManager):  # Inherit from ConfigManager
 
     @staticmethod
     def get_app_name() -> str:
-        return "python_template_project"
+        return "fs_tool"
 
 
 def main():

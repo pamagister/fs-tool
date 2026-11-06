@@ -1,7 +1,7 @@
 [project]
-name = "python-template-project"
+name = "fs-tool"
 dynamic = ["version"]
-description = "Feature-rich Python project template designed for robustness and ease of use."
+description = "Feature-rich Python project template for fs-tool."
 authors = [
     {name = "pamagister"}
 ]
@@ -39,15 +39,15 @@ docs = [
 ]
 
 [project.scripts]
-python-template-project = "python_template_project.cli.cli:main"
-python-template-project-gui = "python_template_project.gui.gui:main"
+fs-tool = "fs_tool.cli.cli:main"
+fs-tool-gui = "fs_tool.gui.gui:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "src/python_template_project/_version.py"
+write_to = "src/fs_tool/_version.py"
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["lxml"]
@@ -55,7 +55,7 @@ DEP002 = ["lxml"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-exclude = ["src/python_template_project/_version.py"]
+exclude = ["src/fs_tool/_version.py"]
 
 [tool.ruff.lint]
 select = [

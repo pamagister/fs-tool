@@ -7,9 +7,9 @@ import gpxpy
 import pytest
 from gpxpy.gpx import GPXTrackPoint
 
-from python_template_project.config.config import ConfigParameterManager
-from python_template_project.core.logging import initialize_logging
-from src.python_template_project.core.base import BaseGPXProcessor
+from fs_tool.config.config import ConfigParameterManager
+from fs_tool.core.logging import initialize_logging
+from src.fs_tool.core.base import BaseGPXProcessor
 
 # ---------------------------------------------------------------------------
 # Fixtures

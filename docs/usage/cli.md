@@ -1,15 +1,15 @@
 # Command Line Interface
 
-Command line options for python_template_project
+Command line options for fs_tool
 
 ```bash
-python-template-project [OPTIONS] <input>
+fs-tool [OPTIONS] <input>
 ```
 
 For development from a source checkout, the equivalent module invocation is:
 
 ```bash
-python -m python_template_project [OPTIONS] <input>
+python -m fs_tool [OPTIONS] <input>
 ```
 
 ## Options
@@ -32,46 +32,46 @@ python -m python_template_project [OPTIONS] <input>
 ### 1. Basic usage
 
 ```bash
-python-template-project input
+fs-tool input
 ```
 
 ### 2. With verbose logging
 
 ```bash
-python-template-project -v input
-python-template-project --verbose input
+fs-tool -v input
+fs-tool --verbose input
 ```
 
 ### 3. With quiet mode
 
 ```bash
-python-template-project -q input
-python-template-project --quiet input
+fs-tool -q input
+fs-tool --quiet input
 ```
 
 ### 4. With output parameter
 
 ```bash
-python-template-project --output  input
+fs-tool --output  input
 ```
 
 ### 5. With min_dist parameter
 
 ```bash
-python-template-project --min_dist 25 input
+fs-tool --min_dist 25 input
 ```
 
 ### 6. With extract_waypoints parameter
 
 ```bash
-python-template-project --extract_waypoints True input
+fs-tool --extract_waypoints True input
 ```
 
 ### Developer usage
 
 ```bash
-python -m python_template_project --help
-python -m python_template_project input
+python -m fs_tool --help
+python -m fs_tool input
 ```
 
 # More parameter

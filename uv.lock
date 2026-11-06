@@ -922,7 +922,7 @@ wheels = [
 ]
 
 [[package]]
-name = "python-template-project"
+name = "fs-tool"
 source = { editable = "." }
 dependencies = [
     { name = "config-cli-gui" },

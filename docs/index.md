@@ -1,14 +1,14 @@
-# Welcome to python-template-project
+# Welcome to fs-tool
 
 A feature-rich Python project template with auto-generated CLI, GUI and parameterized configuration.
 
-[![Github CI Status](https://github.com/pamagister/python-template-project/actions/workflows/main.yml/badge.svg)](https://github.com/pamagister/python-template-project/actions)
-[![GitHub release](https://img.shields.io/github/v/release/pamagister/python-template-project)](https://github.com/pamagister/python-template-project/releases)
-[![Read the Docs](https://readthedocs.org/projects/python-template-project/badge/?version=stable)](https://python-template-project.readthedocs.io/en/stable/)
-[![License](https://img.shields.io/github/license/pamagister/python-template-project)](https://github.com/pamagister/python-template-project/blob/main/LICENSE)
-[![GitHub issues](https://img.shields.io/github/issues/pamagister/python-template-project)](https://github.com/pamagister/python-template-project/issues)
-[![PyPI](https://img.shields.io/pypi/v/python-template-project)](https://pypi.org/project/python-template-project/)
-[![Downloads](https://pepy.tech/badge/python-template-project)](https://pepy.tech/project/python-template-project/)
+[![Github CI Status](https://github.com/pamagister/fs-tool/actions/workflows/main.yml/badge.svg)](https://github.com/pamagister/fs-tool/actions)
+[![GitHub release](https://img.shields.io/github/v/release/pamagister/fs-tool)](https://github.com/pamagister/fs-tool/releases)
+[![Read the Docs](https://readthedocs.org/projects/fs-tool/badge/?version=stable)](https://fs-tool.readthedocs.io/en/stable/)
+[![License](https://img.shields.io/github/license/pamagister/fs-tool)](https://github.com/pamagister/fs-tool/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/pamagister/fs-tool)](https://github.com/pamagister/fs-tool/issues)
+[![PyPI](https://img.shields.io/pypi/v/fs-tool)](https://pypi.org/project/fs-tool/)
+[![Downloads](https://pepy.tech/badge/fs-tool)](https://pepy.tech/project/fs-tool/)
 
 
 This template provides a solid foundation for your next Python project, incorporating best practices for testing, automation, and distribution. It streamlines the development process with a comprehensive set of pre-configured tools and workflows, allowing you to focus on writing code.
@@ -20,12 +20,12 @@ This template provides a solid foundation for your next Python project, incorpor
 Getting started on developing your own project based on this template
 
 > **DO NOT FORK** 
-> This project is meant to be used from **[Use this template](https://github.com/pamagister/python-template-project/generate)** feature.
+> This project is meant to be used from **[Use this template](https://github.com/pamagister/fs-tool/generate)** feature.
 
 ---
 
 1. **Create a new repository using GitHub template**  
-   Click on **[Use this template](https://github.com/pamagister/python-template-project/generate)**.
+   Click on **[Use this template](https://github.com/pamagister/fs-tool/generate)**.
 
 2. **Give a name to your project**  
    For example: `my-python-project`  
@@ -132,23 +132,23 @@ Download from [PyPI](https://pypi.org/).
 💾 For more installation options see [install](getting-started/install.md).
 
 ```bash
-pip install python-template-project
+pip install fs-tool
 ```
 
 Run GUI from command line
 
 ```bash
-python-template-project-gui
+fs-tool-gui
 ```
 
 Run application from command line using CLI
 
 ```bash
-python -m python_template_project.cli [OPTIONS] path/to/file
+python -m fs_tool.cli [OPTIONS] path/to/file
 ```
 
 ```bash
-python-template-project-cli [OPTIONS] path/to/file
+fs-tool-cli [OPTIONS] path/to/file
 ```
 
 ---
