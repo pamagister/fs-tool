@@ -26,6 +26,8 @@ from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
 from fs_tool.core.models import EntryType
 from fs_tool.core.traversal import build_entry, traverse
+from fs_tool.operations.common import OperationReport
+from fs_tool.operations.mkdir import make_directory
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.safety.validation import validate_path
 
@@ -1130,6 +1132,75 @@ def verify_tree_cmd(
     if not success:
         return EXIT_FAILURE
     return EXIT_SUCCESS
+
+
+def _emit_write_report(ctx: typer.Context, report: OperationReport) -> int:
+    """Emit a structured or concise human-readable write-operation report."""
+    command = f"write.{report.operation}"
+    result = asdict(report)
+    if ctx.obj.output_format == "plain":
+        status = "planned" if report.dry_run else "completed"
+        typer.echo(f"{report.operation}: {status}")
+        typer.echo(f"destination: {report.destination}")
+        for path in report.affected:
+            typer.echo(f"  {path}")
+        return EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=report.complete,
+        command=command,
+        result=result,
+        complete=report.complete,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_SUCCESS if report.complete else EXIT_INCOMPLETE
+
+
+def _emit_write_error(ctx: typer.Context, command: str, error: FsToolError) -> int:
+    """Emit a stable write-operation error in the selected output format."""
+    if ctx.obj.output_format == "plain":
+        print(f"fs-tool: error: {error.message}", file=sys.stderr)
+    else:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command=command,
+            result=None,
+            errors=(
+                Error(
+                    code=error.code.value,
+                    message=error.message,
+                    path=error.path,
+                    details=error.details,
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+    return error.exit_code
+
+
+@write_group.command(name="mkdir")
+def write_mkdir(
+    ctx: typer.Context,
+    destination: Path = typer.Argument(..., help="Directory to create."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the planned operation only."),
+    yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
+    parents: bool = typer.Option(False, "--parents", help="Create missing parent directories."),
+) -> int:
+    """Create a directory without overwriting existing entries."""
+    try:
+        report = make_directory(
+            destination,
+            allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            dry_run=dry_run,
+            yes=yes,
+            parents=parents,
+        )
+    except FsToolError as exc:
+        return _emit_write_error(ctx, "write.mkdir", exc)
+    return _emit_write_report(ctx, report)
 
 
 def main(argv: list[str] | None = None) -> int:

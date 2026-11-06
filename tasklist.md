@@ -189,19 +189,19 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 ### General
 
-- [ ] P4-T01 Implement common write-operation interface
-- [ ] P4-T02 Implement mandatory Dry-Run or execution authorization
-- [ ] P4-T03 Implement structured operation reports
+- [x] P4-T01 Implement common write-operation interface
+- [x] P4-T02 Implement mandatory Dry-Run or execution authorization
+- [x] P4-T03 Implement structured operation reports
 - [ ] P4-T04 Implement no-overwrite protection
 - [ ] P4-T05 Implement preflight validation
 - [ ] P4-T06 Validate source and destination paths
 
 ### `write mkdir`
 
-- [ ] P4-T07 Implement directory creation
-- [ ] P4-T08 Support missing parent directories
-- [ ] P4-T09 Implement Dry-Run
-- [ ] P4-T10 Add tests
+- [x] P4-T07 Implement directory creation
+- [x] P4-T08 Support missing parent directories
+- [x] P4-T09 Implement Dry-Run
+- [x] P4-T10 Add tests
 
 ### `write copy`
 
@@ -282,6 +282,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 4 | P4-T01..P4-T03, P4-T07..P4-T10 | Added shared operation reports and exact `--dry-run`/`--yes` authorization; `write mkdir` supports explicit parent creation, idempotent existing directories, conflicts, allowed-root validation, and JSON/plain reporting. Added seven mkdir behavior and safety tests. |
 | 2026-11-06 | 1 | P1-T07 | core/traversal.py: entries carry accessed/changed/created timestamps, mode, owner (POSIX), dev:inode; tests assert metadata presence. |
 | 2026-11-06 | 1 | P1-T06 | core/traversal.py: children are deterministically sorted by name (sort_by parameter); tests prove stable ordering. |
 | 2026-11-06 | 1 | P1-T05 | core/traversal.py: recursive traversal with depth/entry limits, ignore dirs and patterns, dirs-only, symlink recording without following, error collection, completeness flag; tests in tests/test_traversal.py. |
