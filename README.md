@@ -62,7 +62,7 @@ The agent is responsible for reasoning, planning and deciding what should happen
 
 ## Development Rules
 
-- Python 3.13+, managed with `uv`.
+- Python >=3.11, managed with `uv`.
 - Use Typer for the CLI.
 - Use type hints and clear module boundaries.
 - Prefer Python standard-library functionality where practical.
