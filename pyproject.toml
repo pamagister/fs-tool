@@ -1,56 +1,52 @@
 [project]
 name = "fs-tool"
-dynamic = ["version"]
-description = "Feature-rich Python project template for fs-tool."
+version = "0.1.0"
+description = "Lightweight, secure and agent-friendly CLI for inspecting and organizing local filesystems."
 authors = [
     {name = "pamagister"}
 ]
-readme = "docs/index.md"
-requires-python = ">=3.10,<3.12"
+readme = "README.md"
+requires-python = ">=3.11"
+# click<8.2: typer 0.12 renders help via param.make_metavar(), which click 8.2
+# changed to require a context argument (typer 0.12 calls it without one).
 dependencies = [
-
+    "click>=8.1,<8.2",
+    "typer>=0.12,<0.13",
 ]
+
+[project.optional-dependencies]
+metadata = ["pypdf>=5,<6"]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.0",
-    "pytest-mock>=3.14.1",
-    "coverage>=7.8.2",
-    "flake8>=7.2.0",
-    "black>=25.1.0",
-    "isort>=6.0.1",
-    "pytest-cov>=6.1.1",
-    "mypy>=1.16.0",
-    "gitchangelog>=3.0.4",
-    "pyinstaller>=5.8",
-    "pre-commit>=4.2.0",
-    "ruff>=0.11.13"
+    "pytest>=8",
+    "pytest-cov>=6",
+    "pytest-mock>=3",
+    "coverage>=7",
+    "mypy>=1",
+    "ruff>=0.8",
 ]
 
 docs = [
-    "mkdocs>=1.6.1",
-    "mkdocs-awesome-nav>=2.6.1",
-    "pygments>=2.19.1",
+    "mkdocs>=1.6",
+    "mkdocs-awesome-nav>=2.6",
+    "pygments>=2.18",
 ]
 
 [project.scripts]
-fs-tool = "fs_tool.cli.cli:main"
-fs-tool-gui = "fs_tool.gui.gui:main"
+fs-tool = "fs_tool.cli:main"
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-write_to = "src/fs_tool/_version.py"
-
-[tool.deptry.per_rule_ignores]
-DEP002 = ["lxml"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
-exclude = ["src/fs_tool/_version.py"]
+target-version = "py311"
+src = ["src"]
 
 [tool.ruff.lint]
 select = [
@@ -62,8 +58,28 @@ select = [
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
 ]
-ignore = ["E721", "UP015", "B009", "B905"]
+ignore = ["E721", "UP015", "B008", "B009", "B905"]  # B008: typer.Option() defaults are the canonical Typer pattern
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == \"__main__\":",
+]
