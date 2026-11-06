@@ -9,6 +9,7 @@ scan, and results are deterministically sorted by entry name.
 from __future__ import annotations
 
 import fnmatch
+import mimetypes
 import os
 import stat
 import sys
@@ -124,6 +125,7 @@ def _build_entry(path: Path, root: Path, follow_symlinks: bool = False) -> Files
         changed=_iso_timestamp(lst.st_ctime),
         created=created,
         mode=stat.filemode(lst.st_mode),
+        mime_type=mimetypes.guess_type(path)[0],
         owner=owner,
         is_symlink=is_symlink,
         target=target,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -175,3 +176,20 @@ def test_traversal_entries_have_metadata(tmp_path: Path) -> None:
     assert entry.created is None or entry.created.endswith("+00:00")
     assert entry.owner is None or isinstance(entry.owner, str)
     assert entry.dev_ino is not None
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [("report.txt", "text/plain"), ("archive.pdf", "application/pdf"), ("data", None)],
+)
+def test_traversal_mime_type(tmp_path: Path, name: str, expected: str | None) -> None:
+    if name == "data":
+        (tmp_path / name).mkdir()
+    else:
+        (tmp_path / name).write_text("x")
+    result = traverse(tmp_path)
+    entry = next(e for e in result.entries if e.name == name)
+    if sys.platform == "win32":
+        assert entry.mime_type is None or isinstance(entry.mime_type, str)
+    else:
+        assert entry.mime_type == expected
