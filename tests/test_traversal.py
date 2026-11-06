@@ -144,6 +144,7 @@ def test_traversal_nonexistent_root_reports_error(tmp_path: Path) -> None:
     result = traverse(missing)
     assert result.entries == []
     assert len(result.errors) == 1
+    assert result.complete is False
     assert "does-not-exist" in result.errors[0].path
 
 

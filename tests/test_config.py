@@ -84,6 +84,17 @@ def test_config_never_expands_cli_roots(tmp_path: Path, monkeypatch: pytest.Monk
     assert config.allowed_roots == ()
 
 
+def test_cli_roots_replace_default_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _isolate_env(tmp_path, monkeypatch)
+    selected_root = tmp_path / "authorized"
+    selected_root.mkdir()
+
+    config = load_config(tmp_path / "missing.toml", cli_roots=(selected_root,))
+
+    assert config.allowed_roots == (selected_root,)
+
+
 def test_invalid_toml_reports_config_error(tmp_path: Path) -> None:
     config_path = tmp_path / "config.toml"
     config_path.write_text("not valid toml: [[[", encoding="utf-8")

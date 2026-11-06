@@ -41,6 +41,18 @@ def test_unknown_command(cli: Any) -> None:
     assert cli(["does-not-exist"]) == 2
 
 
+def test_unknown_command_shows_diagnostic(cli: Any, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli(["does-not-exist"]) == 2
+    assert "No such command" in capsys.readouterr().err
+
+
+def test_global_option_after_command_shows_diagnostic(
+    cli: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli(["inspect", "tree", ".", "--format", "plain"]) == 2
+    assert "--format" in capsys.readouterr().err
+
+
 def test_json_and_plain_are_mutually_exclusive(cli: Any) -> None:
     """``--json`` and ``--plain`` cannot be combined: exit 2."""
     assert cli(["--json", "--plain"]) == 2

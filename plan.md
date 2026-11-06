@@ -32,7 +32,7 @@ The following project decisions were agreed before implementation and are author
 | D3 | `verify` interface | Subcommands: `verify inventory <inventory.json> <target>` and `verify tree <source> <target>` |
 | D4 | Configuration | TOML via `tomllib`; `--config PATH`; default `$XDG_CONFIG_HOME/fs-tool/config.toml`; no automatic project-config loading; precedence CLI > Config > Defaults; config may only restrict Allowed Roots, never expand them |
 | D5 | Document metadata | PDF via optional `[metadata]` extra with `pypdf`; ODF/OOXML via stdlib `zipfile`/`ElementTree`; read-only, no macro/code execution, size limits |
-| D6 | Allowed Roots default | Home directory + CWD; anything else requires `--allow-root`; CWD of `/` still requires explicit `--allow-root /` |
+| D6 | Allowed Roots default | Home directory + CWD when `--allow-root` is absent; supplied `--allow-root` values replace those defaults; CWD of `/` still requires explicit `--allow-root /` |
 | D7 | Output default | `auto`: TTY → Plain, Pipe/Agent → JSON; `--json`/`--plain` override; additionally `--format auto|json|plain` |
 | D8 | Issue/commit cadence | One GitHub Issue per phase; 3–6 commits per phase; then `git push`; then monitor GitHub Actions |
 | D9 | No code in this plan | This plan is specification only. No source files are created by editing this document. |
@@ -144,7 +144,7 @@ The hierarchy separates inspection and analysis from filesystem modifications.
 |---|---|
 | `-h, --help` | Show help |
 | `--version` | Show application version |
-| `--allow-root PATH` | Explicitly allow an additional filesystem root; repeatable |
+| `--allow-root PATH` | Set an allowed root; repeatable. When supplied, these roots replace the default Home+CWD roots |
 | `--config PATH` | Path to TOML configuration file |
 | `--format auto\|json\|plain` | Output format; default `auto` |
 | `--json` | Explicitly request JSON output |
@@ -202,6 +202,7 @@ Requirements:
 - Use stable error codes.
 - Use meaningful process exit codes.
 - `complete: false` means the operation could not be fully verified; never claim full-tree integrity for incomplete scans.
+- An incomplete scan may return its partial result, but must set `success: false`, `complete: false`, and exit with code 5.
 - `--help`/`--version` are documented exceptions to the JSON envelope.
 
 Proposed exit codes:
@@ -230,8 +231,7 @@ Examples:
 ```bash
 fs-tool inspect tree ~/Documents
 fs-tool inspect tree ~/Projects --plain
-fs-tool inspect tree ~/Projects --plain --details
-fs-tool inspect tree ~/Projects --plain --show-code
+fs-tool --plain inspect tree ~/Projects
 ```
 
 Features:
@@ -241,9 +241,9 @@ Features:
 - Configurable maximum depth.
 - Optional maximum number of entries.
 - Optional directory-only mode.
-- Optional metadata display.
-- Optional Python source structure.
-- Optional directory summaries.
+- Structured per-entry metadata in JSON output.
+- Optional human-readable metadata summaries are planned for Phase 5.
+- Python source structure is deferred to Phase 6.
 - File-type-specific symbols in plain output.
 - Configurable ignored directories and file patterns.
 
@@ -637,8 +637,9 @@ Safety is a core architectural requirement.
 ### 6.1 Allowed Roots
 
 By default, only the current user's home directory and the current working directory are accessible.
+If one or more `--allow-root` values are provided, they replace those default roots.
 
-Additional roots must be explicitly authorized:
+Explicit roots must be authorized:
 
 ```bash
 fs-tool --allow-root /mnt/nas inspect inventory /mnt/nas

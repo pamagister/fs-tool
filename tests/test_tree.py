@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -58,6 +59,7 @@ def test_tree_max_entries_truncates(tmp_path: Path) -> None:
     (tmp_path / "b.txt").write_text("b")
     code, data = tree_json(tmp_path, "--max-entries", "1")
     assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
     assert data["complete"] is False
     assert len(data["result"]["entries"]) == 1
 
@@ -110,9 +112,53 @@ def test_tree_outside_allowed_root(tmp_path: Path) -> None:
 def test_tree_missing_root_reports_error(tmp_path: Path) -> None:
     missing = tmp_path / "does-not-exist"
     code, data = tree_json(missing)
-    assert code == EXIT_SUCCESS
-    assert data["complete"] is True
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
     assert data["errors"]
+
+
+def test_tree_file_root_reports_incomplete_scan(tmp_path: Path) -> None:
+    file_path = tmp_path / "not-a-directory.txt"
+    file_path.write_text("contents")
+
+    code, data = tree_json(file_path)
+
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert "Not a directory" in data["errors"][0]["message"]
+
+
+def test_tree_nested_scan_error_reports_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    real_scandir = os.scandir
+
+    def scandir(path: str | Path) -> os.ScandirIterator[os.DirEntry[str]]:
+        if Path(path) == blocked:
+            raise PermissionError("Permission denied")
+        return real_scandir(path)
+
+    monkeypatch.setattr("fs_tool.core.traversal.os.scandir", scandir)
+    code, data = tree_json(tmp_path)
+
+    assert code == EXIT_INCOMPLETE
+    assert data["success"] is False
+    assert data["complete"] is False
+    assert data["errors"][0]["path"] == str(blocked)
+
+
+def test_tree_plain_reports_incomplete_scan(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "does-not-exist"
+    code = main(["--allow-root", str(tmp_path), "--plain", "inspect", "tree", str(missing)])
+
+    assert code == EXIT_INCOMPLETE
+    assert "scan incomplete" in capsys.readouterr().err
 
 
 def test_tree_symlink_recorded_not_followed(tmp_path: Path) -> None:

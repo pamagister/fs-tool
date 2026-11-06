@@ -165,6 +165,10 @@ def traverse(
     result = TraversalResult()
     visited_dirs: set[tuple[int, int]] = set()
 
+    def record_error(path: Path, message: str) -> None:
+        result.errors.append(TraversalError(path=str(path), message=message))
+        result.complete = False
+
     def walk(directory: Path, depth: int) -> None:
         """Walk ``directory``; ``depth`` is the level of its entries
         relative to ``root`` (root's direct entries have depth 1)."""
@@ -174,12 +178,7 @@ def traverse(
         try:
             pending = sorted(os.scandir(directory), key=lambda entry: entry.name)
         except OSError as exc:
-            result.errors.append(
-                TraversalError(
-                    path=str(directory),
-                    message=f"Cannot read directory: {exc.strerror or exc}",
-                )
-            )
+            record_error(directory, f"Cannot read directory: {exc.strerror or exc}")
             return
         for entry in pending:
             if max_entries is not None and len(result.entries) >= max_entries:
@@ -193,9 +192,9 @@ def traverse(
             try:
                 is_link = entry.is_symlink()
                 is_dir = entry.is_dir(follow_symlinks=follow_symlinks)
-            except OSError:
-                is_link = False
-                is_dir = False
+            except OSError as exc:
+                record_error(path, f"Cannot inspect entry: {exc.strerror or exc}")
+                continue
             if is_link and not follow_symlinks:
                 if not dirs_only:
                     _append_entry(path)
@@ -203,14 +202,14 @@ def traverse(
             if is_link and follow_symlinks:
                 try:
                     real = entry.stat(follow_symlinks=True)
-                except OSError:
-                    real = None
-                if real is not None:
-                    key = (real.st_dev, real.st_ino)
-                    if key in visited_dirs:
-                        result.skipped += 1
-                        continue
-                    visited_dirs.add(key)
+                except OSError as exc:
+                    record_error(path, f"Cannot follow symbolic link: {exc.strerror or exc}")
+                    continue
+                key = (real.st_dev, real.st_ino)
+                if key in visited_dirs:
+                    result.skipped += 1
+                    continue
+                visited_dirs.add(key)
             if not dirs_only or is_dir:
                 _append_entry(path)
             if is_dir and (max_depth is None or depth < max_depth):
@@ -220,7 +219,7 @@ def traverse(
         try:
             result.entries.append(_build_entry(path, root_path, follow_symlinks=follow_symlinks))
         except FsToolError as exc:
-            result.errors.append(TraversalError(path=str(path), message=exc.message))
+            record_error(path, exc.message)
 
     walk(root_path, 1)
     return result

@@ -64,7 +64,7 @@ def _resolve_format(
     """Resolve the effective output format (plan.md decision D7).
 
     Precedence: explicit --json/--plain > --format > auto (TTY -> plain,
-    otherwise JSON). ``--json`` and --plain`` are mutually exclusive.
+    otherwise JSON). ``--json`` and ``--plain`` are mutually exclusive.
     """
     if json_output and plain_output:
         raise FsToolError(
@@ -139,7 +139,7 @@ def _root(
     allow_root: list[str] = typer.Option(
         [],
         "--allow-root",
-        help="Explicitly allow an additional filesystem root (repeatable).",
+        help="Set an allowed root, replacing the default Home and CWD roots (repeatable).",
     ),
     config: str | None = typer.Option(None, "--config", help="Path to TOML configuration file."),
     format_value: str = typer.Option(
@@ -219,7 +219,7 @@ def inspect_tree(
     """Display a directory tree (JSON by default, plain with --plain).
 
     Global options such as ``--plain`` and ``--allow-root`` precede
-    the command, e.g. ``fs-tool --plain tree /tmp``.
+    the command, e.g. ``fs-tool --plain inspect tree /tmp``.
     """
     root = validate_path(source, tuple(ctx.obj.allow_root))
     result = traverse(
@@ -235,6 +235,8 @@ def inspect_tree(
         from fs_tool.output.plain import render_tree
 
         typer.echo(render_tree(result.entries, root))
+        if not result.complete:
+            print("fs-tool: error: scan incomplete", file=sys.stderr)
         for error in result.errors:
             print(
                 f"fs-tool: error: {error.message} ({error.path})",
@@ -249,7 +251,7 @@ def inspect_tree(
     )
     envelope = Envelope(
         schema_version=SCHEMA_VERSION,
-        success=True,
+        success=result.complete,
         command="inspect.tree",
         result={
             "root": str(root),
@@ -295,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
         return exc.exit_code if isinstance(exc.exit_code, int) else EXIT_SUCCESS
     except ClickException as exc:
         # Invalid usage (unknown command, bad option, ...): exit 2.
+        exc.show()
         return exc.exit_code if isinstance(exc.exit_code, int) else EXIT_FAILURE
     except Exception as exc:  # CLI boundary: report, do not swallow silently
         print(f"Unexpected error: {exc}", file=sys.stderr)

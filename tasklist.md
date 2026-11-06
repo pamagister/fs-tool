@@ -15,7 +15,7 @@ Current state: Phase 0 (Project Foundation and Baseline) is complete.
 - D3: `verify inventory <file> <target>` / `verify tree <src> <dst>`.
 - D4: TOML config via `tomllib`; `--config`; `$XDG_CONFIG_HOME/fs-tool/config.toml`; CLI > Config > Defaults; config may only restrict roots.
 - D5: Document metadata in initial scope: PDF via optional `[metadata]` extra (`pypdf`); ODF/OOXML via stdlib.
-- D6: Allowed Roots default: Home + CWD.
+- D6: Allowed Roots default: Home + CWD; explicit `--allow-root` values replace these defaults.
 - D7: Output default `auto` (TTY → Plain, pipe → JSON); `--format auto|json|plain`.
 - D8: One GitHub Issue per phase; 3–6 commits per phase; then push; then monitor CI.
 
@@ -77,6 +77,7 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 - [x] P1-T04 Implement symlink detection and handling
 - [x] P1-T05 Implement recursive directory traversal
 - [x] P1-T06 Implement deterministic sorting
+- [x] P1-T07 Implement file and directory metadata extraction
 - [x] P1-T08 Implement MIME type detection
 - [x] P1-T09 Implement SHA-256 hashing
 - [x] P1-T10 Implement scan completeness and error reporting
@@ -101,7 +102,7 @@ Issue: #4 "Phase 2: Inspection Commands".
 - [x] P2-T04 Implement ignored directories and patterns
 - [x] P2-T05 Implement directory-only mode
 - [x] P2-T06 Implement plain tree rendering
-- [x] P2-T07 Implement optional metadata summaries
+- [x] P2-T07 Include structured per-entry metadata in JSON output
 - [~] P2-T08 Implement optional Python code structure (deferred to Phase 6 per roadmap)
 
 ### `inspect info`
@@ -303,8 +304,9 @@ Issue: #4 "Phase 2: Inspection Commands".
 | 2026-11-06 | 2 | P2-T04 | cli.py: --ignore-dir and --ignore-pattern options; default ignore set (.git, __pycache__, ...). |
 | 2026-11-06 | 2 | P2-T05 | cli.py: --dirs-only option on inspect tree. |
 | 2026-11-06 | 2 | P2-T06 | output/plain.py: plain tree rendering; cli.py: --plain global option support (before the command). |
-| 2026-11-06 | 2 | P2-T07 | cli.py: inspect tree JSON result carries full per-entry metadata (timestamps, mode, owner, MIME, ...). |
+| 2026-11-06 | 2 | P2-T07 | cli.py: inspect tree JSON result carries structured per-entry metadata (timestamps, mode, owner, MIME, ...); human-readable summaries remain in P5-T03. |
 | 2026-11-06 | 2 | P2-T08 | Deferred to Phase 6 (Python AST analysis per roadmap). |
+| 2026-11-06 | 2 | Review follow-up | Traversal errors now make scans incomplete and unsuccessful; incomplete plain output is diagnosed; Click usage errors are shown; root-option and tree-metadata contracts aligned with the specification. Regression tests cover missing/file roots, nested read failures, option diagnostics, and explicit root replacement. |
 
 ---
 
