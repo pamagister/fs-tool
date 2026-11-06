@@ -170,3 +170,16 @@ def render_compare(result: dict[str, Any]) -> str:
                 lines.append(f"  {item}")
     lines.append(f"complete: {result.get('complete', False)}")
     return "\n".join(lines)
+
+
+def render_verify(result: dict[str, Any]) -> str:
+    """Render verification results as plain-text lines."""
+    lines: list[str] = []
+    for category in ("missing", "unexpected", "changed", "size_mismatch", "hash_mismatch"):
+        items = result.get(category, [])
+        if items:
+            lines.append(f"{category} ({len(items)}):")
+            for item in items:
+                lines.append(f"  {item}")
+    lines.append(f"complete: {result.get('complete', False)}")
+    return "\n".join(lines)

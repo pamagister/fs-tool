@@ -173,12 +173,12 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 ### `verify`
 
-- [ ] P3-T19 Implement inventory-based verification
-- [ ] P3-T20 Implement source/destination verification
-- [ ] P3-T21 Detect missing and unexpected entries
-- [ ] P3-T22 Verify file sizes and hashes
-- [ ] P3-T23 Report incomplete verification
-- [ ] P3-T24 Implement `schema_version` check for inventory files
+- [x] P3-T19 Implement inventory-based verification
+- [x] P3-T20 Implement source/destination verification
+- [x] P3-T21 Detect missing and unexpected entries
+- [x] P3-T22 Verify file sizes and hashes
+- [x] P3-T23 Report incomplete verification
+- [x] P3-T24 Implement `schema_version` check for inventory files
 
 **Milestone:** Reliable filesystem analysis and integrity verification.
 
@@ -318,7 +318,7 @@ Issue: #5 "Phase 3: Search and Analysis".
 | 2026-11-06 | 2 | P2-T09..P2-T13 | cli.py: inspect info command with single-path metadata (timestamps, permissions, owner, MIME, symlink); traversal._build_entry refactored to public build_entry; output/plain.py: render_info(); tests in tests/test_info.py; 9 new tests, 103 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T14 | core/metadata.py: document metadata extraction (PDF via optional pypdf, ODF/OOXML via stdlib zipfile/ElementTree); size limit 100 MiB; read-only, no code execution; --metadata flag on inspect info; tests using res/example_filesystem_unstructured fixtures; 4 new tests, 107 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T15..P2-T20 | cli.py: inspect inventory command with --hash, --tree-hash, --max-depth, --max-entries, --ignore-dir, --ignore-pattern, --dirs-only; _compute_tree_hash() with canonical JSON (excludes path/dev_ino/generated_at); output/plain.py: render_inventory(); tests in tests/test_inventory.py; 13 new tests, 120 total passing; make check green. |
-| 2026-11-06 | 3 | P3-T06..P3-T10 | core/analysis/duplicates.py: DuplicateGroup/DuplicateResult, find_duplicates() with size-based candidate filtering, SHA-256 hashing, hardlink dedup, empty file handling; cli.py: duplicates files command with --min-size, --include-empty options; output/plain.py: render_duplicates(); tests in tests/test_duplicates.py; 7 new tests, 155 total passing; make check green. |\n| 2026-11-06 | 3 | P3-T11..P3-T18 | core/analysis/comparison.py: ComparisonResult, compare_trees() with identical/missing/changed/unexpected/type_conflicts/unsupported categorization; cli.py: compare trees command; output/plain.py: render_compare(); tests in tests/test_compare.py; 5 new tests, 160 total passing; make check green. |
+| 2026-11-06 | 3 | P3-T06..P3-T10 | core/analysis/duplicates.py: DuplicateGroup/DuplicateResult, find_duplicates() with size-based candidate filtering, SHA-256 hashing, hardlink dedup, empty file handling; cli.py: duplicates files command with --min-size, --include-empty options; output/plain.py: render_duplicates(); tests in tests/test_duplicates.py; 7 new tests, 155 total passing; make check green. |\n| 2026-11-06 | 3 | P3-T19..P3-T24 | core/analysis/verification.py: VerificationResult, verify_inventory() with schema_version check, verify_tree() with size/hash comparison; cli.py: verify inventory and verify tree commands; output/plain.py: render_verify(); tests in tests/test_verify.py; 11 new tests, 171 total passing; make check green. |
 
 ---
 

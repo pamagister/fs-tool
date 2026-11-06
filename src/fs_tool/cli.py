@@ -941,6 +941,197 @@ def compare_trees_cmd(
     return EXIT_INCOMPLETE if not comparison.complete else EXIT_SUCCESS
 
 
+@verify_group.command(name="inventory")
+def verify_inventory_cmd(
+    ctx: typer.Context,
+    inventory_file: Path = typer.Argument(..., help="Path to inventory JSON file."),
+    target: Path = typer.Argument(..., help="Target directory to verify."),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries to scan."
+    ),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+) -> int:
+    """Verify a directory against an inventory file.
+
+    Checks schema_version, then compares entries. Reports missing,
+    unexpected, size mismatch, and hash mismatch entries.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain verify inventory inventory.json ~/Documents``.
+    """
+    target_root = validate_path(target, tuple(ctx.obj.allow_root))
+
+    try:
+        from fs_tool.core.analysis.verification import verify_inventory
+
+        result = verify_inventory(
+            inventory_file,
+            target_root,
+            max_entries=max_entries,
+            ignore_dirs=frozenset(ignore_dir),
+            ignore_patterns=tuple(ignore_pattern),
+        )
+    except FsToolError as exc:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="verify.inventory",
+            result=None,
+            errors=(Error(code=exc.code, message=exc.message, path=exc.path),),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return exc.exit_code
+
+    result_dict: dict[str, Any] = {
+        "inventory_file": str(inventory_file),
+        "target": str(target_root),
+        "missing": result.missing,
+        "unexpected": result.unexpected,
+        "changed": result.changed,
+        "size_mismatch": result.size_mismatch,
+        "hash_mismatch": result.hash_mismatch,
+        "complete": result.complete,
+    }
+
+    error_tuples = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=message, path=str(target_root))
+        for message in result.errors
+    )
+
+    success = (
+        result.complete and not result.missing and not result.unexpected and not result.changed
+    )
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_verify
+
+        typer.echo(render_verify(result_dict))
+        if not result.complete:
+            print("fs-tool: error: verification incomplete", file=sys.stderr)
+        for message in result.errors:
+            print(f"fs-tool: error: {message}", file=sys.stderr)
+        if not result.complete:
+            return EXIT_INCOMPLETE
+        if not success:
+            return EXIT_FAILURE
+        return EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=success,
+        command="verify.inventory",
+        result=result_dict,
+        errors=error_tuples,
+        complete=result.complete,
+    )
+    typer.echo(envelope.to_json())
+    if not result.complete:
+        return EXIT_INCOMPLETE
+    if not success:
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
+
+
+@verify_group.command(name="tree")
+def verify_tree_cmd(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Source directory to verify against."),
+    destination: Path = typer.Argument(..., help="Destination directory to verify."),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries to scan per tree."
+    ),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+) -> int:
+    """Verify a destination directory against a source directory.
+
+    Compares both trees and reports missing, unexpected, size
+    mismatch, and hash mismatch entries.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool verify tree ~/Documents ~/Documents_New``.
+    """
+    source_root = validate_path(source, tuple(ctx.obj.allow_root))
+    dest_root = validate_path(destination, tuple(ctx.obj.allow_root))
+
+    from fs_tool.core.analysis.verification import verify_tree
+
+    result = verify_tree(
+        source_root,
+        dest_root,
+        max_entries=max_entries,
+        ignore_dirs=frozenset(ignore_dir),
+        ignore_patterns=tuple(ignore_pattern),
+    )
+
+    result_dict: dict[str, Any] = {
+        "source": str(source_root),
+        "destination": str(dest_root),
+        "missing": result.missing,
+        "unexpected": result.unexpected,
+        "changed": result.changed,
+        "size_mismatch": result.size_mismatch,
+        "hash_mismatch": result.hash_mismatch,
+        "complete": result.complete,
+    }
+
+    error_tuples = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=message, path=str(source_root))
+        for message in result.errors
+    )
+
+    success = (
+        result.complete and not result.missing and not result.unexpected and not result.changed
+    )
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_verify
+
+        typer.echo(render_verify(result_dict))
+        if not result.complete:
+            print("fs-tool: error: verification incomplete", file=sys.stderr)
+        for message in result.errors:
+            print(f"fs-tool: error: {message}", file=sys.stderr)
+        if not result.complete:
+            return EXIT_INCOMPLETE
+        if not success:
+            return EXIT_FAILURE
+        return EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=success,
+        command="verify.tree",
+        result=result_dict,
+        errors=error_tuples,
+        complete=result.complete,
+    )
+    typer.echo(envelope.to_json())
+    if not result.complete:
+        return EXIT_INCOMPLETE
+    if not success:
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
+
+
 def main(argv: list[str] | None = None) -> int:
     """Application entry point.
 
