@@ -29,6 +29,7 @@ from fs_tool.core.traversal import build_entry, traverse
 from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
+from fs_tool.operations.move import move_path
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.safety.validation import validate_path
 
@@ -1229,6 +1230,34 @@ def write_copy(
         )
     except FsToolError as exc:
         return _emit_write_error(ctx, "write.copy", exc)
+    return _emit_write_report(ctx, report)
+
+
+@write_group.command(name="move")
+def write_move(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="File, directory or symlink to move."),
+    destination: Path = typer.Argument(..., help="New destination path."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the planned operation only."),
+    yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
+    allow_rename: bool = typer.Option(
+        False,
+        "--allow-rename",
+        help="Authorize changing the source filename.",
+    ),
+) -> int:
+    """Move a filesystem entry without overwriting an existing destination."""
+    try:
+        report = move_path(
+            source,
+            destination,
+            allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            dry_run=dry_run,
+            yes=yes,
+            allow_rename=allow_rename,
+        )
+    except FsToolError as exc:
+        return _emit_write_error(ctx, "write.move", exc)
     return _emit_write_report(ctx, report)
 
 

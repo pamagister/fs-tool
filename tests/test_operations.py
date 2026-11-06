@@ -404,3 +404,290 @@ def test_write_copy_reports_partial_failures(
         str(destination / "a.txt"),
     ]
     assert (destination / "a.txt").read_text(encoding="utf-8") == "first"
+
+
+def test_write_move_file_preserves_contents_and_removes_source(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "moved" / "source.txt"
+    destination.parent.mkdir()
+    source.write_text("move me", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.exists()
+    assert destination.read_text(encoding="utf-8") == "move me"
+    assert data["command"] == "write.move"
+    assert data["result"]["executed"] is True
+    assert data["result"]["affected"] == [str(destination)]
+
+
+def test_write_move_dry_run_does_not_change_filesystem(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "moved" / "source.txt"
+    destination.parent.mkdir()
+    source.write_text("keep", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--dry-run",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert data["result"]["dry_run"] is True
+    assert data["result"]["executed"] is False
+    assert source.read_text(encoding="utf-8") == "keep"
+    assert not destination.exists()
+
+
+def test_write_move_never_overwrites_existing_destination(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "source" / "source.txt"
+    destination = tmp_path / "destination" / "source.txt"
+    source.parent.mkdir()
+    destination.parent.mkdir()
+    source.write_text("source", encoding="utf-8")
+    destination.write_text("destination", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_CONFLICT
+    assert data["errors"][0]["code"] == "TARGET_EXISTS"
+    assert source.read_text(encoding="utf-8") == "source"
+    assert destination.read_text(encoding="utf-8") == "destination"
+
+
+def test_write_move_does_not_replace_destination_created_after_preflight(
+    cli: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fs_tool.operations import move as move_module
+
+    source = tmp_path / "source" / "source.txt"
+    destination = tmp_path / "destination" / "source.txt"
+    source.parent.mkdir()
+    destination.parent.mkdir()
+    source.write_text("source", encoding="utf-8")
+    atomic_rename = move_module._rename_no_replace
+
+    def create_conflicting_destination(source_path: Path, destination_path: Path) -> None:
+        destination_path.write_text("raced", encoding="utf-8")
+        atomic_rename(source_path, destination_path)
+
+    monkeypatch.setattr(move_module, "_rename_no_replace", create_conflicting_destination)
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_CONFLICT
+    assert data["errors"][0]["code"] == "TARGET_EXISTS"
+    assert source.read_text(encoding="utf-8") == "source"
+    assert destination.read_text(encoding="utf-8") == "raced"
+
+
+def test_write_move_requires_explicit_rename_authorization(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "old.txt"
+    destination = tmp_path / "new.txt"
+    source.write_text("content", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_INVALID_ARGS
+    assert data["success"] is False
+    assert source.exists()
+    assert not destination.exists()
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--allow-rename",
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.exists()
+    assert destination.read_text(encoding="utf-8") == "content"
+
+
+def test_write_move_directory_tree(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination" / "source"
+    (source / "nested").mkdir(parents=True)
+    (source / "nested" / "file.txt").write_text("content", encoding="utf-8")
+    destination.parent.mkdir()
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.exists()
+    assert (destination / "nested" / "file.txt").read_text(encoding="utf-8") == "content"
+    assert data["result"]["verified"] is True
+
+
+def test_write_move_symlink_does_not_move_its_target(cli: Any, tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    source = tmp_path / "link.txt"
+    destination = tmp_path / "moved-link.txt"
+    target.write_text("target", encoding="utf-8")
+    try:
+        source.symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--allow-rename",
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.is_symlink()
+    assert destination.is_symlink()
+    assert target.read_text(encoding="utf-8") == "target"
+    assert data["result"]["verified"] is True
+
+
+def test_write_move_rejects_symlink_escape(cli: Any, tmp_path: Path) -> None:
+    outside = tmp_path.parent / f"{tmp_path.name}-outside-target"
+    outside.write_text("outside", encoding="utf-8")
+    source = tmp_path / "link.txt"
+    destination = tmp_path / "moved" / "link.txt"
+    destination.parent.mkdir()
+    try:
+        source.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+
+    code = cli(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ]
+    )
+
+    assert code == EXIT_ACCESS_DENIED
+    assert source.is_symlink()
+    assert outside.read_text(encoding="utf-8") == "outside"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="FIFO special files are POSIX-only")
+def test_write_move_rejects_special_files(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "source" / "pipe"
+    destination = tmp_path / "destination" / "pipe"
+    source.parent.mkdir()
+    destination.parent.mkdir()
+    os.mkfifo(source)
+
+    code = cli(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ]
+    )
+
+    assert code != EXIT_SUCCESS
+    assert source.exists()
+    assert not destination.exists()
+
+
+def test_write_move_refuses_filesystem_root(cli: Any, tmp_path: Path) -> None:
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(Path("/")),
+            "write",
+            "move",
+            str(Path("/")),
+            str(tmp_path / "root-moved"),
+            "--dry-run",
+        ],
+    )
+
+    assert code == EXIT_INVALID_ARGS
+    assert data["success"] is False
+    assert "root" in data["errors"][0]["message"].lower()

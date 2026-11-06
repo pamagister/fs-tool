@@ -192,9 +192,9 @@ Issue: #5 "Phase 3: Search and Analysis".
 - [x] P4-T01 Implement common write-operation interface
 - [x] P4-T02 Implement mandatory Dry-Run or execution authorization
 - [x] P4-T03 Implement structured operation reports
-- [ ] P4-T04 Implement no-overwrite protection
-- [ ] P4-T05 Implement preflight validation
-- [ ] P4-T06 Validate source and destination paths
+- [x] P4-T04 Implement no-overwrite protection
+- [x] P4-T05 Implement preflight validation
+- [x] P4-T06 Validate source and destination paths
 
 ### `write mkdir`
 
@@ -216,16 +216,17 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 ### `write move`
 
-- [ ] P4-T19 Implement file moving
-- [ ] P4-T20 Implement directory moving
-- [ ] P4-T21 Implement symlink moving
-- [ ] P4-T22 Implement filename-change detection
-- [ ] P4-T23 Require `--allow-rename` for renaming
-- [ ] P4-T24 Implement Dry-Run
-- [ ] P4-T25 Implement no-overwrite protection
-- [ ] P4-T26 Add tests for conflicts and safety restrictions
+- [x] P4-T19 Implement file moving
+- [x] P4-T20 Implement directory moving
+- [x] P4-T21 Implement symlink moving
+- [x] P4-T22 Implement filename-change detection
+- [x] P4-T23 Require `--allow-rename` for renaming
+- [x] P4-T24 Implement Dry-Run
+- [x] P4-T25 Implement no-overwrite protection
+- [x] P4-T26 Add tests for conflicts and safety restrictions
 
-**Milestone:** Safe and verifiable filesystem modifications.
+**Milestone reached:** Safe and verifiable filesystem modifications.
+`make check` passed: 197 tests, Ruff formatting/lint, and mypy.
 
 ---
 
@@ -282,6 +283,8 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 4 | Milestone | `make check` passed with 197 tests; Ruff formatting/lint and mypy clean. |
+| 2026-11-06 | 4 | P4-T19..P4-T26 | Added file, directory, and symlink moves with same-filesystem checks, filesystem-root refusal, filename-change authorization, dry-run, and structured result verification. Uses atomic no-replace rename primitives on Linux/macOS and non-replacing `os.rename` on Windows; rejects unsupported POSIX platforms rather than risking overwrite. Added conflict-race, rename, symlink, root, and directory tests. |
 | 2026-11-06 | 4 | P4-T11..P4-T18 | Added preflighted regular-file and recursive directory copying; publication uses an exclusive hard-link step, file data is SHA-256 verified, and mode/timestamps are preserved. Added explicit symlink error/copy/skip policies, special-entry rejection, dry-run, no-overwrite checks, and structured partial-failure reporting with tests. |
 | 2026-11-06 | 4 | P4-T01..P4-T03, P4-T07..P4-T10 | Added shared operation reports and exact `--dry-run`/`--yes` authorization; `write mkdir` supports explicit parent creation, idempotent existing directories, conflicts, allowed-root validation, and JSON/plain reporting. Added seven mkdir behavior and safety tests. |
 | 2026-11-06 | 1 | P1-T07 | core/traversal.py: entries carry accessed/changed/created timestamps, mode, owner (POSIX), dev:inode; tests assert metadata presence. |
