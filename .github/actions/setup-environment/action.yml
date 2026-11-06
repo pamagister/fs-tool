@@ -20,8 +20,18 @@ runs:
       with:
         version: "latest"
 
+    - name: Install Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: "uv"
+
     - name: Sync dependencies
       run: |
         uv sync --all-groups
         if [ -n "${{ inputs.extra }}" ]; then uv sync --extra "${{ inputs.extra }}"; fi
+      shell: bash
+
+    - name: Show Python version
+      run: python --version
       shell: bash
