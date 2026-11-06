@@ -103,7 +103,7 @@ def test_read_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     code = main(["--allow-root", str(tmp_path), "--plain", "inspect", "read", str(file_path)])
     assert code == EXIT_SUCCESS
     output = capsys.readouterr().out
-    assert output.rstrip("\n") == content.rstrip("\n")
+    assert output.rstrip("\r\n") == content.rstrip("\r\n")
 
 
 def test_read_plain_truncation_warning(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
