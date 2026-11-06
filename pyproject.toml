@@ -1,11 +1,11 @@
 [project]
 name = "fs-tool"
-version = "0.1.0"
-description = "Lightweight, secure and agent-friendly CLI for inspecting and organizing local filesystems."
+dynamic = ["version"]
+description = "Lightweight, secure CLI for inspecting and organizing local filesystems."
 authors = [
     {name = "pamagister"}
 ]
-readme = "README.md"
+readme = "docs/index.md"
 requires-python = ">=3.11"
 # click<8.2: typer 0.12 renders help via param.make_metavar(), which click 8.2
 # changed to require a context argument (typer 0.12 calls it without one).
@@ -37,11 +37,71 @@ docs = [
 fs-tool = "fs_tool.cli:main"
 
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.1.0"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.data-files]
+"share/fs-tool/docs" = ["docs/.nav.yml", "docs/index.md"]
+"share/fs-tool/docs/css" = ["docs/css/*"]
+"share/fs-tool/docs/develop" = ["docs/develop/*"]
+"share/fs-tool/docs/funding" = ["docs/funding/*"]
+"share/fs-tool/docs/getting-started" = ["docs/getting-started/*"]
+"share/fs-tool/docs/_static/img" = ["docs/_static/img/*"]
+"share/fs-tool/docs/usage" = ["docs/usage/*"]
+"share/fs-tool/res/example_filesystem_unstructured" = [
+    "res/example_filesystem_unstructured/Auslandssemester.docx",
+    "res/example_filesystem_unstructured/Barcelona Sehenswertes.docx",
+    "res/example_filesystem_unstructured/Der Goldschatz partygame.pdf",
+    "res/example_filesystem_unstructured/Reise-Checkliste.odt",
+    "res/example_filesystem_unstructured/Sauna_Aufriss.odg",
+    "res/example_filesystem_unstructured/Tokensystem Zähneputzen.odt",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Beruf" = [
+    "res/example_filesystem_unstructured/Beruf/Bewerbungen.txt",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Freizeit" = [
+    "res/example_filesystem_unstructured/Freizeit/Ablauf Freitag Grundschule.docx",
+    "res/example_filesystem_unstructured/Freizeit/Dresdner Christstollen.pdf",
+    "res/example_filesystem_unstructured/Freizeit/Kirschkuchen.pdf",
+    "res/example_filesystem_unstructured/Freizeit/Pelmeni.odt",
+    "res/example_filesystem_unstructured/Freizeit/Seemeilenbestaetigung.pdf",
+    "res/example_filesystem_unstructured/Freizeit/Tidal Prediction Form.pdf",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Freizeit/Projekte" = [
+    "res/example_filesystem_unstructured/Freizeit/Projekte/Sauna_Grundriss.odg",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Reise/Segeln" = [
+    "res/example_filesystem_unstructured/Reise/Segeln/Segeln Ibiza 2024.gpx",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Reise/Segeln/Dalmatien 2018" = [
+    "res/example_filesystem_unstructured/Reise/Segeln/Dalmatien 2018/2017-08-26_19-18_Sat.gpx",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Reise/Slowenien" = [
+    "res/example_filesystem_unstructured/Reise/Slowenien/Klettersteige Slowenien.gpx",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Schule" = [
+    "res/example_filesystem_unstructured/Schule/Antrag Schülerausweis.docx",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Studium" = [
+    "res/example_filesystem_unstructured/Studium/Oberseminare 2009 Helduser.pdf",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Urlaub" = [
+    "res/example_filesystem_unstructured/Urlaub/Der Weg zum SHS.ods",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Urlaub/Italien" = [
+    "res/example_filesystem_unstructured/Urlaub/Italien/Klettersteige Italien 2024.kmz",
+]
+"share/fs-tool/res/example_filesystem_unstructured/Urlaub/Radtouren" = [
+    "res/example_filesystem_unstructured/Urlaub/Radtouren/Gittersee-steinbach.gpx",
+    "res/example_filesystem_unstructured/Urlaub/Radtouren/SingletrailDresdenerHeide.gpx",
+    "res/example_filesystem_unstructured/Urlaub/Radtouren/StauseeInDerDresdnerHeide.gpx",
+]
 
 [tool.ruff]
 line-length = 100

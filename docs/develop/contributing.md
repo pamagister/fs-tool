@@ -45,7 +45,7 @@ Run `make lint` to run the linter.
 
 Run `make test` to run the tests.
 
-Ensure code coverage report shows `100%` coverage, add tests to your PR.
+Review the coverage report and add tests for relevant uncovered behavior.
 
 ## Build the docs locally
 
@@ -75,53 +75,36 @@ This project comes with a `Makefile` that contains a number of useful utility.
 ```bash 
 ❯ make
 Usage: make <target>
-
 Targets:
-help:             ## Displays the help.
-show:             ## Show the current environment.
-install:          ## Install the project in dev mode.
-lock:             ## Builds the uv.lock file and syncs the packages.
-fmt:              ## Format code using black & isort.
-lint:             ## Run pep8, black, mypy linters.
-test: lint        ## Run tests and generate coverage report.
-watch:            ## Run tests on every change.
-clean:            ## Clean unused files. 
-deptry:           ## Check for unused dependencies.
-virtualenv:       ## Create a virtual environment.
-release:          ## Create a new tag for release.
-docs:             ## Build the documentation using mkdocs.
-init:             ## Initialize the project based on an application template.
+help:             ## Show the help.
+install:          ## Install the project and all dependency groups.
+fmt:              ## Format source code and tests.
+lint:             ## Run lint, formatting, and type checks.
+test:             ## Run tests and generate coverage report.
+check:            ## Run formatting, lint, and the test suite.
+build:            ## Build the Python sdist and wheel, including docs/ and res/.
+release:          ## Check, create, and push a version tag to trigger GitHub release workflows.
+docs:             ## Build and sync the documentation.
 ```
 
 ## Making a new release
 
-This project uses [semantic versioning](https://semver.org/) and tags releases with `X.Y.Z`
-Every time a new tag is created and pushed to the remote repo, github actions will
-automatically create a new release on github and trigger a release on PyPI.
+This project uses [semantic versioning](https://semver.org/) and tags releases with `X.Y.Z`.
+The package version is derived from the Git tag. Running `make release` locally runs the checks,
+suggests the next patch version, creates the tag, and pushes it. GitHub Actions then builds the
+Python distributions, creates the GitHub release, and publishes to PyPI.
 
-For this to work you need to setup a secret called `PIPY_API_TOKEN` on the project settings>secrets, 
-this token can be generated on [pypi.org](https://pypi.org/account/).
+PyPI publishing requires a repository secret named `PYPI_API_TOKEN`, generated on
+[pypi.org](https://pypi.org/account/).
 
 To trigger a new release all you need to do is.
 
-1. If you have changes to add to the repo
-    * Make your changes following the steps described above.
-    * Commit your changes following the [conventional git commit messages](https://www.conventionalcommits.org/en/v1.0.0/).
-2. Run the tests to ensure everything is working.
-3. Set your git username and email:
-    * `git init`
-    * `git config --global user.name "Your name"`
-    * `git config --global user.email "your.mail@example.com"`
-4. Verify settings
-    * `git config --list --show-origin`
-    * `git config user.name`
-    * `git config user.email`
-5. Run `make release` to create a new tag and push it to the remote repo.
+1. Commit all intended changes and ensure the worktree is clean.
+2. Verify your Git author identity with `git config user.name` and `git config user.email`.
+3. Run `make release` and confirm or edit the suggested version when prompted.
 
-the `make release` will ask you the version number to create the tag, ex: type `0.1.1` when you are asked.
-
-> **CAUTION**:  The make release will change local changelog files and commit all the unstaged changes you have.
-
+`make release` does not modify or commit project files. It refuses to release with uncommitted
+changes or an invalid/already existing version tag.
 
 ### Troubleshooting
 
@@ -157,4 +140,3 @@ To fix this, you need to use a **Personal Access Token (PAT)** instead of your p
    ```
 
 After this setup, `make release` and manual pushes will work without further authentication errors.
-

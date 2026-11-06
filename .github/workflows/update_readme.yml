@@ -1,16 +1,18 @@
 name: Sync README with docs/index.md
 
+permissions:
+  contents: write
+
 on:
   push:
     paths:
       - "docs/index.md"
-    branches: [ main ]
-  # Allows you to run this workflow manually from the Actions tab
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -28,5 +30,9 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add README.md
-          git commit -m "Update README.md from docs/index.md" || echo "No changes"
-          git push
+          if git diff --cached --quiet; then
+            echo "README.md is already in sync."
+            exit 0
+          fi
+          git commit -m "docs: sync README from docs/index.md"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

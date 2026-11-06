@@ -14,23 +14,12 @@ import typer
 from click.exceptions import ClickException
 from click.exceptions import Exit as ClickExit
 
+from fs_tool import __version__
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.traversal import traverse
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.safety.validation import validate_path
-
-try:
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import version as _distribution_version
-except ImportError:  # pragma: no cover - Python < 3.8, out of support
-    __version__ = "0.1.0"
-else:
-    try:
-        __version__ = _distribution_version("fs-tool")
-    except PackageNotFoundError:
-        # Running from source without installation.
-        __version__ = "0.1.0"
 
 # Process exit codes (plan.md section 4.3).
 EXIT_SUCCESS = 0

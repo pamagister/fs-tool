@@ -3,31 +3,20 @@
 
 ## 🐍 PyPI
 
-### Install the package from PyPI
-
-Download from [PyPI](https://pypi.org/):
+Install the CLI from [PyPI](https://pypi.org/):
 
 ```bash
 pip install fs-tool
 ```
 
-### Run CLI from command line
+The package includes the `docs/` documentation and `res/` sample files under
+`share/fs-tool/` in the active Python environment's data directory.
+
+### Run the CLI
+
 ```bash
 fs-tool [OPTIONS] path/to/file
 ```
-
-### Run GUI from command line
-```bash
-fs-tool-gui
-```
-
-## 🔽 Executable
-
-Download the latest executable:
-
-- [⬇️ Download for Windows](https://github.com/pamagister/fs-tool/releases/latest/download/installer-win.zip)
-- [⬇️ Download for macOS](https://github.com/pamagister/fs-tool/releases/latest/download/package-macos.zip)
-
 
 ## 👩🏼‍💻 Run from source
 
@@ -46,21 +35,11 @@ cd fs-tool
 ### Install dependencies
 
 ```bash
-uv venv
-uv pip install -e .[dev,docs]
+uv sync --all-groups
 ```
 
-
-### Run with CLI from source
+### Run the CLI from source
 
 ```bash
-python -m fs_tool.cli [OPTIONS] path/to/file
+uv run fs-tool [OPTIONS] path/to/file
 ```
-
-
-### Run with GUI from source
-
-```bash
-python -m fs_tool.gui
-```
-
