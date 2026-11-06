@@ -184,6 +184,44 @@ def test_write_copy_file_verifies_content_and_preserves_metadata(cli: Any, tmp_p
     assert not list(tmp_path.glob(".fs-tool-copy-*"))
 
 
+def test_write_copy_falls_back_when_fd_timestamps_are_unavailable(
+    cli: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fs_tool.operations import copy as copy_module
+
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "destination.txt"
+    source.write_text("copy", encoding="utf-8")
+    set_timestamp = copy_module.os.utime
+    fallback_used = False
+
+    def unsupported_fd_utime(path: Any, **kwargs: Any) -> None:
+        nonlocal fallback_used
+        if isinstance(path, int):
+            raise NotImplementedError
+        fallback_used = True
+        assert "follow_symlinks" not in kwargs
+        set_timestamp(path, **kwargs)
+
+    monkeypatch.setattr(copy_module.os, "utime", unsupported_fd_utime)
+    code, _ = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "copy",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert fallback_used
+    assert destination.read_text(encoding="utf-8") == "copy"
+
+
 def test_write_copy_never_overwrites_existing_destination(cli: Any, tmp_path: Path) -> None:
     source = tmp_path / "source.txt"
     destination = tmp_path / "destination.txt"

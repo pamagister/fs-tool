@@ -170,12 +170,17 @@ def _copy_regular_file(source: Path, destination: Path) -> str:
                 os.fsync(destination_stream.fileno())
                 if hasattr(os, "fchmod"):
                     os.fchmod(destination_stream.fileno(), stat.S_IMODE(source_info.st_mode))
+                try:
+                    os.utime(
+                        destination_stream.fileno(),
+                        ns=(source_info.st_atime_ns, source_info.st_mtime_ns),
+                    )
+                except (NotImplementedError, TypeError):
+                    os.utime(
+                        temporary_path,
+                        ns=(source_info.st_atime_ns, source_info.st_mtime_ns),
+                    )
 
-        os.utime(
-            temporary_path,
-            ns=(source_info.st_atime_ns, source_info.st_mtime_ns),
-            follow_symlinks=False,
-        )
         expected_hash = source_hash.hexdigest()
         destination_hash = hashlib.sha256()
         with temporary_path.open("rb") as copied_file:
