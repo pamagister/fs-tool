@@ -6,7 +6,7 @@ Status:
 - `[x]` Completed
 - `[~]` Deferred
 
-Current state: Phase 2 (Inspection Commands) is complete. Phase 3 (Search and Analysis) is complete.
+Current state: Phase 5 (Output and Presentation) is complete. Phase 6 (Additional Metadata and Analysis) is next.
 
 ## Decisions (see plan.md section 2)
 
@@ -231,16 +231,19 @@ Issue: #5 "Phase 3: Search and Analysis".
 
 ## Phase 5 – Output and Presentation
 
-- [ ] P5-T01 Finalize JSON output schemas
-- [ ] P5-T02 Implement consistent `--plain` handling
-- [ ] P5-T03 Implement human-readable metadata summaries
-- [ ] P5-T04 Implement tree visualization
-- [ ] P5-T05 Implement duplicate reports
-- [ ] P5-T06 Implement comparison reports
-- [ ] P5-T07 Implement operation previews
-- [ ] P5-T08 Test output consistency across commands
+Issue: #7 "Phase 5: Output and Presentation".
 
-**Milestone:** Consistent machine-readable and human-readable interfaces.
+**Milestone reached:** Consistent machine-readable and human-readable interfaces.
+`make check` green: 212 tests passing, ruff/format/mypy clean.
+
+- [x] P5-T01 Finalize JSON output schemas
+- [x] P5-T02 Implement consistent `--plain` handling
+- [x] P5-T03 Implement human-readable metadata summaries
+- [x] P5-T04 Implement tree visualization
+- [x] P5-T05 Implement duplicate reports
+- [x] P5-T06 Implement comparison reports
+- [x] P5-T07 Implement operation previews
+- [x] P5-T08 Test output consistency across commands
 
 ---
 
@@ -327,7 +330,9 @@ Issue: #5 "Phase 3: Search and Analysis".
 | 2026-11-06 | 2 | P2-T09..P2-T13 | cli.py: inspect info command with single-path metadata (timestamps, permissions, owner, MIME, symlink); traversal._build_entry refactored to public build_entry; output/plain.py: render_info(); tests in tests/test_info.py; 9 new tests, 103 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T14 | core/metadata.py: document metadata extraction (PDF via optional pypdf, ODF/OOXML via stdlib zipfile/ElementTree); size limit 100 MiB; read-only, no code execution; --metadata flag on inspect info; tests using res/example_filesystem_unstructured fixtures; 4 new tests, 107 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T15..P2-T20 | cli.py: inspect inventory command with --hash, --tree-hash, --max-depth, --max-entries, --ignore-dir, --ignore-pattern, --dirs-only; _compute_tree_hash() with canonical JSON (excludes path/dev_ino/generated_at); output/plain.py: render_inventory(); tests in tests/test_inventory.py; 13 new tests, 120 total passing; make check green. |
-| 2026-11-06 | 3 | P3-T06..P3-T10 | core/analysis/duplicates.py: DuplicateGroup/DuplicateResult, find_duplicates() with size-based candidate filtering, SHA-256 hashing, hardlink dedup, empty file handling; cli.py: duplicates files command with --min-size, --include-empty options; output/plain.py: render_duplicates(); tests in tests/test_duplicates.py; 7 new tests, 155 total passing; make check green. |\n| 2026-11-06 | 3 | P3-T19..P3-T24 | core/analysis/verification.py: VerificationResult, verify_inventory() with schema_version check, verify_tree() with size/hash comparison; cli.py: verify inventory and verify tree commands; output/plain.py: render_verify(); tests in tests/test_verify.py; 11 new tests, 171 total passing; make check green. |
+| 2026-11-06 | 3 | P3-T06..P3-T10 | core/analysis/duplicates.py: DuplicateGroup/DuplicateResult, find_duplicates() with size-based candidate filtering, SHA-256 hashing, hardlink dedup, empty file handling; cli.py: duplicates files command with --min-size, --include-empty options; output/plain.py: render_duplicates(); tests in tests/test_duplicates.py; 7 new tests, 155 total passing; make check green. |
+| 2026-11-06 | 3 | P3-T19..P3-T24 | core/analysis/verification.py: VerificationResult, verify_inventory() with schema_version check, verify_tree() with size/hash comparison; cli.py: verify inventory and verify tree commands; output/plain.py: render_verify(); tests in tests/test_verify.py; 11 new tests, 171 total passing; make check green. |
+| 2026-11-06 | 5 | P5-T01..P5-T08 | output/plain.py: renderers for tree/info/inventory/find/duplicates/compare/verify already existed across earlier phases; tests/test_plain_output.py: 14 new tests covering deterministic rendering, empty states, None-field omission, and all discrepancy categories; 212 total passing; make check green. |
 
 ---
 
