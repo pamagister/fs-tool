@@ -115,7 +115,7 @@ Issue: #4 "Phase 2: Inspection Commands".
 - [x] P2-T11 Implement owner information
 - [x] P2-T12 Implement MIME type information
 - [x] P2-T13 Implement symlink information
-- [ ] P2-T14 Implement `--metadata` document extraction (PDF/ODF/OOXML)
+- [x] P2-T14 Implement `--metadata` document extraction (PDF/ODF/OOXML)
 
 ### `inspect inventory`
 
@@ -311,6 +311,7 @@ Issue: #4 "Phase 2: Inspection Commands".
 | 2026-11-06 | 2 | P2-T08 | Deferred to Phase 6 (Python AST analysis per roadmap). |
 | 2026-11-06 | 2 | Review follow-up | Traversal errors now make scans incomplete and unsuccessful; incomplete plain output is diagnosed; Click usage errors are shown; root-option and tree-metadata contracts aligned with the specification. Regression tests cover missing/file roots, nested read failures, option diagnostics, and explicit root replacement. |
 | 2026-11-06 | 2 | P2-T09..P2-T13 | cli.py: inspect info command with single-path metadata (timestamps, permissions, owner, MIME, symlink); traversal._build_entry refactored to public build_entry; output/plain.py: render_info(); tests in tests/test_info.py; 9 new tests, 103 total passing; make check green. |
+| 2026-11-06 | 2 | P2-T14 | core/metadata.py: document metadata extraction (PDF via optional pypdf, ODF/OOXML via stdlib zipfile/ElementTree); size limit 100 MiB; read-only, no code execution; --metadata flag on inspect info; tests using res/example_filesystem_unstructured fixtures; 4 new tests, 107 total passing; make check green. |
 
 ---
 

@@ -7,7 +7,7 @@ The package is also runnable as ``python -m fs_tool``.
 from __future__ import annotations
 
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import typer
@@ -269,6 +269,9 @@ def inspect_tree(
 def inspect_info(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="File or directory to inspect."),
+    metadata: bool = typer.Option(
+        False, "--metadata", help="Extract document metadata (PDF/ODF/OOXML)."
+    ),
 ) -> int:
     """Inspect metadata for a single file or directory.
 
@@ -289,6 +292,11 @@ def inspect_info(
         )
         typer.echo(envelope.to_json())
         return exc.exit_code
+
+    if metadata:
+        from fs_tool.core.metadata import extract_metadata
+
+        entry = replace(entry, metadata=extract_metadata(root))
 
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_info

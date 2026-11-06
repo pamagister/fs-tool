@@ -1,4 +1,4 @@
-"""Tests for the ``inspect info`` command (plan.md Phase 2, P2-T09..P2-T13)."""
+"""Tests for the ``inspect info`` command (plan.md Phase 2, P2-T09..P2-T14)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from pathlib import Path
 import pytest
 
 from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_INVALID_ARGS, EXIT_SUCCESS, main
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+EXAMPLE_FILES = PROJECT_ROOT / "res" / "example_filesystem_unstructured"
 
 
 def argv_for(source: Path, *extra: str) -> list[str]:
@@ -136,3 +139,51 @@ def test_info_mime_type(tmp_path: Path) -> None:
     assert code == EXIT_SUCCESS
     result = data["result"]
     assert result["mime_type"] == "application/pdf"
+
+
+def test_info_metadata_pdf() -> None:
+    pdf_path = EXAMPLE_FILES / "Der Goldschatz partygame.pdf"
+    assert pdf_path.is_file(), f"test fixture missing: {pdf_path}"
+    code, data = info_json(pdf_path, "--metadata")
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["metadata"] is not None
+    metadata = result["metadata"]
+    for key in ("author", "title", "subject", "created", "modified"):
+        assert key in metadata, f"metadata missing key: {key}"
+        assert metadata[key] is None or isinstance(metadata[key], str)
+
+
+def test_info_metadata_odf() -> None:
+    odt_path = EXAMPLE_FILES / "Reise-Checkliste.odt"
+    assert odt_path.is_file(), f"test fixture missing: {odt_path}"
+    code, data = info_json(odt_path, "--metadata")
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["metadata"] is not None
+    metadata = result["metadata"]
+    for key in ("author", "title", "subject", "created", "modified"):
+        assert key in metadata, f"metadata missing key: {key}"
+        assert metadata[key] is None or isinstance(metadata[key], str)
+
+
+def test_info_metadata_ooxml() -> None:
+    docx_path = EXAMPLE_FILES / "Auslandssemester.docx"
+    assert docx_path.is_file(), f"test fixture missing: {docx_path}"
+    code, data = info_json(docx_path, "--metadata")
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["metadata"] is not None
+    metadata = result["metadata"]
+    for key in ("author", "title", "subject", "created", "modified"):
+        assert key in metadata, f"metadata missing key: {key}"
+        assert metadata[key] is None or isinstance(metadata[key], str)
+
+
+def test_info_metadata_unsupported_returns_none(tmp_path: Path) -> None:
+    txt_path = tmp_path / "notes.txt"
+    txt_path.write_text("hello")
+    code, data = info_json(txt_path, "--metadata")
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["metadata"] is None
