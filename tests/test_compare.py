@@ -147,4 +147,5 @@ def test_compare_subdirectory(tmp_path: Path) -> None:
     source, destination = _make_compare_trees(tmp_path)
     code, data = compare_json(source, destination)
     assert code == EXIT_SUCCESS
-    assert "sub/nested.txt" in data["result"]["identical"]
+    nested_path = str(Path("sub") / "nested.txt")
+    assert nested_path in data["result"]["identical"]
