@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import stat
 import sys
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
@@ -433,6 +434,152 @@ def inspect_inventory(
     )
     typer.echo(envelope.to_json())
     return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
+
+
+@inspect_group.command(name="read")
+def inspect_read(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Text file to read."),
+    max_bytes: int = typer.Option(65536, "--max-bytes", help="Maximum number of bytes to read."),
+) -> int:
+    """Read a bounded UTF-8 text file.
+
+    Symlinks are never followed. Binary files are rejected. Content is
+    truncated at ``--max-bytes`` with ``truncated`` set in the result.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain inspect read /tmp/notes.txt``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+
+    try:
+        lst = root.lstat()
+    except OSError as exc:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.read",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message=f"Cannot stat {root}: {exc.strerror or exc}",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    if stat.S_ISLNK(lst.st_mode):
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.read",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message="Refusing to read a symbolic link.",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    if not stat.S_ISREG(lst.st_mode):
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.read",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message="Refusing to read a non-regular file.",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    # Read up to max_bytes + 1 to detect truncation.
+    try:
+        with open(root, "rb") as f:
+            raw = f.read(max_bytes + 1)
+    except OSError as exc:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.read",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.ACCESS_DENIED,
+                    message=f"Cannot read {root}: {exc.strerror or exc}",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_ACCESS_DENIED
+
+    truncated = len(raw) > max_bytes
+    raw = raw[:max_bytes]
+
+    try:
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.read",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message="File is not valid UTF-8 text (binary file).",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    result = {
+        "path": str(root),
+        "name": root.name,
+        "size": lst.st_size,
+        "content": content,
+        "truncated": truncated,
+        "encoding": "utf-8",
+    }
+
+    if ctx.obj.output_format == "plain":
+        typer.echo(content)
+        if truncated:
+            print(
+                f"fs-tool: warning: content truncated at {max_bytes} bytes",
+                file=sys.stderr,
+            )
+        return EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=True,
+        command="inspect.read",
+        result=result,
+        complete=True,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_SUCCESS
 
 
 def main(argv: list[str] | None = None) -> int:

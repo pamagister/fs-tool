@@ -128,10 +128,10 @@ Issue: #4 "Phase 2: Inspection Commands".
 
 ### `inspect read`
 
-- [ ] P2-T21 Implement bounded UTF-8 reading
-- [ ] P2-T22 Implement configurable maximum size
-- [ ] P2-T23 Implement truncation reporting
-- [ ] P2-T24 Prevent accidental binary and symlink reading
+- [x] P2-T21 Implement bounded UTF-8 reading
+- [x] P2-T22 Implement configurable maximum size
+- [x] P2-T23 Implement truncation reporting
+- [x] P2-T24 Prevent accidental binary and symlink reading
 
 **Milestone:** Complete read-only filesystem inspection.
 
@@ -313,6 +313,7 @@ Issue: #4 "Phase 2: Inspection Commands".
 | 2026-11-06 | 2 | P2-T09..P2-T13 | cli.py: inspect info command with single-path metadata (timestamps, permissions, owner, MIME, symlink); traversal._build_entry refactored to public build_entry; output/plain.py: render_info(); tests in tests/test_info.py; 9 new tests, 103 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T14 | core/metadata.py: document metadata extraction (PDF via optional pypdf, ODF/OOXML via stdlib zipfile/ElementTree); size limit 100 MiB; read-only, no code execution; --metadata flag on inspect info; tests using res/example_filesystem_unstructured fixtures; 4 new tests, 107 total passing; make check green. |
 | 2026-11-06 | 2 | P2-T15..P2-T20 | cli.py: inspect inventory command with --hash, --tree-hash, --max-depth, --max-entries, --ignore-dir, --ignore-pattern, --dirs-only; _compute_tree_hash() with canonical JSON (excludes path/dev_ino/generated_at); output/plain.py: render_inventory(); tests in tests/test_inventory.py; 13 new tests, 120 total passing; make check green. |
+| 2026-11-06 | 2 | P2-T21..P2-T24 | cli.py: inspect read command with bounded UTF-8 reading, --max-bytes, truncation reporting, symlink/binary/directory rejection; tests in tests/test_read.py; 10 new tests, 130 total passing; make check green. |
 
 ---
 
