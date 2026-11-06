@@ -72,7 +72,7 @@ Issue: #2 "Cleanup legacy stuff" (existing GitHub issue; repurpose for Phase 0).
 Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 - [x] P1-T01 Implement path normalization
-- [ ] P1-T02 Implement allowed-root restrictions (Home + CWD default)
+- [x] P1-T02 Implement allowed-root restrictions (Home + CWD default)
 - [ ] P1-T03 Implement path traversal protection
 - [ ] P1-T04 Implement symlink detection and handling
 - [ ] P1-T05 Implement recursive directory traversal
@@ -271,6 +271,7 @@ Issue: #3 "Phase 1: Filesystem Core and Safety".
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-06 | 1 | P1-T02 | safety/validation.py: allowed-root validation; default roots home + CWD (CWD of / not implicit); PathNotAllowedError maps to exit code 3; tests in tests/test_safety.py. |
 | 2026-11-06 | 1 | P1-T01 | core/filesystem.py: normalize_path (lexical, ~ expansion, absolute, collapses ./..) and resolve_path (symlink-aware); tests in tests/test_traversal.py. |
 | 2026-11-06 | 0 | P0-T01 | Removed legacy template artefacts (GUI, config-cli-gui, config.yaml, PyInstaller builds, GPX examples, init.sh, template scripts, .idea run configs, HISTORY.md). |
 | 2026-11-06 | 0 | P0-T02 | Repaired pyproject.toml: typer, Python >=3.11, [metadata] extra (pypdf), fs_tool.cli:main entry point, src/ package discovery, ruff/mypy/coverage/pytest config; click pinned <8.2 for typer 0.12 help rendering. uv lock succeeds. |
