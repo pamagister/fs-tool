@@ -2,14 +2,10 @@ name: Upload Python Package
 permissions:
   contents: write
 
-# if you get a Permission denied error on executing the sh file, you have to execute:
-# git update-index --chmod=+x ./.github/release_message.sh
-
 on:
-  push:
-    # Sequence of patterns matched against refs/tags
-    tags:
-      - '*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  # Push events to matching tags, i.e. v1.0, v20.15.10
+  tags:
+    - '*'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -27,11 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # by default, it uses a depth of 1
-          # this fetches all history so that we can read each commit
+          # fetch-depth: 0 fetches all history so that commit messages can be read
           fetch-depth: 0
-      - name: Generate Changelog
-        run: .github/release_message.sh > release_message.md
+      - name: Generate changelog
+        run: git log --pretty=format:'- %s (%h)' -100 > release_message.md
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -43,12 +38,11 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
-        # setuptools_scm benötigt die Git-Tags für die Versionsnummer
+        # setuptools needs the Git tags for the version number
         fetch-depth: 0
     - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        # Use a specific Python version, e.g., 3.11, consistent with your build
         python-version: '3.11'
     - name: Install dependencies
       run: |

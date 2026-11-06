@@ -7,6 +7,10 @@ inputs:
     description: 'Python version to use'
     required: true
     default: '3.11'
+  extra:
+    description: 'Optional dependency extra to install (e.g. metadata)'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -16,16 +20,8 @@ runs:
       with:
         version: "latest"
 
-    - name: Create virtual environment
-      run: uv venv .venv --python ${{ inputs.python-version }}
-      shell: bash
-
-    - name: Activate virtual environment
-      run: echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Install dependencies
+    - name: Sync dependencies
       run: |
-        uv pip install -e .
-        uv pip install -e ".[dev]"
+        uv sync --all-groups
+        if [ -n "${{ inputs.extra }}" ]; then uv sync --extra "${{ inputs.extra }}"; fi
       shell: bash
