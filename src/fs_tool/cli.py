@@ -326,16 +326,17 @@ def inspect_info(
 def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHEMA_VERSION) -> str:
     """Compute a deterministic tree hash over inventory entries.
 
-    Entries are sorted by ``rel_path``. The absolute ``path`` field is
-    excluded from each entry. The result is versioned via
-    ``schema_version``. ``generated_at`` is never part of the hash input.
+    Entries are sorted by ``rel_path``. Fields that are filesystem-specific
+    (absolute ``path``, inode ``dev_ino``, timestamps) are excluded so the
+    hash depends only on structure and content, making it portable across
+    machines and deterministic across time. ``generated_at`` is never part
+    of the hash input. The result is versioned via ``schema_version``.
     """
+    excluded = {"path", "dev_ino", "modified", "accessed", "changed", "created"}
     ordered = sorted(entries, key=lambda entry: entry.get("rel_path") or "")
     hashable = {
         "schema_version": schema_version,
-        "entries": [
-            {k: v for k, v in entry.items() if k not in ("path", "dev_ino")} for entry in ordered
-        ],
+        "entries": [{k: v for k, v in entry.items() if k not in excluded} for entry in ordered],
     }
     canonical = json.dumps(hashable, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
