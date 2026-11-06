@@ -136,3 +136,17 @@ def render_find(entries: list[FilesystemEntry], root: Path) -> str:
         lines.append(line)
     lines.append(f"count: {len(entries)}")
     return "\n".join(lines)
+
+
+def render_duplicates(groups: list[dict[str, Any]]) -> str:
+    """Render duplicate groups as plain-text lines."""
+    lines: list[str] = [f"duplicate groups: {len(groups)}"]
+    for group in groups:
+        sha256 = group.get("sha256", "")
+        size = group.get("size", 0)
+        count = group.get("count", 0)
+        files = group.get("files", [])
+        lines.append(f"  {sha256} size={size} count={count}")
+        for file_path in files:
+            lines.append(f"    {file_path}")
+    return "\n".join(lines)

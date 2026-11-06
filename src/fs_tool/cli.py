@@ -750,6 +750,118 @@ def find_entries_cmd(
     return EXIT_INCOMPLETE if not complete else EXIT_SUCCESS
 
 
+@duplicates_group.command(name="files")
+def duplicates_files(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Directory to search for duplicates."),
+    min_size: str = typer.Option(
+        "1", "--min-size", help="Minimum file size (e.g. 1K, 2M). Default 1 byte."
+    ),
+    include_empty: bool = typer.Option(
+        False, "--include-empty", help="Include empty files in duplicate detection."
+    ),
+    max_entries: int | None = typer.Option(
+        None, "--max-entries", help="Maximum number of entries to scan."
+    ),
+    ignore_dir: list[str] = typer.Option(
+        [],
+        "--ignore-dir",
+        help="Ignore a directory by name (repeatable).",
+    ),
+    ignore_pattern: list[str] = typer.Option(
+        [],
+        "--ignore-pattern",
+        help="Ignore names matching a pattern (repeatable).",
+    ),
+) -> int:
+    """Find files with identical content.
+
+    Uses file size as an initial filter, then SHA-256 hashing for
+    same-size candidates. Hardlinks are not counted as duplicates.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain duplicates files ~/Archive``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+
+    try:
+        min_size_int = parse_size(min_size)
+    except ValueError as exc:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="duplicates.files",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message=f"Invalid --min-size value {min_size!r}: {exc}",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    from fs_tool.core.analysis.duplicates import find_duplicates
+
+    dup_result = find_duplicates(
+        root,
+        min_size=min_size_int,
+        include_empty=include_empty,
+        max_entries=max_entries,
+        ignore_dirs=frozenset(ignore_dir),
+        ignore_patterns=tuple(ignore_pattern),
+    )
+
+    groups = [
+        {
+            "sha256": g.sha256,
+            "size": g.size,
+            "count": g.count,
+            "files": g.files,
+        }
+        for g in dup_result.groups
+    ]
+
+    total_duplicate_files = sum(g.count for g in dup_result.groups)
+
+    result: dict[str, Any] = {
+        "root": str(root),
+        "duplicate_groups": groups,
+        "duplicate_group_count": len(groups),
+        "duplicate_file_count": total_duplicate_files,
+        "complete": dup_result.complete,
+    }
+
+    error_tuples = tuple(
+        Error(code="INACCESSIBLE_ENTRY", message=message, path=str(root))
+        for message in dup_result.errors
+    )
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_duplicates
+
+        typer.echo(render_duplicates(groups))
+        if not dup_result.complete:
+            print("fs-tool: error: scan incomplete", file=sys.stderr)
+        for message in dup_result.errors:
+            print(f"fs-tool: error: {message}", file=sys.stderr)
+        return EXIT_INCOMPLETE if not dup_result.complete else EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=dup_result.complete,
+        command="duplicates.files",
+        result=result,
+        errors=error_tuples,
+        complete=dup_result.complete,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_INCOMPLETE if not dup_result.complete else EXIT_SUCCESS
+
+
 def main(argv: list[str] | None = None) -> int:
     """Application entry point.
 
