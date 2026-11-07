@@ -47,11 +47,12 @@ make test
 ```
 
 Check the Makefile and project configuration rather than assuming a command exists.
-- `make syncdocs` runs `scripts/generate_config_docs.py`, `scripts/update_readme.py`, and
-  `.github/update_funding.py`. It regenerates `config.yaml`, `docs/usage/config.md`,
-  `docs/usage/cli.md`, `README.md`, and `docs/funding/funding.md`. Do not edit these outputs
-  directly: update the relevant `ConfigCategory` definitions used by `ConfigManager` or
-  `docs/index.md`, then run `make syncdocs`.
+- `README.md` is generated from `docs/index.md` and must never be edited directly. Change
+  `docs/index.md` and run `make syncdocs`.
+- `make syncdocs` runs `scripts/update_readme.py`, which copies `docs/index.md` to `README.md` and
+  rewrites relative documentation links for the repository root.
+- The initial-release plan and tasklist live in `docs/develop/initial-release/` (`plan.md` and
+  `tasklist.md`).
 
 ## Specialized Instructions
 

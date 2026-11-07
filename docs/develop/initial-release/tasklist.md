@@ -6,7 +6,9 @@ Status:
 - `[x]` Completed
 - `[~]` Deferred
 
-Current state: Phase 6 (Additional Metadata and Analysis) is complete. Phase 7 (Documentation and Release) is next.
+Current state: Phase 6 (Additional Metadata and Analysis) is complete. Phase 7
+(Documentation and Release) is in progress: documentation tasks are complete,
+installation testing and the release are open.
 
 ## Decisions (see plan.md section 2)
 
@@ -270,17 +272,21 @@ Document metadata (P6-T05, P6-T06, P6-T07, P6-T08) already implemented in
 
 ## Phase 7 – Documentation and Release
 
-- [ ] P7-T01 Complete README
-- [ ] P7-T02 Document installation using uv
-- [ ] P7-T03 Document all CLI commands
-- [ ] P7-T04 Document global options
-- [ ] P7-T05 Document JSON response schemas
-- [ ] P7-T06 Document exit codes
-- [ ] P7-T07 Document safety restrictions
-- [ ] P7-T08 Add practical examples
+**Status (2026-11-07): P7-T01 … P7-T08, P7-T10 and P7-T11 complete.** The
+documentation set was restructured and expanded; installation testing and the
+release remain open.
+
+- [x] P7-T01 Complete README (generated from `docs/index.md` via `make syncdocs`)
+- [x] P7-T02 Document installation using uv
+- [x] P7-T03 Document all CLI commands (`docs/usage/cli.md`)
+- [x] P7-T04 Document global options (`docs/usage/cli.md`, `docs/usage/output.md`)
+- [x] P7-T05 Document JSON response schemas (`docs/usage/output.md`)
+- [x] P7-T06 Document exit codes (`docs/usage/cli.md`, `docs/usage/output.md`)
+- [x] P7-T07 Document safety restrictions (`docs/usage/safety.md`, `docs/usage/configuration.md`)
+- [x] P7-T08 Add practical examples (`docs/usage/examples.md`)
 - [ ] P7-T09 Test installation on Kubuntu
-- [ ] P7-T10 Run complete test suite
-- [ ] P7-T11 Run Ruff checks
+- [x] P7-T10 Run complete test suite (265 passed on 2026-11-07)
+- [x] P7-T11 Run Ruff checks (`make lint` clean on 2026-11-07)
 - [ ] P7-T12 Prepare initial release
 
 **Milestone:** First stable release.
@@ -291,6 +297,8 @@ Document metadata (P6-T05, P6-T06, P6-T07, P6-T08) already implemented in
 
 | Date | Phase | Task | Summary |
 |------|-------|------|---------|
+| 2026-11-07 | 7 | P7-T01..P7-T08 | Restructured `docs/` into `getting-started/`, `usage/`, `develop/` and `funding/`; added `.nav.yml` files per section. Wrote `usage/cli.md`, `configuration.md`, `output.md`, `safety.md`, `examples.md`, `develop/architecture.md`, and rewrote `develop/contributing.md` (naming conventions merged from `naming_convention.md`). Moved `plan.md`/`tasklist.md` to `docs/develop/initial-release/` and added an overview page. Generalized `scripts/update_readme.py` to rewrite links for the repository root; documented that `README.md` is generated. |
+| 2026-11-07 | 7 | P7-T10..P7-T11 | `make test` passed with 265 tests; `make lint` (ruff check, format check, mypy) and `mkdocs build --strict` passed. Wheel/sdist builds include the new `docs/develop/initial-release` files. |
 | 2026-11-06 | 4 | CI milestone | GitHub Actions run 42287137783 passed on Linux, macOS, and Windows, including the Windows-specific checks; `make check` passed locally with 198 tests. |
 | 2026-11-06 | 4 | CI follow-up | Windows CI showed the root-refusal test authorized the runner's current-drive root while pytest's temp directory was on C:. Derive the tested root from `tmp_path.anchor`; rerun CI pending. |
 | 2026-11-06 | 4 | CI follow-up | Windows CI then exposed unsupported `os.utime(..., follow_symlinks=False)` in file metadata preservation. Apply timestamps through the open descriptor, with an unsupported-platform fallback, and add regression coverage; rerun CI pending. |

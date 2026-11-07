@@ -1,7 +1,8 @@
 # Autopilot Workflow – Autonomous Plan Implementation
 
 Use this workflow when the user explicitly authorizes independent execution of
-a larger plan, typically tracked in `plan.md` and `tasklist.md`. Read
+a larger plan, typically tracked in `docs/develop/initial-release/plan.md` and
+`docs/develop/initial-release/tasklist.md`. Read
 `AGENTS_GIT.md` as well. Work continuously within the authorized scope; do not
 ask for confirmation at every implementation step.
 
@@ -22,7 +23,9 @@ ask for confirmation at every implementation step.
 !!! CREATE AN ISSUE FOR THE PHASE IF NONE EXISTS. Search open issues first and reuse one only if it accurately represents the phase; otherwise create a phase issue with `gh issue create`. Issue creation for phases is authorized in this mode. 
 Do not create separate issues for individual tasks or work packages.
 
-1. Read `AGENTS.md`, this file, `AGENTS_GIT.md`, `plan.md`, and `tasklist.md`.
+1. Read `AGENTS.md`, this file, `AGENTS_GIT.md`,
+   `docs/develop/initial-release/plan.md`, and
+   `docs/develop/initial-release/tasklist.md`.
 2. Inspect repository status and existing changes; preserve unrelated user work.
 3. Identify the current phase, its tasks, acceptance criteria, and manageable
    work packages.
@@ -41,8 +44,8 @@ For each open task in the current phase, in tasklist order:
 2. Implement the smallest change that satisfies its acceptance criteria.
 3. Run `make check` or the narrowest relevant tests and checks; fix failures.
 4. Inspect the complete task diff.
-5. Update `tasklist.md`: mark only completed work, record a Work Log entry,
-   and note blockers or deferred work.
+5. Update `docs/develop/initial-release/tasklist.md`: mark only completed work,
+   record a Work Log entry, and note blockers or deferred work.
 6. Stage only files belonging to this task and create one Conventional Commit
    for the validated task. Reference the phase issue with `Refs #N`. Do not
    use a closing keyword in task commits or close the phase issue while other
@@ -65,12 +68,14 @@ commit known failing or unvalidated work.
 
 ## Phase Gate and Issue Updates
 
-Keep `tasklist.md` and the phase issue synchronized as work progresses. Record
-meaningful implementation results and related commits in the issue.
+Keep `docs/develop/initial-release/tasklist.md` and the phase issue synchronized
+as work progresses. Record meaningful implementation results and related commits
+in the issue.
 
 A phase is complete only when:
 
-- All its tasks are complete and its `plan.md` milestone is reached.
+- All its tasks are complete and its milestone in
+  `docs/develop/initial-release/plan.md` is reached.
 - Local `make check` and relevant pre-commit checks pass.
 - All intended changes are committed and pushed.
 - Relevant GitHub Actions CI has completed successfully.
@@ -85,8 +90,9 @@ After all planned phases:
 1. Run the complete test suite and all configured pre-commit checks.
 2. Ensure intended changes are committed and pushed.
 3. Verify successful CI and close only fully completed phase issues.
-4. Update `tasklist.md` and provide a final report covering implementation,
-   checks, commits, push and CI status, issue status, and outstanding work.
+4. Update `docs/develop/initial-release/tasklist.md` and provide a final report
+   covering implementation, checks, commits, push and CI status, issue status,
+   and outstanding work.
 
 ## Stop Conditions and Safety
 

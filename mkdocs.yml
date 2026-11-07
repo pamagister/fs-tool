@@ -1,6 +1,6 @@
 site_name: fs-tool
 site_url: !ENV READTHEDOCS_CANONICAL_URL
-site_description: A feature-rich Python project template with auto-generated CLI, GUI and parameterized configuration.
+site_description: fs-tool is a lightweight, secure and agent-friendly command-line application for analyzing, organizing and restructuring local filesystems.
 repo_url: https://github.com/pamagister/fs-tool
 repo_name: GitHub
 
