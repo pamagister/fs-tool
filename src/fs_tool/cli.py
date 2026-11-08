@@ -26,7 +26,7 @@ from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
 from fs_tool.core.models import EntryType, FilesystemEntry
-from fs_tool.core.providers.inspection import analyze_file, inspect_metadata
+from fs_tool.core.providers.inspection import analyze_file, inspect_metadata, read_file
 from fs_tool.core.traversal import TraversalError, build_entry, traverse
 from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
@@ -635,9 +635,11 @@ def inspect_read(
     source: Path = typer.Argument(..., help="Text file to read."),
     max_bytes: int = typer.Option(65536, "--max-bytes", help="Maximum number of bytes to read."),
 ) -> int:
-    """Read a bounded UTF-8 text file.
+    """Read bounded textual content from a regular file.
 
-    Symlinks are never followed. Binary files are rejected. Content is
+    Plain text is read as UTF-8. PDF files are read through the optional
+    ``pypdf`` dependency and return extracted text with page boundaries.
+    Symlinks are never followed and binary content is rejected. Content is
     truncated at ``--max-bytes`` with ``truncated`` set in the result.
 
     Global options such as ``--plain`` and ``--allow-root`` precede
@@ -701,11 +703,9 @@ def inspect_read(
         typer.echo(envelope.to_json())
         return EXIT_INVALID_ARGS
 
-    # Read up to max_bytes + 1 to detect truncation.
     try:
-        with open(root, "rb") as f:
-            raw = f.read(max_bytes + 1)
-    except OSError as exc:
+        content = read_file(root, max_bytes=max_bytes)
+    except FsToolError as exc:
         envelope = Envelope(
             schema_version=SCHEMA_VERSION,
             success=False,
@@ -713,51 +713,33 @@ def inspect_read(
             result=None,
             errors=(
                 Error(
-                    code=ErrorCode.ACCESS_DENIED,
-                    message=f"Cannot read {root}: {exc.strerror or exc}",
+                    code=exc.code.value,
+                    message=exc.message,
                     path=str(root),
                 ),
             ),
             complete=False,
         )
         typer.echo(envelope.to_json())
-        return EXIT_ACCESS_DENIED
+        return exc.exit_code
 
-    truncated = len(raw) > max_bytes
-    raw = raw[:max_bytes]
-
-    try:
-        content = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        envelope = Envelope(
-            schema_version=SCHEMA_VERSION,
-            success=False,
-            command="inspect.read",
-            result=None,
-            errors=(
-                Error(
-                    code=ErrorCode.INVALID_ARGUMENT,
-                    message="File is not valid UTF-8 text (binary file).",
-                    path=str(root),
-                ),
-            ),
-            complete=False,
-        )
-        typer.echo(envelope.to_json())
-        return EXIT_INVALID_ARGS
-
-    result = {
+    result: dict[str, Any] = {
         "path": str(root),
         "name": root.name,
         "size": lst.st_size,
-        "content": content,
-        "truncated": truncated,
-        "encoding": "utf-8",
+        "content": content.content,
+        "truncated": content.truncated,
+        "encoding": content.encoding,
+        "format": content.format,
+        "representation": content.representation,
     }
+    if content.page_count is not None:
+        result["page_count"] = content.page_count
+        result["pages"] = [{"index": page.index, "content": page.content} for page in content.pages]
 
     if ctx.obj.output_format == "plain":
-        typer.echo(content)
-        if truncated:
+        typer.echo(content.content)
+        if content.truncated:
             print(
                 f"fs-tool: warning: content truncated at {max_bytes} bytes",
                 file=sys.stderr,

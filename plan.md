@@ -645,17 +645,17 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Phase gate:** Metadata and analysis must be clearly separated in both implementation and JSON output.
 
-### Phase 3 – Read and PDF Text Extraction
+### Phase 3 – Read and PDF Text Extraction [-]
 
 **Objective:** Keep content retrieval independent of structural analysis.
 
-- [ ] P3-W01: Review the existing bounded text-reading implementation.
-- [ ] P3-W02: Define a format-aware content-reading interface.
-- [ ] P3-W03: Add PDF text extraction using the optional PDF dependency.
-- [ ] P3-W04: Preserve page boundaries where practical.
-- [ ] P3-W05: Define consistent output metadata for extracted textual content.
-- [ ] P3-W06: Report missing dependencies through the common capability mechanism.
-- [ ] P3-W07: Preserve size limits, UTF-8 handling and truncation behavior.
+- [x] P3-W01: Review the existing bounded text-reading implementation.
+- [x] P3-W02: Define a format-aware content-reading interface.
+- [x] P3-W03: Add PDF text extraction using the optional PDF dependency.
+- [x] P3-W04: Preserve page boundaries where practical.
+- [x] P3-W05: Define consistent output metadata for extracted textual content.
+- [x] P3-W06: Report missing dependencies through the common capability mechanism.
+- [x] P3-W07: Preserve size limits, UTF-8 handling and truncation behavior.
 - [ ] P3-W08: Add PDF and text-reading regression tests.
 
 **Acceptance criteria**

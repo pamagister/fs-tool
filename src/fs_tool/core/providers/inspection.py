@@ -7,6 +7,8 @@ JSON or plain output (plan.md architectural boundaries).
 - :func:`inspect_metadata` implements the format-metadata responsibility of
   ``inspect info``.
 - :func:`analyze_file` implements ``inspect analyze``.
+- :func:`read_file` implements the format-aware content reading of
+  ``inspect read``.
 
 A missing prerequisite or a failed analysis is represented explicitly and
 never prevents other applicable analyses from running (plan.md decision D6).
@@ -29,6 +31,7 @@ from fs_tool.core.capabilities.registry import CapabilityRegistry, default_regis
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.metadata import MAX_METADATA_SIZE
 from fs_tool.core.providers.base import Provider
+from fs_tool.core.providers.content import ContentRead, read_text_content
 from fs_tool.core.providers.registry import ProviderRegistry, default_provider_registry
 
 
@@ -223,3 +226,72 @@ def analyze_file(
             )
 
     return AnalysisReport(results=tuple(results), supported=bool(applicable))
+
+
+def read_file(
+    path: Path,
+    *,
+    max_bytes: int,
+    providers: ProviderRegistry | None = None,
+    registry: CapabilityRegistry | None = None,
+    checker: AvailabilityChecker | None = None,
+) -> ContentRead:
+    """Read textual content for ``path`` through the format-aware interface.
+
+    Formats with a declared content capability are read by their provider;
+    everything else uses the bounded UTF-8 text reader. A provider whose
+    capability prerequisites are missing raises a ``CAPABILITY_UNAVAILABLE``
+    :class:`FsToolError` instead of silently returning analysis output.
+    """
+    if max_bytes < 0:
+        raise FsToolError(
+            "--max-bytes must not be negative.",
+            code=ErrorCode.INVALID_ARGUMENT,
+            path=str(path),
+        )
+    if path.is_symlink() or not path.is_file():
+        raise FsToolError(
+            "inspect read requires a regular file.",
+            code=ErrorCode.INVALID_ARGUMENT,
+            path=str(path),
+        )
+
+    if providers is None:
+        providers = default_provider_registry()
+    if registry is None:
+        registry = default_registry()
+    if checker is None:
+        checker = AvailabilityChecker()
+
+    provider = next(
+        (item for item in providers.for_path(path) if item.content_capability() is not None),
+        None,
+    )
+    if provider is None:
+        return read_text_content(path, max_bytes=max_bytes)
+
+    capability_id = provider.content_capability()
+    assert capability_id is not None
+    capability = registry.get(capability_id)
+    if capability is None:
+        raise FsToolError(
+            "Capability definition is missing from the central registry.",
+            code=ErrorCode.CAPABILITY_FAILED,
+            path=str(path),
+        )
+
+    if checker.check_capability(capability) is not CapabilityStatus.AVAILABLE:
+        missing = [
+            requirement.name
+            for requirement in capability.requirements
+            if not checker.check_requirement(requirement).available
+        ]
+        names = ", ".join(missing) or "a required prerequisite"
+        raise FsToolError(
+            f"{capability.label} requires {names}. "
+            "Run `fs-tool capabilities` for setup instructions.",
+            code=ErrorCode.CAPABILITY_UNAVAILABLE,
+            path=str(path),
+        )
+
+    return provider.read_content(path, max_bytes=max_bytes)
