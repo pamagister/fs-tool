@@ -46,6 +46,12 @@ Read the first 4 KiB of a text file:
 fs-tool inspect read ~/notes/todo.md --max-bytes 4096 --plain
 ```
 
+Extract text from a PDF:
+
+```bash
+fs-tool inspect read ~/Documents/report.pdf --plain
+```
+
 ## Find files
 
 Find large log files:

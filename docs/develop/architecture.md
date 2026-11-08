@@ -107,7 +107,8 @@ architecture (plan.md decision D3).
   capabilities),
 - declares the `supported_extensions()` it can handle,
 - optionally declares a `metadata_capability()` and implements `extract_metadata()`,
-- optionally declares `analysis_capabilities()` and implements `analyze()`.
+- optionally declares `analysis_capabilities()` and implements `analyze()`,
+- optionally declares a `content_capability()` and implements `read_content()`.
 
 Capability definitions are resolved from the central registry through
 `capabilities_from_registry()`, so providers never duplicate dependency or availability metadata.
@@ -116,16 +117,18 @@ Core providers do not import Typer or CLI code and never format output.
 The built-in providers are registered explicitly in
 `fs_tool/core/providers/registry.py`:
 
-| Provider | Extensions | Metadata | Analysis |
-|----------|------------|----------|----------|
-| `markdown` | `.md`, `.markdown` | — | `markdown_structure` |
-| `odf` | `.odt`, `.ods`, `.odp`, `.odg` | `odf_metadata` | — |
-| `ooxml` | `.docx`, `.xlsx`, `.pptx` | `ooxml_metadata` | — |
-| `pdf` | `.pdf` | `pdf_metadata` | `pdf_pages` |
-| `python` | `.py` | — | `python_ast` |
-| `text` | `.txt`, `.text`, `.log` | — | `text_structure` |
+| Provider | Extensions | Metadata | Analysis | Content |
+|----------|------------|----------|----------|---------|
+| `markdown` | `.md`, `.markdown` | — | `markdown_structure` | — |
+| `odf` | `.odt`, `.ods`, `.odp`, `.odg` | `odf_metadata` | — | — |
+| `ooxml` | `.docx`, `.xlsx`, `.pptx` | `ooxml_metadata` | — | — |
+| `pdf` | `.pdf` | `pdf_metadata` | `pdf_pages` | `pdf_text` |
+| `python` | `.py` | — | `python_ast` | — |
+| `text` | `.txt`, `.text`, `.log` | — | `text_structure` | — |
 
-There is no dynamic plugin-loading framework.
+There is no dynamic plugin-loading framework. Files whose provider declares no content capability
+are read with the bounded UTF-8 text reader, preserving the original `inspect read` behavior for
+plain text and other text-based formats.
 
 #### Orchestration
 
@@ -136,10 +139,15 @@ availability checker:
   capability, enforces the metadata size limit and calls the provider.
 - `analyze_file()` collects every analysis capability applicable to the file extension, checks
   availability, and runs each capability independently.
+- `read_file()` selects a provider with a content capability, verifies that capability through the
+  central registry and availability checker, and calls the provider. Files without a content
+  capability use the bounded UTF-8 reader in `content.py`.
 
-The orchestrator returns core `MetadataInspection` and `AnalysisReport` models. It does not render
-output. Providers raise `FsToolError` for extraction or analysis failures; the orchestrator converts
-them into structured capability results.
+The orchestrator returns core `MetadataInspection`, `AnalysisReport` and `ContentRead` models. It
+does not render output. Providers raise `FsToolError` for extraction, analysis or reading failures;
+the orchestrator converts metadata and analysis failures into structured capability results. A
+missing reading prerequisite is raised as `CAPABILITY_UNAVAILABLE`, because returning no content
+without an explicit error would be misleading.
 
 #### Capability registry
 
@@ -202,6 +210,16 @@ Three information categories remain conceptually distinct:
 
 `read` stays independent of `info` and `analyze`: it returns actual textual content or an
 explicitly identified textual representation, never analysis results.
+
+Every result identifies its source `format` and its `representation`. Plain text uses
+`format: "text"` and `representation: "utf-8_text"`. PDF text extraction uses `format: "pdf"` and
+`representation: "extracted_text"`. PDF results additionally carry `page_count` and a `pages` list,
+so page boundaries are preserved even though `content` is a single bounded string. Pages are joined
+with a blank line in `content`.
+
+Bounded reading applies to every format: `--max-bytes` limits the UTF-8 encoded output, truncation
+never splits a character, and PDF source files above the reading size limit are rejected. Binary
+content is never returned as text.
 
 ### Safety
 

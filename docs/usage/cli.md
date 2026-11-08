@@ -192,7 +192,7 @@ sizes and types can be compared.
 
 ## `inspect read`
 
-Read a bounded UTF-8 text file.
+Read bounded textual content from a regular file.
 
 ```bash
 fs-tool inspect read SOURCE [OPTIONS]
@@ -200,13 +200,26 @@ fs-tool inspect read SOURCE [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--max-bytes N` | Maximum number of bytes to read. Default: `65536`. |
+| `--max-bytes N` | Maximum number of UTF-8 bytes to return. Default: `65536`. |
 
-Symlinks and non-regular files are rejected. Binary content that is not valid UTF-8 is rejected. If
-the file is larger than `--max-bytes`, the content is truncated and `truncated` is set to `true`.
+Plain text files are read as UTF-8. PDF text extraction is available through the optional
+`metadata` extra (`pypdf`); it returns extracted text, never PDF metadata or page-structure
+analysis. PDF source files larger than 100 MiB are rejected. Text files and PDFs are otherwise
+bounded by `--max-bytes`; truncation never splits a UTF-8 character.
 
-JSON result fields: `path`, `name`, `size`, `content`, `truncated`, `encoding`. Plain output prints
-the file content and writes a truncation warning to stderr.
+Symlinks and non-regular files are rejected. Binary content that is not valid UTF-8 is rejected
+unless the format has a dedicated textual representation such as PDF. If the content exceeds
+`--max-bytes`, it is truncated and `truncated` is set to `true`.
+
+JSON result fields: `path`, `name`, `size`, `content`, `truncated`, `encoding`, `format`,
+`representation`. PDF results additionally include `page_count` and `pages`. `format` is `text` or
+`pdf`; `representation` is `utf-8_text` or `extracted_text`. Each PDF page object contains `index`
+and `content`, so page boundaries remain available even though `content` is a single string joined
+with blank lines.
+
+If the optional dependency is missing, the command fails with the structured error code
+`CAPABILITY_UNAVAILABLE` and points to `fs-tool capabilities` for setup instructions. Plain output
+prints the content and writes a truncation warning to stderr.
 
 ---
 

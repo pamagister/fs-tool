@@ -149,7 +149,7 @@ with `analyses: []`.
 | `inspect info` | A single filesystem entry, plus `metadata_result`, metadata values and `sha256` when requested |
 | `inspect analyze` | `path`, `name`, `extension`, `size`, `sha256`, `supported`, `analyses` |
 | `inspect inventory` | `root`, `entries`, `count`, `generated_at`, `complete`, optional `tree_hash` |
-| `inspect read` | `path`, `name`, `size`, `content`, `truncated`, `encoding` |
+| `inspect read` | `path`, `name`, `size`, `content`, `truncated`, `encoding`, `format`, `representation`; PDFs add `page_count` and `pages` |
 | `find` | `root`, `entries`, `count`, `complete` |
 | `duplicates` | `root`, `duplicate_groups`, `duplicate_group_count`, `duplicate_file_count`, `complete` |
 | `compare` | `source`, `destination`, `identical`, `missing`, `changed`, `unexpected`, `type_conflicts`, `unsupported`, `complete` |
@@ -171,7 +171,7 @@ Plain output is intended for humans. It is not a stable machine interface.
 | `inspect info` | `key: value` lines, including extracted metadata and any metadata status. |
 | `inspect analyze` | One block per analysis with capability, status and structured result. |
 | `inspect inventory` | One line per entry with type, size and hash. |
-| `inspect read` | File content. A truncation warning goes to stderr. |
+| `inspect read` | File content (UTF-8 text or extracted PDF text). A truncation warning goes to stderr. |
 | `find` | One line per match with type and size. |
 | `duplicates` | Duplicate groups with hash, size, count and file paths. |
 | `compare` | Categories with entries, followed by `complete`. |

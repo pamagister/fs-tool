@@ -29,8 +29,10 @@ Inspection and analysis commands do not modify the filesystem:
 
 - Traversal records symlinks but never follows them.
 - Special files (sockets, devices, FIFOs) are reported as type `other` and are never opened.
-- `inspect read` rejects symlinks and non-regular files, rejects non-UTF-8 content, and truncates
-  at `--max-bytes` (default 64 KiB).
+- `inspect read` rejects symlinks and non-regular files, rejects non-UTF-8 binary content, and
+  truncates at `--max-bytes` (default 64 KiB). PDF text extraction requires the optional
+  `metadata` extra, rejects PDF source files larger than 100 MiB, and never returns binary PDF
+  bytes.
 - Hashing opens files read-only and uses `O_NOFOLLOW` where the platform supports it.
 - `inspect info` extracts format metadata automatically and never executes file content. PDF
   metadata requires the optional `metadata` extra; files larger than 100 MiB are not inspected for
