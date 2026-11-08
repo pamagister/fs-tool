@@ -593,16 +593,16 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Establish the common architecture before adding additional format implementations.
 
-- [ ] P1-W01: Review existing `FilesystemEntry`, metadata extraction, Python analysis and output models.
-- [ ] P1-W02: Define the internal provider interface.
-- [ ] P1-W03: Define capability identifiers and capability model.
-- [ ] P1-W04: Define the central registry.
-- [ ] P1-W05: Define dependency and external-resource requirements.
-- [ ] P1-W06: Define the availability-checking mechanism.
-- [ ] P1-W07: Define result models for `available`, `unavailable` and `failed`.
-- [ ] P1-W08: Define stable error codes and diagnostic references.
-- [ ] P1-W09: Update `docs/develop/architecture.md` with the approved architecture.
-- [ ] P1-W10: Add focused unit tests for the registry and availability mechanism.
+- [x] P1-W01: Review existing `FilesystemEntry`, metadata extraction, Python analysis and output models.
+- [x] P1-W02: Define the internal provider interface.
+- [x] P1-W03: Define capability identifiers and capability model.
+- [x] P1-W04: Define the central registry.
+- [x] P1-W05: Define dependency and external-resource requirements.
+- [x] P1-W06: Define the availability-checking mechanism.
+- [x] P1-W07: Define result models for `available`, `unavailable` and `failed`.
+- [x] P1-W08: Define stable error codes and diagnostic references.
+- [x] P1-W09: Update `docs/develop/architecture.md` with the approved architecture.
+- [x] P1-W10: Add focused unit tests for the registry and availability mechanism.
 
 **Acceptance criteria**
 

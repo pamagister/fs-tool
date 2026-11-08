@@ -1,8 +1,9 @@
 # Architecture
 
-fs-tool is a Python package with a thin CLI layer, a filesystem core, and a separate output layer.
-The design keeps analysis independent of the command line so the same functionality can be reused
-by scripts and future integrations.
+fs-tool is a Python package with a thin CLI layer, a filesystem core, a
+capability and provider layer, and a separate output layer. The design keeps
+analysis independent of the command line so the same functionality can be
+reused by scripts and future integrations (plan.md decision D1).
 
 ## Package layout
 
@@ -18,6 +19,15 @@ src/fs_tool/
 │   ├── metadata.py        PDF, ODF and OOXML metadata extraction
 │   ├── models.py          FilesystemEntry and EntryType
 │   ├── traversal.py       Read-only directory traversal
+│   ├── capabilities/
+│   │   ├── __init__.py
+│   │   ├── models.py      CapabilityId, Capability, requirements, results
+│   │   ├── registry.py    Central capability registry
+│   │   └── availability.py Availability checks for requirements
+│   ├── providers/
+│   │   ├── __init__.py
+│   │   ├── base.py        Provider interface
+│   │   └── registry.py    Explicit provider registry
 │   └── analysis/
 │       ├── search.py      Entry filters used by find
 │       ├── duplicates.py  Size grouping and hash-based duplicate detection
@@ -26,8 +36,8 @@ src/fs_tool/
 │       └── python_analysis.py AST-based Python source analysis
 ├── operations/
 │   ├── common.py          OperationReport and shared validation
-│   ├── mkdir.py           Directory creation
 │   ├── copy.py            No-overwrite file and tree copying
+│   ├── mkdir.py           Directory creation
 │   └── move.py            No-overwrite moves and renames
 ├── output/
 │   ├── json.py            JSON envelope
@@ -75,6 +85,77 @@ format or on the CLI.
   configuration can only restrict access.
 - `errors.py` defines `ErrorCode` and the mapping from error codes to process exit codes.
 
+### Providers and capabilities (Phase 1)
+
+fs-tool separates metadata extraction from content analysis through a modular provider
+architecture (plan.md decision D3).
+
+#### Provider interface
+
+`fs_tool/core/providers/base.py` defines the `Provider` abstract base class. A provider:
+
+- declares a stable `id`,
+- declares the `capabilities` it offers (a provider may expose multiple independent
+  capabilities),
+- declares the `supported_extensions()` it can handle.
+
+Core providers do not import Typer or CLI code and never format output.
+
+#### Capability registry
+
+`fs_tool/core/capabilities/registry.py` defines `CapabilityRegistry`, the single central
+source of all supported capability definitions (plan.md decision D4). The same definitions are
+used by `info`, `analyze`, `capabilities` and `setup`. Capabilities are registered explicitly;
+there is no dynamic plugin-loading framework.
+
+Each capability (`fs_tool/core/capabilities/models.py`) declares:
+
+- a stable `CapabilityId`,
+- the `provider` that implements it,
+- its `requirements`: Python packages and/or external resources (for example an ONNX model),
+- an optional `setup_command` telling users how to prepare the capability.
+
+#### Availability checking
+
+`fs_tool/core/capabilities/availability.py` defines `AvailabilityChecker`. It verifies that
+prerequisites are present without executing any file analysis:
+
+- Python packages are checked with `importlib.util.find_spec` (no import side effects).
+- External resources are checked by file existence.
+
+A missing prerequisite makes a capability `unavailable`; the analysis itself is never run during
+a check.
+
+#### Result statuses
+
+Every capability result communicates its status explicitly (plan.md decision D6):
+
+| Status | Meaning |
+|--------|---------|
+| `available` | Analysis was successfully performed |
+| `unavailable` | Supported, but a prerequisite is missing |
+| `failed` | Analysis was attempted but could not complete |
+
+Each result carries a stable capability identifier, a concise message, and — for failures — a
+stable machine-readable error code. Unavailable results are never silently omitted, and one
+unavailable or failed capability must not prevent other available analyses from running.
+
+### Separation of metadata, analysis and content reading (decisions D1 and D2)
+
+Three information categories remain conceptually distinct:
+
+| Category | Description | Command |
+|----------|-------------|---------|
+| Filesystem information | Properties of the filesystem entry | `inspect info` |
+| Format metadata | Descriptive properties stored in the file format | `inspect info` |
+| Analysis | Information obtained by interpreting file contents | `inspect analyze` |
+| Content | Actual file content or a textual representation | `inspect read` |
+
+`tree` and `inspect inventory` remain functionally unchanged.
+
+`read` stays independent of `info` and `analyze`: it returns actual textual content or an
+explicitly identified textual representation, never analysis results.
+
 ### Safety
 
 `safety/validation.py` implements the allowed-root policy. `validate_path()` normalizes the
@@ -91,15 +172,35 @@ The `operations` package performs filesystem modifications. Every operation:
 4. never overwrites an existing destination and never deletes data,
 5. returns an `OperationReport`.
 
-Copying writes regular files through a temporary file, verifies their content and publishes them
-with an exclusive hard link so an existing destination is not overwritten. Moving uses a no-replace
-rename primitive where the platform provides one.
-
 ### Output
 
 `output/json.py` defines the stable `Envelope` with `schema_version`, `success`, `command`,
 `result`, `errors`, `warnings` and `complete`. `output/plain.py` contains renderers for each command
 family. The CLI decides which representation to use; the core never imports either module.
+
+### Optional dependencies, external resources and model storage (decisions D5 and D8)
+
+Python dependencies are managed by the package manager through optional extras (for example
+`fs-tool-cli[pdf]`, `fs-tool-cli[image]`). `fs-tool setup` never silently installs Python packages
+or modifies the active Python environment.
+
+External resources such as ONNX models may be managed by fs-tool through an explicit `setup`
+invocation only. Models are stored in a predictable user-specific directory:
+
+```text
+~/.local/share/fs-tool/models/
+```
+
+The directory can be overridden through the `FS_TOOL_MODEL_DIR` environment variable and is
+resolved centrally by `fs_tool.core.capabilities.models.resolve_model_dir()`. The model is not
+bundled in the Python package and is never downloaded automatically during normal operation.
+
+### Error codes
+
+`core/errors.py` defines stable `ErrorCode` values mapped to process exit codes (plan.md section 4.3).
+Capability-specific codes include `CAPABILITY_NOT_SUPPORTED`, `CAPABILITY_UNAVAILABLE`,
+`CAPABILITY_FAILED`, `RESOURCE_NOT_FOUND`, `RESOURCE_CORRUPT` and `SETUP_FAILED`. Detailed setup
+instructions belong in the central `capabilities` output, not in individual result messages.
 
 ## Data flow
 
@@ -111,7 +212,9 @@ argv
   ├─ path validation → safety.validation
   │
   ├─ read path
-  │    traversal / analysis / metadata → result model
+  │    traversal / analysis / metadata / providers → result model
+  │
+  ├─ capability lookup → capabilities.registry + capabilities.availability
   │
   ├─ write path
   │    operations → OperationReport
@@ -124,16 +227,18 @@ argv
 - Read operations never modify the filesystem.
 - Analysis modules do not format output.
 - Output formatting does not influence filesystem operations.
-- Results are deterministic: traversal is sorted and inventories use relative paths.
+- Availability checks never execute file analyses.
+- Results are deterministic: traversal is sorted and capability identifiers are stable.
 - JSON is the primary interface; plain output is a human-oriented alternative.
 - Errors are structured and carry stable codes.
 - Destructive behavior is opt-in: writes require authorization and never overwrite or delete.
 - The core stays independent of any agent, MCP implementation or external automation framework.
+- One unavailable or failed capability never aborts other available analyses.
 
 ## Entry points
 
 | Entry point | Definition |
-|---|---|
+|-------------|------------|
 | `fs-tool` | `[project.scripts] fs-tool = "fs_tool.cli:main"` |
 | `python -m fs_tool` | `src/fs_tool/__main__.py` calls `main()` |
 
@@ -145,9 +250,10 @@ checkouts that are not installed.
 Tests live in `tests/` and mirror the package structure:
 
 | Area | Test files |
-|---|---|
+|------|------------|
 | Traversal and models | `test_traversal.py`, `test_tree.py` |
 | Inspection | `test_info.py`, `test_inventory.py`, `test_read.py` |
+| Capabilities and providers | `test_capabilities.py` |
 | Analysis | `test_find.py`, `test_duplicates.py`, `test_compare.py`, `test_verify.py`, `test_python_analysis.py` |
 | Operations | `test_operations.py` |
 | Safety and configuration | `test_safety.py`, `test_config.py`, `test_hashing.py` |

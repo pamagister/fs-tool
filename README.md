@@ -60,7 +60,7 @@ The primary use cases are:
 - Finding duplicate files.
 - Comparing directory structures and file contents.
 - Copying, moving and renaming files and directories.
-- Verifying the integrity of filesystem operations.
+  - Verifying the integrity of filesystem operations.   
 
 ## Guiding Principle
 

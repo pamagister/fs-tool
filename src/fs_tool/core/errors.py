@@ -40,6 +40,16 @@ class ErrorCode(str, Enum):
     INCOMPLETE_SCAN = "INCOMPLETE_SCAN"
     INCOMPLETE_VERIFICATION = "INCOMPLETE_VERIFICATION"
 
+    # Capability and setup results (plan.md decisions D6 and D8).
+    # 2 - Invalid arguments or incomplete analysis.
+    CAPABILITY_NOT_SUPPORTED = "CAPABILITY_NOT_SUPPORTED"
+    CAPABILITY_UNAVAILABLE = "CAPABILITY_UNAVAILABLE"
+    # 1 - Operation failed.
+    CAPABILITY_FAILED = "CAPABILITY_FAILED"
+    RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
+    RESOURCE_CORRUPT = "RESOURCE_CORRUPT"
+    SETUP_FAILED = "SETUP_FAILED"
+
 
 EXIT_CODES: dict[ErrorCode, int] = {
     ErrorCode.OPERATION_FAILED: 1,
@@ -52,6 +62,12 @@ EXIT_CODES: dict[ErrorCode, int] = {
     ErrorCode.TYPE_CONFLICT: 4,
     ErrorCode.INCOMPLETE_SCAN: 5,
     ErrorCode.INCOMPLETE_VERIFICATION: 5,
+    ErrorCode.CAPABILITY_NOT_SUPPORTED: 2,
+    ErrorCode.CAPABILITY_UNAVAILABLE: 2,
+    ErrorCode.CAPABILITY_FAILED: 1,
+    ErrorCode.RESOURCE_NOT_FOUND: 1,
+    ErrorCode.RESOURCE_CORRUPT: 1,
+    ErrorCode.SETUP_FAILED: 1,
 }
 
 
