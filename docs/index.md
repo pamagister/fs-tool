@@ -22,7 +22,6 @@ directory trees, and performing controlled file operations.
 - [Examples](usage/examples.md) — practical inspection, analysis and write workflows.
 - [Architecture](develop/architecture.md) — layers, modules and data model.
 - [Contributing](develop/contributing.md) — development setup, checks and conventions.
-- [Initial release](develop/initial-release/index.md) — plan and tasklist for the first release.
 - [Funding](funding/funding.md) — how to support the project.
 
 ## Quick start
@@ -49,6 +48,17 @@ fs-tool should be useful both for interactive human users and for automated work
 purpose is to provide a reliable interface for inspecting directory structures, understanding file
 contents and metadata, identifying duplicates, comparing directory trees, and performing controlled
 file operations.
+
+The primary use cases are:
+
+- Understanding existing directory structures.
+- Creating structured filesystem inventories.
+- Collecting file metadata and identifying file types.
+- Analyzing selected file formats and source code.
+- Finding duplicate files.
+- Comparing directory structures and file contents.
+- Copying, moving and renaming files and directories.
+- Verifying the integrity of filesystem operations.
 
 ## Guiding Principle
 

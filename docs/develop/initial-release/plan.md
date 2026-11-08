@@ -1,5 +1,8 @@
 # fs-tool – Architecture and Functional Specification
 
+This is the original and initial plan when the project was initially set up and firstly implemented. 
+Things may have changed since then! refer to the code, the documentation in docs/ and the cli help using 'fs-tool --help'
+
 ## 1. Project Objective
 
 Develop a lightweight, secure and agent-friendly command-line tool for inspecting, analyzing, comparing and organizing local filesystems.
