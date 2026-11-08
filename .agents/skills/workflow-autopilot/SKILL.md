@@ -15,7 +15,7 @@ The plan may be:
 - Markdown pasted directly into the prompt, or
 - Any user-specified Markdown file path (for example, `plan.md`).
 
-Do not require a fixed filename or a separate `tasklist.md`. The plan is the single source of truth for scope, decisions, work packages, acceptance criteria and progress.
+Do not require a fixed filename or a separate tasklist. The plan is the single source of truth for scope, decisions, work packages, acceptance criteria and progress.
 
 A useful plan normally contains an objective, constraints/decisions, phases, coherent work packages and verifiable acceptance criteria. If it is too vague to execute safely, clarify only the blocking decisions before starting.
 
