@@ -36,7 +36,7 @@ For each work package:
 4. Review the diff before testing for scope, correctness and unintended changes.
 5. Run relevant tests and non-mutating checks. Use the project's actual commands; do not assume targets exist. Run broader checks at meaningful integration boundaries.
 6. Fix failures and repeat affected checks. Do not bypass failing tests.
-7. Review the final diff, stage only work-package changes and create one coherent Conventional Commit referencing the phase issue.
+7. Review the final diff, stage only work-package changes and create one coherent Conventional Commit referencing the phase issue. Use the Subagent "reviewer" if possible.
 8. Mark the work package `[x]` only after implementation is verified and committed.
 9. Add a concise progress comment to the phase issue when useful. Never edit a reused issue's fields or state.
 
