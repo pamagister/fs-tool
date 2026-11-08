@@ -645,7 +645,7 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Phase gate:** Metadata and analysis must be clearly separated in both implementation and JSON output.
 
-### Phase 3 – Read and PDF Text Extraction [-]
+### Phase 3 – Read and PDF Text Extraction [x]
 
 **Objective:** Keep content retrieval independent of structural analysis.
 
@@ -884,3 +884,19 @@ The mission is complete when:
 - Keep the implementation incremental and testable.
 - Each phase must satisfy its acceptance criteria before the next phase begins.
 - Future capabilities such as OCR, audio transcription and video analysis should be added through the same capability architecture, not through special-case CLI implementations.
+---
+
+## Progress / Handoff
+
+### 2026-11-08 – Phase 3 complete
+
+- Phase 3 (read and PDF text extraction) is implemented, tested, documented and pushed.
+- Provider layer now exposes `content_capability()` / `read_content()`; `read_file()` orchestrates
+  content reading and falls back to the bounded UTF-8 reader.
+- PDF text extraction uses the optional `pypdf` dependency, reports `format` and `representation`,
+  preserves page boundaries via `pages`, and bounds output and source size.
+- Missing PDF dependencies are reported as `CAPABILITY_UNAVAILABLE`.
+- A real PDF fixture is committed at `tests/example_pdf.pdf`.
+- Issue: #12 (reused, not closed).
+- Commits: `6781273`, `1cde1f6`, `b225d9d`; CI run `42531097345` passed on all platforms.
+- Next: Phase 4 (image analysis and model setup), not started.
