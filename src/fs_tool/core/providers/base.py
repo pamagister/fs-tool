@@ -3,13 +3,23 @@
 Providers declare supported file formats and capabilities. Core providers do
 not import Typer or CLI code and never format output (plan.md decision D3 and
 architectural boundaries).
+
+A provider may expose two independent kinds of functionality:
+
+- format metadata extraction, used by ``inspect info`` (decision D2), and
+- structured content analysis, used by ``inspect analyze``.
+
+Both kinds are described by the same central capability definitions.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any
 
-from fs_tool.core.capabilities.models import Capability
+from fs_tool.core.capabilities.models import Capability, CapabilityId
+from fs_tool.core.capabilities.registry import default_registry
 
 
 class Provider(ABC):
@@ -34,3 +44,51 @@ class Provider(ABC):
     @abstractmethod
     def supported_extensions(self) -> tuple[str, ...]:
         """File extensions this provider can handle (lowercase, with dot)."""
+
+    def metadata_capability(self) -> CapabilityId | None:
+        """Capability describing format metadata extraction, if any."""
+        return None
+
+    def extract_metadata(self, path: Path) -> dict[str, Any] | None:
+        """Extract format metadata from ``path``.
+
+        Return ``None`` when the file contains no metadata. Raise
+        :class:`fs_tool.core.errors.FsToolError` when extraction fails.
+        """
+        return None
+
+    def analysis_capabilities(self) -> tuple[CapabilityId, ...]:
+        """Analysis capabilities this provider implements."""
+        return ()
+
+    def analyze(self, capability: CapabilityId, path: Path) -> dict[str, Any]:
+        """Run one analysis capability and return its structured data.
+
+        Providers must not return complete file content. Raise
+        :class:`fs_tool.core.errors.FsToolError` when the analysis fails.
+        """
+        raise NotImplementedError(f"{self.id} does not implement {capability.value}")
+
+
+def capabilities_from_registry(
+    provider_id: str,
+    capability_ids: tuple[CapabilityId, ...],
+) -> tuple[Capability, ...]:
+    """Resolve capability definitions from the central registry.
+
+    Providers never duplicate capability definitions; the central registry
+    remains the single source of truth (plan.md decision D4).
+    """
+    registry = default_registry()
+    capabilities: list[Capability] = []
+    for capability_id in capability_ids:
+        capability = registry.get(capability_id)
+        if capability is None:
+            raise LookupError(f"Capability {capability_id.value!r} is not registered.")
+        if capability.provider != provider_id:
+            raise ValueError(
+                f"Capability {capability_id.value!r} belongs to provider "
+                f"{capability.provider!r}, not {provider_id!r}."
+            )
+        capabilities.append(capability)
+    return tuple(capabilities)

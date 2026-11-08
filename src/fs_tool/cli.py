@@ -21,16 +21,19 @@ from click.exceptions import Exit as ClickExit
 
 from fs_tool import __version__
 from fs_tool.core.analysis.search import find_entries, parse_size
+from fs_tool.core.capabilities.models import CapabilityResult
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
 from fs_tool.core.models import EntryType, FilesystemEntry
+from fs_tool.core.providers.inspection import analyze_file, inspect_metadata
 from fs_tool.core.traversal import TraversalError, build_entry, traverse
 from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
+from fs_tool.output.results import capability_result_to_dict
 from fs_tool.safety.validation import validate_path
 
 # Process exit codes (plan.md section 4.3).
@@ -265,6 +268,18 @@ def inspect_tree(
     return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
 
 
+def _info_result_dict(
+    entry: FilesystemEntry,
+    metadata_result: CapabilityResult | None,
+) -> dict[str, Any]:
+    """Serialize a filesystem entry and its metadata status for ``inspect info``."""
+    entry_dict = asdict(entry)
+    entry_dict["metadata_result"] = (
+        capability_result_to_dict(metadata_result) if metadata_result is not None else None
+    )
+    return entry_dict
+
+
 @inspect_group.command(name="info")
 def inspect_info(
     ctx: typer.Context,
@@ -272,17 +287,22 @@ def inspect_info(
     metadata: bool = typer.Option(
         False,
         "--metadata",
-        help="Extract document metadata (PDF/ODF/OOXML) or Python source analysis.",
+        help="Deprecated compatibility flag; format metadata is extracted automatically.",
     ),
     hash_file: bool = typer.Option(
         False, "--hash", help="Calculate the SHA-256 hash of a regular file."
     ),
 ) -> int:
-    """Inspect metadata for a single file or directory.
+    """Inspect filesystem and format metadata for a single file or directory.
+
+    Format metadata (PDF, ODF, OOXML) is extracted automatically when a
+    provider supports the format. Content analysis belongs to
+    ``inspect analyze``.
 
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect info /tmp/notes.txt``.
     """
+    del metadata  # retained as a compatibility flag; extraction is automatic
     root = validate_path(source, tuple(ctx.obj.allow_root))
     try:
         entry = build_entry(root, root)
@@ -298,28 +318,16 @@ def inspect_info(
         typer.echo(envelope.to_json())
         return exc.exit_code
 
-    if metadata:
-        from fs_tool.core.analysis.python_analysis import (
-            analyze_python_file,
-            module_to_dict,
-        )
-        from fs_tool.core.metadata import extract_metadata
-
-        meta: dict[str, Any] = {}
-        doc_meta = extract_metadata(root)
-        if doc_meta is not None:
-            meta.update(doc_meta)
-        if root.suffix.lower() == ".py":
-            py_module = analyze_python_file(root)
-            if py_module is not None:
-                meta["python"] = module_to_dict(py_module)
-        entry = replace(entry, metadata=meta or None)
+    inspection = inspect_metadata(root) if entry.type is EntryType.FILE else None
+    if inspection is not None and inspection.metadata is not None:
+        entry = replace(entry, metadata=inspection.metadata)
 
     if hash_file:
         digest = sha256_of_file(root) if entry.type is EntryType.FILE else None
         entry = replace(entry, sha256=digest)
         if entry.type is EntryType.FILE and digest is None:
             message = f"Cannot hash {root}"
+            result = _info_result_dict(entry, inspection.result if inspection is not None else None)
             if ctx.obj.output_format == "plain":
                 print(f"fs-tool: error: {message}", file=sys.stderr)
                 return EXIT_INCOMPLETE
@@ -327,7 +335,140 @@ def inspect_info(
                 schema_version=SCHEMA_VERSION,
                 success=False,
                 command="inspect.info",
-                result=asdict(entry),
+                result=result,
+                errors=(
+                    Error(
+                        code=ErrorCode.INCOMPLETE_SCAN.value,
+                        message=message,
+                        path=str(root),
+                    ),
+                ),
+                complete=False,
+            )
+            typer.echo(envelope.to_json())
+            return EXIT_INCOMPLETE
+
+    metadata_result = inspection.result if inspection is not None else None
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_info
+
+        typer.echo(render_info(entry, metadata_result))
+        return EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=True,
+        command="inspect.info",
+        result=_info_result_dict(entry, metadata_result),
+        complete=True,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_SUCCESS
+
+
+@inspect_group.command(name="analyze")
+def inspect_analyze(
+    ctx: typer.Context,
+    source: Path = typer.Argument(..., help="Regular file to analyze."),
+    hash_file: bool = typer.Option(
+        False, "--hash", help="Calculate the SHA-256 hash of the source file."
+    ),
+) -> int:
+    """Run all applicable structured content analyses for a regular file.
+
+    Analyses return structure without complete file content. The result
+    contains one entry per applicable capability with an explicit
+    ``available``, ``unavailable`` or ``failed`` status. Hashes always
+    identify the original source file.
+
+    Global options such as ``--plain`` and ``--allow-root`` precede
+    the command, e.g. ``fs-tool --plain inspect analyze /tmp/source.py``.
+    """
+    root = validate_path(source, tuple(ctx.obj.allow_root))
+
+    try:
+        lst = root.lstat()
+    except OSError as exc:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.analyze",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message=f"Cannot stat {root}: {exc.strerror or exc}",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    if stat.S_ISLNK(lst.st_mode):
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.analyze",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message="Refusing to analyze a symbolic link.",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    if not stat.S_ISREG(lst.st_mode):
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.analyze",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message="inspect analyze requires a regular file.",
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    report = analyze_file(root)
+    result: dict[str, Any] = {
+        "path": str(root),
+        "name": root.name,
+        "extension": root.suffix.lower() or None,
+        "size": lst.st_size,
+        "sha256": None,
+        "supported": report.supported,
+        "analyses": [capability_result_to_dict(item) for item in report.results],
+    }
+
+    if hash_file:
+        digest = sha256_of_file(root)
+        result["sha256"] = digest
+        if digest is None:
+            message = f"Cannot hash {root}"
+            if ctx.obj.output_format == "plain":
+                from fs_tool.output.plain import render_analyze
+
+                typer.echo(render_analyze(result))
+                print(f"fs-tool: error: {message}", file=sys.stderr)
+                return EXIT_INCOMPLETE
+            envelope = Envelope(
+                schema_version=SCHEMA_VERSION,
+                success=False,
+                command="inspect.analyze",
+                result=result,
                 errors=(
                     Error(
                         code=ErrorCode.INCOMPLETE_SCAN.value,
@@ -341,17 +482,16 @@ def inspect_info(
             return EXIT_INCOMPLETE
 
     if ctx.obj.output_format == "plain":
-        from fs_tool.output.plain import render_info
+        from fs_tool.output.plain import render_analyze
 
-        typer.echo(render_info(entry))
+        typer.echo(render_analyze(result))
         return EXIT_SUCCESS
 
-    entry_dict = asdict(entry)
     envelope = Envelope(
         schema_version=SCHEMA_VERSION,
         success=True,
-        command="inspect.info",
-        result=entry_dict,
+        command="inspect.analyze",
+        result=result,
         complete=True,
     )
     typer.echo(envelope.to_json())

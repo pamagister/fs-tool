@@ -154,7 +154,7 @@ def test_info_mime_type(tmp_path: Path) -> None:
 def test_info_metadata_pdf() -> None:
     pdf_path = EXAMPLE_FILES / "Der Goldschatz partygame.pdf"
     assert pdf_path.is_file(), f"test fixture missing: {pdf_path}"
-    code, data = info_json(pdf_path, "--metadata")
+    code, data = info_json(pdf_path)
     assert code == EXIT_SUCCESS
     result = data["result"]
     assert result["metadata"] is not None
@@ -162,12 +162,14 @@ def test_info_metadata_pdf() -> None:
     for key in ("author", "title", "subject", "created", "modified"):
         assert key in metadata, f"metadata missing key: {key}"
         assert metadata[key] is None or isinstance(metadata[key], str)
+    assert result["metadata_result"]["capability"] == "pdf_metadata"
+    assert result["metadata_result"]["status"] == "available"
 
 
 def test_info_metadata_odf() -> None:
     odt_path = EXAMPLE_FILES / "Reise-Checkliste.odt"
     assert odt_path.is_file(), f"test fixture missing: {odt_path}"
-    code, data = info_json(odt_path, "--metadata")
+    code, data = info_json(odt_path)
     assert code == EXIT_SUCCESS
     result = data["result"]
     assert result["metadata"] is not None
@@ -180,12 +182,14 @@ def test_info_metadata_odf() -> None:
     assert metadata["subject"] is None
     assert metadata["created"] == "2011-06-05T22:57:17.68"
     assert metadata["modified"] == "2011-06-08T12:58:03.17"
+    assert result["metadata_result"]["capability"] == "odf_metadata"
+    assert result["metadata_result"]["status"] == "available"
 
 
 def test_info_metadata_ooxml() -> None:
     docx_path = EXAMPLE_FILES / "Auslandssemester.docx"
     assert docx_path.is_file(), f"test fixture missing: {docx_path}"
-    code, data = info_json(docx_path, "--metadata")
+    code, data = info_json(docx_path)
     assert code == EXIT_SUCCESS
     result = data["result"]
     assert result["metadata"] is not None
@@ -198,6 +202,17 @@ def test_info_metadata_ooxml() -> None:
     assert metadata["subject"] is None
     assert metadata["created"] == "2005-11-05T19:28:00Z"
     assert metadata["modified"] is not None
+    assert result["metadata_result"]["capability"] == "ooxml_metadata"
+    assert result["metadata_result"]["status"] == "available"
+
+
+def test_info_metadata_compatibility_flag_matches_default() -> None:
+    odt_path = EXAMPLE_FILES / "Reise-Checkliste.odt"
+    assert odt_path.is_file(), f"test fixture missing: {odt_path}"
+    code_default, data_default = info_json(odt_path)
+    code_flag, data_flag = info_json(odt_path, "--metadata")
+    assert code_default == code_flag == EXIT_SUCCESS
+    assert data_default["result"] == data_flag["result"]
 
 
 def test_info_metadata_unsupported_returns_none(tmp_path: Path) -> None:
@@ -207,6 +222,7 @@ def test_info_metadata_unsupported_returns_none(tmp_path: Path) -> None:
     assert code == EXIT_SUCCESS
     result = data["result"]
     assert result["metadata"] is None
+    assert result["metadata_result"] is None
 
 
 def test_info_hash(tmp_path: Path) -> None:
@@ -264,3 +280,5 @@ def test_metadata_rejects_oversized_zip_member(
     code, data = info_json(odt_path, "--metadata")
     assert code == EXIT_SUCCESS
     assert data["result"]["metadata"] is None
+    assert data["result"]["metadata_result"]["status"] == "failed"
+    assert data["result"]["metadata_result"]["error_code"] == "CAPABILITY_FAILED"

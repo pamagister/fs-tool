@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from fs_tool.core.capabilities.models import CapabilityResult, CapabilityStatus
 from fs_tool.core.models import EntryType, FilesystemEntry
 
 
@@ -59,7 +60,10 @@ def render_tree(entries: list[FilesystemEntry], root: Path) -> str:
     return "\n".join(lines)
 
 
-def render_info(entry: FilesystemEntry) -> str:
+def render_info(
+    entry: FilesystemEntry,
+    metadata_result: CapabilityResult | None = None,
+) -> str:
     """Render a single entry's metadata as plain-text key-value pairs."""
     lines: list[str] = [
         f"path: {entry.path}",
@@ -94,29 +98,110 @@ def render_info(entry: FilesystemEntry) -> str:
         lines.append(f"sha256: {entry.sha256}")
     if entry.metadata:
         lines.append(f"metadata: {entry.metadata}")
-        if isinstance(entry.metadata, dict) and entry.metadata.get("python"):
-            py = entry.metadata["python"]
-            lines.append("  python analysis:")
-            if py.get("docstring"):
-                lines.append(f"    docstring: {py['docstring']}")
-            if py.get("imports"):
-                lines.append(f"    imports: {', '.join(py['imports'])}")
-            for func in py.get("functions", []):
-                args = ", ".join(func.get("args", []))
-                ret = func.get("returns")
-                ret_str = f" -> {ret}" if ret else ""
-                async_str = "async " if func.get("is_async") else ""
-                lines.append(
-                    f"    {async_str}def {func['name']}({args}){ret_str} at line {func['line']}"
-                )
-            for cls in py.get("classes", []):
-                bases = f"({', '.join(cls['bases'])})" if cls.get("bases") else ""
-                lines.append(f"    class {cls['name']}{bases} at line {cls['line']}")
-                for method in cls.get("methods", []):
-                    args = ", ".join(method.get("args", []))
-                    lines.append(f"      def {method['name']}({args}) at line {method['line']}")
-                for attr in cls.get("attributes", []):
-                    lines.append(f"      attr {attr['name']} at line {attr['line']}")
+    if metadata_result is not None and (
+        metadata_result.status is not CapabilityStatus.AVAILABLE or entry.metadata is None
+    ):
+        lines.append(f"metadata_status: {metadata_result.status.value}")
+        lines.append(f"metadata_capability: {metadata_result.capability.value}")
+        lines.append(f"metadata_message: {metadata_result.message}")
+        if metadata_result.error_code is not None:
+            lines.append(f"metadata_error_code: {metadata_result.error_code}")
+        if metadata_result.status is CapabilityStatus.UNAVAILABLE:
+            lines.append(f"metadata_help: {metadata_result.help}")
+    return "\n".join(lines)
+
+
+def _render_python_analysis(data: dict[str, Any]) -> list[str]:
+    """Render Python AST analysis without returning source code."""
+    lines: list[str] = []
+    if data.get("docstring"):
+        lines.append(f"    docstring: {data['docstring']}")
+    if data.get("imports"):
+        lines.append(f"    imports: {', '.join(data['imports'])}")
+    for func in data.get("functions", []):
+        args = ", ".join(func.get("args", []))
+        returns = func.get("returns")
+        return_str = f" -> {returns}" if returns else ""
+        async_str = "async " if func.get("is_async") else ""
+        lines.append(
+            f"    {async_str}def {func['name']}({args}){return_str} at line {func['line']}"
+        )
+    for cls in data.get("classes", []):
+        bases = f"({', '.join(cls['bases'])})" if cls.get("bases") else ""
+        lines.append(f"    class {cls['name']}{bases} at line {cls['line']}")
+        for method in cls.get("methods", []):
+            args = ", ".join(method.get("args", []))
+            lines.append(f"      def {method['name']}({args}) at line {method['line']}")
+        for attribute in cls.get("attributes", []):
+            lines.append(f"      attr {attribute['name']} at line {attribute['line']}")
+    return lines
+
+
+def _render_markdown_structure(data: dict[str, Any]) -> list[str]:
+    lines = [
+        f"    lines: {data.get('line_count', 0)}",
+        f"    headings: {data.get('heading_count', 0)}",
+    ]
+    for heading in data.get("headings", []):
+        marker = "#" * heading["level"]
+        lines.append(f"      {marker} {heading['text']} (line {heading['line']})")
+    return lines
+
+
+def _render_text_structure(data: dict[str, Any]) -> list[str]:
+    return [
+        f"    encoding: {data.get('encoding')}",
+        f"    lines: {data.get('line_count', 0)}",
+        f"    non-empty lines: {data.get('non_empty_line_count', 0)}",
+        f"    paragraphs: {data.get('paragraph_count', 0)}",
+        f"    words: {data.get('word_count', 0)}",
+        f"    characters: {data.get('character_count', 0)}",
+        f"    longest line: {data.get('max_line_length', 0)}",
+    ]
+
+
+def _render_pdf_pages(data: dict[str, Any]) -> list[str]:
+    lines = [f"    pages: {data.get('page_count', 0)}"]
+    for page in data.get("pages", []):
+        lines.append(
+            f"      page {page['index']}: {page['width']} x {page['height']} "
+            f"{page['orientation']} rotation={page['rotation']}"
+        )
+    return lines
+
+
+_ANALYSIS_RENDERERS = {
+    "python_ast": _render_python_analysis,
+    "markdown_structure": _render_markdown_structure,
+    "text_structure": _render_text_structure,
+    "pdf_pages": _render_pdf_pages,
+}
+
+
+def render_analyze(result: dict[str, Any]) -> str:
+    """Render structured analysis results as plain-text lines."""
+    supported = "true" if result.get("supported") else "false"
+    lines: list[str] = [f"analyze: {result.get('path')}", f"supported: {supported}"]
+    if result.get("sha256") is not None:
+        lines.append(f"sha256: {result['sha256']}")
+    analyses = result.get("analyses", [])
+    if not analyses:
+        lines.append("analyses: none")
+        return "\n".join(lines)
+    for analysis in analyses:
+        lines.append(f"  {analysis['capability']} [{analysis['status']}]")
+        lines.append(f"    message: {analysis['message']}")
+        if analysis.get("error_code") is not None:
+            lines.append(f"    error_code: {analysis['error_code']}")
+        if analysis["status"] == CapabilityStatus.UNAVAILABLE.value:
+            lines.append(f"    help: {analysis['help']}")
+        data = analysis.get("data")
+        if isinstance(data, dict):
+            renderer = _ANALYSIS_RENDERERS.get(analysis["capability"])
+            if renderer is not None:
+                lines.extend(renderer(data))
+            else:
+                lines.append(f"    data: {data}")
     return "\n".join(lines)
 
 

@@ -47,6 +47,18 @@ def _default_capabilities() -> tuple[Capability, ...]:
             requirements=(PythonPackageRequirement(name="pypdf", extra="metadata"),),
         ),
         Capability(
+            id=CapabilityId.ODF_METADATA,
+            label="ODF metadata",
+            description="Extract author, title, subject and dates from ODF files.",
+            provider="odf",
+        ),
+        Capability(
+            id=CapabilityId.OOXML_METADATA,
+            label="OOXML metadata",
+            description="Extract author, title, subject and dates from OOXML files.",
+            provider="ooxml",
+        ),
+        Capability(
             id=CapabilityId.IMAGE_METADATA,
             label="Image metadata",
             description="Extract format, dimensions, color mode and EXIF data from images.",

@@ -56,6 +56,8 @@ def test_registry_holds_capabilities_centrally() -> None:
         "image_metadata",
         "image_object_detection",
         "markdown_structure",
+        "odf_metadata",
+        "ooxml_metadata",
         "pdf_metadata",
         "pdf_pages",
         "pdf_text",

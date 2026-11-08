@@ -10,6 +10,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 
 class CapabilityId(str, Enum):
@@ -21,6 +22,8 @@ class CapabilityId(str, Enum):
 
     # Format metadata (belongs to ``inspect info``).
     PDF_METADATA = "pdf_metadata"
+    ODF_METADATA = "odf_metadata"
+    OOXML_METADATA = "ooxml_metadata"
     IMAGE_METADATA = "image_metadata"
 
     # Structured content analysis (belongs to ``inspect analyze``).
@@ -114,6 +117,7 @@ class CapabilityResult:
     help: str = "fs-tool capabilities"
     requirements: tuple[Requirement, ...] = ()
     error_code: str | None = None
+    data: dict[str, Any] | None = None
 
 
 #: Environment variable overriding the model storage directory.

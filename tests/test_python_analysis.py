@@ -41,6 +41,17 @@ def info_json(source: Path, *extra: str) -> tuple[int, dict]:
     return code, json.loads(buffer.getvalue())
 
 
+def argv_analyze(source: Path, *extra: str) -> list[str]:
+    return ["--allow-root", str(source.parent), "inspect", "analyze", str(source), *extra]
+
+
+def analyze_json(source: Path, *extra: str) -> tuple[int, dict]:
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        code = main(argv_analyze(source, *extra))
+    return code, json.loads(buffer.getvalue())
+
+
 # -------------------------------------------------------------------
 # analyze_python_file unit tests
 # -------------------------------------------------------------------
@@ -318,8 +329,8 @@ def foo(a: int) -> str:
 # -------------------------------------------------------------------
 
 
-def test_cli_info_metadata_on_python_file(tmp_path: Path) -> None:
-    """--metadata on a .py file includes Python AST analysis."""
+def test_cli_analyze_on_python_file(tmp_path: Path) -> None:
+    """``inspect analyze`` includes Python AST analysis."""
     path = write_py(
         tmp_path,
         "example.py",
@@ -333,13 +344,14 @@ def add(a: int, b: int) -> int:
 """,
     )
 
-    code, data = info_json(path, "--metadata")
+    code, data = analyze_json(path)
     assert code == EXIT_SUCCESS
     assert data["success"] is True
-    metadata = data["result"]["metadata"]
-    assert metadata is not None
-    assert "python" in metadata
-    py = metadata["python"]
+    analyses = data["result"]["analyses"]
+    assert [item["capability"] for item in analyses] == ["python_ast"]
+    analysis = analyses[0]
+    assert analysis["status"] == "available"
+    py = analysis["data"]
     assert py["docstring"] == "Module docstring."
     assert len(py["functions"]) == 1
     assert py["functions"][0]["name"] == "add"
@@ -347,18 +359,32 @@ def add(a: int, b: int) -> int:
     assert py["functions"][0]["returns"] == "int"
 
 
-def test_cli_info_metadata_on_non_python_file(tmp_path: Path) -> None:
-    """--metadata on a non-.py file does not include python key."""
-    path = tmp_path / "notes.txt"
-    path.write_text("hello\n")
+def test_cli_info_does_not_report_python_analysis(tmp_path: Path) -> None:
+    """Python AST output belongs to ``analyze``, not ``info``."""
+    path = write_py(tmp_path, "example.py", "def add(a, b):\n    return a + b\n")
 
     code, data = info_json(path, "--metadata")
     assert code == EXIT_SUCCESS
     assert data["result"]["metadata"] is None
+    assert data["result"]["metadata_result"] is None
 
 
-def test_cli_info_plain_output_python(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Plain output shows Python analysis metadata."""
+def test_cli_analyze_on_non_python_file(tmp_path: Path) -> None:
+    """Text structure analysis does not include Python AST output."""
+    path = tmp_path / "notes.txt"
+    path.write_text("hello\n")
+
+    code, data = analyze_json(path)
+    assert code == EXIT_SUCCESS
+    analyses = data["result"]["analyses"]
+    assert [item["capability"] for item in analyses] == ["text_structure"]
+    assert "python_ast" not in {item["capability"] for item in analyses}
+
+
+def test_cli_analyze_plain_output_python(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Plain output shows Python analysis results."""
     path = write_py(
         tmp_path,
         "example.py",
@@ -374,14 +400,13 @@ def add(a: int, b: int) -> int:
             str(tmp_path),
             "--plain",
             "inspect",
-            "info",
+            "analyze",
             str(path),
-            "--metadata",
         ]
     )
     assert code == EXIT_SUCCESS
     output = capsys.readouterr().out
-    assert "python analysis:" in output
+    assert "python_ast [available]" in output
     assert "def add(a, b) -> int at line 1" in output
 
 
