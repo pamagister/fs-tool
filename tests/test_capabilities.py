@@ -122,6 +122,8 @@ def test_default_registry_assigns_requirements() -> None:
 
 def test_python_package_availability_without_side_effects() -> None:
     checker = AvailabilityChecker()
+    # standard package should be available. Self-test of checker
+    assert checker.python_package_available("json") is True
     # pypdf is installed in this environment.
     assert checker.python_package_available("pypdf") is True
     # onnxruntime is not installed; the check only inspects import specs.
