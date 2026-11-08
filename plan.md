@@ -656,7 +656,7 @@ The existing Python analysis and metadata implementations should be reused where
 - [x] P3-W05: Define consistent output metadata for extracted textual content.
 - [x] P3-W06: Report missing dependencies through the common capability mechanism.
 - [x] P3-W07: Preserve size limits, UTF-8 handling and truncation behavior.
-- [ ] P3-W08: Add PDF and text-reading regression tests.
+- [x] P3-W08: Add PDF and text-reading regression tests.
 
 **Acceptance criteria**
 
