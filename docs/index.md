@@ -15,8 +15,6 @@ directory trees, and performing controlled file operations.
 
 ## Documentation
 
-- [Installation](getting-started/install.md) — install from PyPI or run from a source checkout.
-- [Virtual environment](getting-started/virtual-environment.md) — set up `uv` and activate `.venv`.
 - [Command-line interface](usage/cli.md) — commands, options and exit codes.
 - [Configuration](usage/configuration.md) — TOML configuration and allowed roots.
 - [Output formats](usage/output.md) — JSON envelope and human-readable output.

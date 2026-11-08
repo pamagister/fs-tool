@@ -52,7 +52,6 @@ where = ["src"]
 "share/fs-tool/docs/develop" = ["docs/develop/*.md", "docs/develop/.nav.yml"]
 "share/fs-tool/docs/develop/initial-release" = ["docs/develop/initial-release/*"]
 "share/fs-tool/docs/funding" = ["docs/funding/*"]
-"share/fs-tool/docs/getting-started" = ["docs/getting-started/*"]
 "share/fs-tool/docs/_static/img" = ["docs/_static/img/*"]
 "share/fs-tool/docs/usage" = ["docs/usage/*"]
 "share/fs-tool/res/example_filesystem_unstructured" = [

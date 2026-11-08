@@ -26,8 +26,7 @@ only if you want to run tools directly:
 source .venv/bin/activate
 ```
 
-See [Set up a virtual environment](../getting-started/virtual-environment.md) for platform-specific
-activation commands.
+
 
 ## Run the checks
 
@@ -65,7 +64,7 @@ Use hyphens and `kebab-case` outside Python code:
 - PyPI project name: `fs-tool-cli`.
 - Repository and root folder: `fs-tool`.
 - CLI command names: `fs-tool`, `inspect`, `write`.
-- Documentation folders and Markdown files: `getting-started/install.md`.
+- Documentation folders and Markdown files: `usage/cli.md`.
 
 | Context | Convention | Example |
 |---|---|---|
@@ -73,7 +72,7 @@ Use hyphens and `kebab-case` outside Python code:
 | PyPI / project name | hyphens | `fs-tool-cli` |
 | Module filename | underscores | `python_analysis.py` |
 | Repository / root folder | hyphens | `fs-tool/` |
-| Docs folders and files | hyphens | `getting-started/install.md` |
+| Docs folders and files | hyphens | `usage/cli.md` |
 | CLI commands | hyphens | `fs-tool` |
 
 ## Format the code
@@ -113,8 +112,7 @@ make syncdocs
 The script updates relative links so that they point to the `docs/` paths used in the repository
 README.
 
-Update the relevant page when behavior, commands, options or configuration change. Add navigation
-entries in the nearest `.nav.yml` file when creating a new page.
+Update the relevant page when behavior, commands, options or configuration change.
 
 ## Commit your changes
 
