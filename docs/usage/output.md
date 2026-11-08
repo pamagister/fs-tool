@@ -112,14 +112,42 @@ An incomplete scan still returns partial results, but sets `success` to `false` 
 | `target` | string or null | Symlink target. |
 | `sha256` | string or null | Hash, when requested. |
 | `dev_ino` | string | Device and inode identity, for example `2049:12345`. |
-| `metadata` | object or null | Extracted document or Python metadata. |
+| `metadata` | object or null | Extracted format metadata. Populated by `inspect info`. |
+
+`inspect info` additionally adds `metadata_result` next to the entry fields. It is a
+[capability result](#capability-results) or `null` when the format has no metadata capability.
+
+### Capability results
+
+`inspect info` (`metadata_result`) and `inspect analyze` (`analyses[]`) use the same result shape:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `capability` | string | Stable capability identifier, for example `pdf_metadata` or `python_ast`. |
+| `status` | string | `available`, `unavailable` or `failed`. |
+| `message` | string | Concise human-readable description. |
+| `help` | string or null | Suggested next step when a capability is unavailable. |
+| `error_code` | string or null | Stable machine-readable code for a failed capability. |
+| `data` | object or null | Capability-specific structured payload; never complete file content. |
+
+| Status | Meaning |
+|---|---|
+| `available` | The capability ran successfully. |
+| `unavailable` | The format is supported, but a prerequisite such as `pypdf` is missing. |
+| `failed` | The capability was attempted but could not complete. |
+
+A missing or failed capability never prevents other applicable analyses from running. A format with
+no applicable capability is distinct from an unavailable one: `inspect info` returns
+`metadata: null` with `metadata_result: null`, and `inspect analyze` returns `supported: false`
+with `analyses: []`.
 
 ### Command results
 
 | Command | `result` fields |
 |---|---|
 | `inspect tree` | `root`, `entries`, `count` |
-| `inspect info` | A single filesystem entry, plus `metadata` and `sha256` when requested |
+| `inspect info` | A single filesystem entry, plus `metadata_result`, metadata values and `sha256` when requested |
+| `inspect analyze` | `path`, `name`, `extension`, `size`, `sha256`, `supported`, `analyses` |
 | `inspect inventory` | `root`, `entries`, `count`, `generated_at`, `complete`, optional `tree_hash` |
 | `inspect read` | `path`, `name`, `size`, `content`, `truncated`, `encoding` |
 | `find` | `root`, `entries`, `count`, `complete` |
@@ -140,7 +168,8 @@ Plain output is intended for humans. It is not a stable machine interface.
 | Command | Plain representation |
 |---|---|
 | `inspect tree` | Indented tree. |
-| `inspect info` | `key: value` lines, including extracted metadata. |
+| `inspect info` | `key: value` lines, including extracted metadata and any metadata status. |
+| `inspect analyze` | One block per analysis with capability, status and structured result. |
 | `inspect inventory` | One line per entry with type, size and hash. |
 | `inspect read` | File content. A truncation warning goes to stderr. |
 | `find` | One line per match with type and size. |

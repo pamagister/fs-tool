@@ -32,9 +32,13 @@ Inspection and analysis commands do not modify the filesystem:
 - `inspect read` rejects symlinks and non-regular files, rejects non-UTF-8 content, and truncates
   at `--max-bytes` (default 64 KiB).
 - Hashing opens files read-only and uses `O_NOFOLLOW` where the platform supports it.
-- Metadata extraction never executes file content. PDF metadata requires the optional `metadata`
-  extra; analysis is skipped for files larger than 100 MiB.
-- Python source analysis uses `ast` and is limited to 1 MiB per file.
+- `inspect info` extracts format metadata automatically and never executes file content. PDF
+  metadata requires the optional `metadata` extra; files larger than 100 MiB are not inspected for
+  metadata.
+- `inspect analyze` rejects symlinks and non-regular files and returns structure only, never
+  complete file content. Markdown and text analysis are limited to 5 MiB per file, and Python
+  analysis is limited to 1 MiB. Python files are parsed with `ast` and never imported or executed.
+  PDF page analysis requires the optional `metadata` extra.
 - Unreadable entries are reported as errors; the rest of the scan continues.
 
 A scan that could not read every entry is marked incomplete and exits with code 5. Partial results

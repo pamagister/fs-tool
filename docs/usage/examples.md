@@ -16,16 +16,28 @@ fs-tool inspect tree ~/Projects --max-depth 3 \
   --ignore-dir node_modules --ignore-pattern '*.pyc' --plain
 ```
 
-Inspect a single file, including its hash:
+Inspect a single file and its format metadata, including its hash:
 
 ```bash
-fs-tool inspect info ~/Documents/report.pdf --hash --metadata
+fs-tool inspect info ~/Documents/report.pdf --hash
 ```
 
-Analyze Python source without running it:
+Analyze Python source without importing or running it:
 
 ```bash
-fs-tool inspect info src/fs_tool/cli.py --metadata --plain
+fs-tool inspect analyze src/fs_tool/cli.py --hash --plain
+```
+
+Extract the Markdown heading structure for a document:
+
+```bash
+fs-tool inspect analyze docs/index.md --plain
+```
+
+Report PDF page sizes and orientation:
+
+```bash
+fs-tool inspect analyze ~/Documents/report.pdf --plain
 ```
 
 Read the first 4 KiB of a text file:
@@ -145,6 +157,13 @@ Check the envelope instead of relying on exit codes alone:
 ```bash
 fs-tool find ~/Downloads --type file --name '*.tmp' \
   | jq '{success, complete, count: .result.count}'
+```
+
+Inspect which analyses ran and which prerequisites are missing:
+
+```bash
+fs-tool inspect analyze src/fs_tool/cli.py \
+  | jq '{supported, analyses: [.result.analyses[] | {capability, status}]}'
 ```
 
 Stop on incomplete results in a shell script:

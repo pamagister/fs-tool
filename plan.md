@@ -619,19 +619,19 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Establish the new `info` and `analyze` behavior while preserving existing functionality.
 
-- [ ] P2-W01: Refactor existing metadata extraction into the provider architecture.
-- [ ] P2-W02: Integrate existing PDF, ODF and OOXML metadata support.
-- [ ] P2-W03: Make format metadata extraction the normal behavior of `inspect info`.
-- [ ] P2-W04: Review compatibility of the existing `--metadata` option.
-- [ ] P2-W05: Integrate existing Python AST analysis as an analysis provider.
-- [ ] P2-W06: Introduce `inspect analyze`.
-- [ ] P2-W07: Introduce Markdown structural analysis.
-- [ ] P2-W08: Introduce simple text structural analysis.
-- [ ] P2-W09: Introduce PDF page structure analysis.
-- [ ] P2-W10: Implement consistent structured result serialization.
-- [ ] P2-W11: Integrate optional source-file hashing into `analyze`.
-- [ ] P2-W12: Preserve and test source-file hashing in `info`.
-- [ ] P2-W13: Ensure that `tree` and `inventory` remain unchanged.
+- [x] P2-W01: Refactor existing metadata extraction into the provider architecture.
+- [x] P2-W02: Integrate existing PDF, ODF and OOXML metadata support.
+- [x] P2-W03: Make format metadata extraction the normal behavior of `inspect info`.
+- [x] P2-W04: Review compatibility of the existing `--metadata` option.
+- [x] P2-W05: Integrate existing Python AST analysis as an analysis provider.
+- [x] P2-W06: Introduce `inspect analyze`.
+- [x] P2-W07: Introduce Markdown structural analysis.
+- [x] P2-W08: Introduce simple text structural analysis.
+- [x] P2-W09: Introduce PDF page structure analysis.
+- [x] P2-W10: Implement consistent structured result serialization.
+- [x] P2-W11: Integrate optional source-file hashing into `analyze`.
+- [x] P2-W12: Preserve and test source-file hashing in `info`.
+- [x] P2-W13: Ensure that `tree` and `inventory` remain unchanged.
 
 **Acceptance criteria**
 

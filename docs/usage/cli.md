@@ -16,6 +16,7 @@ fs-tool
 ├── inspect
 │   ├── tree
 │   ├── info
+│   ├── analyze
 │   ├── inventory
 │   └── read
 ├── find
@@ -109,15 +110,57 @@ fs-tool inspect info SOURCE [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--metadata` | Extract document metadata from PDF, ODF or OOXML files, or analyze Python source. |
+| `--metadata` | Deprecated compatibility flag. Format metadata is extracted automatically. |
 | `--hash` | Calculate the SHA-256 hash of a regular file. |
 
-Metadata extraction is read-only and never executes file content. PDF metadata requires the optional
-`metadata` extra (`pypdf`); ODF and OOXML metadata use the standard library. Python analysis uses
-`ast` and reports modules, imports, functions, classes, methods and attributes. Files larger than
-100 MiB are not analyzed.
+`inspect info` returns filesystem properties and the format metadata available for the file. Format
+metadata is extracted automatically for supported formats: PDF (`.pdf`), OpenDocument (`.odt`,
+`.ods`, `.odp`, `.odg`) and Office Open XML (`.docx`, `.xlsx`, `.pptx`). Extraction is read-only and
+never executes file content. PDF metadata requires the optional `metadata` extra (`pypdf`); ODF and
+OOXML metadata use the standard library. Files larger than 100 MiB are not inspected for metadata.
 
-JSON result: a single filesystem entry. `metadata` and `sha256` are added when requested.
+`--metadata` is retained only for compatibility with earlier releases and has no additional effect.
+Content analysis, including Python source structure, belongs to `inspect analyze`.
+
+JSON result: a single filesystem entry plus `metadata_result`. The `metadata` field holds extracted
+metadata when extraction succeeds. `metadata_result` is a capability result that reports the
+`available`, `unavailable` or `failed` status; it is `null` when the format has no metadata
+capability. `sha256` is added when `--hash` is requested and identifies the source file.
+
+## `inspect analyze`
+
+Run every applicable structural analysis for a single regular file.
+
+```bash
+fs-tool inspect analyze SOURCE [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--hash` | Calculate the SHA-256 hash of the source file. |
+
+Analyses return structure without complete file content. The supported analyses are:
+
+| Format | Capability | Result data |
+|---|---|---|
+| Markdown (`.md`, `.markdown`) | `markdown_structure` | Line count, heading count, maximum heading level and heading list. Headings inside fenced code blocks are ignored. |
+| Python (`.py`) | `python_ast` | Module docstring, imports, functions, classes, methods and class attributes. The file is parsed with `ast` and is never imported or executed. |
+| Plain text (`.txt`, `.text`, `.log`) | `text_structure` | Line, non-empty line, word, character and paragraph counts, and maximum line length. |
+| PDF (`.pdf`) | `pdf_pages` | Page count, and each page's dimensions, orientation and rotation. Requires the optional `metadata` extra (`pypdf`). |
+
+Markdown and text analysis are limited to 5 MiB per file; Python analysis is limited to 1 MiB. A
+capability whose prerequisite is missing is reported as `unavailable` with a `help` reference. A
+capability that was attempted but failed is reported as `failed` with an `error_code`. One
+unavailable or failed capability does not prevent other applicable analyses from running, and the
+command still succeeds.
+
+Symlinks and non-regular files are rejected. An unsupported format is not an error: the result has
+`supported: false` and an empty `analyses` list.
+
+JSON result fields: `path`, `name`, `extension`, `size`, `sha256`, `supported`, `analyses`. The
+`sha256` field is `null` unless `--hash` is supplied. Each entry in `analyses` is a capability
+result with `capability`, `status`, `message`, `help`, `error_code` and `data`; see
+[Output formats](output.md#capability-results).
 
 ## `inspect inventory`
 

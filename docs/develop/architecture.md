@@ -16,7 +16,7 @@ src/fs_tool/
 │   ├── errors.py          Error codes and exit-code mapping
 │   ├── filesystem.py      Path normalization and symlink resolution
 │   ├── hashing.py         SHA-256 file hashing
-│   ├── metadata.py        PDF, ODF and OOXML metadata extraction
+│   ├── metadata.py        Shared metadata helpers, limits and PDF date parsing
 │   ├── models.py          FilesystemEntry and EntryType
 │   ├── traversal.py       Read-only directory traversal
 │   ├── capabilities/
@@ -27,7 +27,14 @@ src/fs_tool/
 │   ├── providers/
 │   │   ├── __init__.py
 │   │   ├── base.py        Provider interface
-│   │   └── registry.py    Explicit provider registry
+│   │   ├── registry.py    Explicit provider registry
+│   │   ├── inspection.py  Metadata and analysis orchestration
+│   │   ├── markdown.py    Markdown structure analysis
+│   │   ├── odf.py         ODF metadata
+│   │   ├── ooxml.py       OOXML metadata
+│   │   ├── pdf.py         PDF metadata and page structure
+│   │   ├── python.py      Python AST analysis
+│   │   └── text.py        Text structure analysis
 │   └── analysis/
 │       ├── search.py      Entry filters used by find
 │       ├── duplicates.py  Size grouping and hash-based duplicate detection
@@ -41,6 +48,7 @@ src/fs_tool/
 │   └── move.py            No-overwrite moves and renames
 ├── output/
 │   ├── json.py            JSON envelope
+│   ├── results.py         Capability result serialization
 │   └── plain.py           Human-readable renderers
 └── safety/
     └── validation.py      Allowed-root checks
@@ -79,13 +87,13 @@ format or on the CLI.
 - `analysis/` implements filters, duplicate detection, comparison, verification and Python source
   analysis. These modules operate on traversal results or plain paths and do not render output.
 - `hashing.py` opens files read-only and uses `O_NOFOLLOW` where available.
-- `metadata.py` extracts document metadata without executing content, with size limits for archives
-  and files.
+- `metadata.py` provides shared helpers for metadata extraction: size limits, safe ZIP member
+  reads and PDF date parsing. Format-specific extraction lives in providers.
 - `config.py` loads TOML configuration and intersects configured roots with command-line roots, so
   configuration can only restrict access.
 - `errors.py` defines `ErrorCode` and the mapping from error codes to process exit codes.
 
-### Providers and capabilities (Phase 1)
+### Providers and capabilities
 
 fs-tool separates metadata extraction from content analysis through a modular provider
 architecture (plan.md decision D3).
@@ -97,9 +105,41 @@ architecture (plan.md decision D3).
 - declares a stable `id`,
 - declares the `capabilities` it offers (a provider may expose multiple independent
   capabilities),
-- declares the `supported_extensions()` it can handle.
+- declares the `supported_extensions()` it can handle,
+- optionally declares a `metadata_capability()` and implements `extract_metadata()`,
+- optionally declares `analysis_capabilities()` and implements `analyze()`.
 
+Capability definitions are resolved from the central registry through
+`capabilities_from_registry()`, so providers never duplicate dependency or availability metadata.
 Core providers do not import Typer or CLI code and never format output.
+
+The built-in providers are registered explicitly in
+`fs_tool/core/providers/registry.py`:
+
+| Provider | Extensions | Metadata | Analysis |
+|----------|------------|----------|----------|
+| `markdown` | `.md`, `.markdown` | — | `markdown_structure` |
+| `odf` | `.odt`, `.ods`, `.odp`, `.odg` | `odf_metadata` | — |
+| `ooxml` | `.docx`, `.xlsx`, `.pptx` | `ooxml_metadata` | — |
+| `pdf` | `.pdf` | `pdf_metadata` | `pdf_pages` |
+| `python` | `.py` | — | `python_ast` |
+| `text` | `.txt`, `.text`, `.log` | — | `text_structure` |
+
+There is no dynamic plugin-loading framework.
+
+#### Orchestration
+
+`fs_tool/core/providers/inspection.py` connects providers, the capability registry and the
+availability checker:
+
+- `inspect_metadata()` selects the provider for the file extension, verifies the metadata
+  capability, enforces the metadata size limit and calls the provider.
+- `analyze_file()` collects every analysis capability applicable to the file extension, checks
+  availability, and runs each capability independently.
+
+The orchestrator returns core `MetadataInspection` and `AnalysisReport` models. It does not render
+output. Providers raise `FsToolError` for extraction or analysis failures; the orchestrator converts
+them into structured capability results.
 
 #### Capability registry
 
@@ -126,7 +166,7 @@ prerequisites are present without executing any file analysis:
 A missing prerequisite makes a capability `unavailable`; the analysis itself is never run during
 a check.
 
-#### Result statuses
+#### Result statuses and serialization
 
 Every capability result communicates its status explicitly (plan.md decision D6):
 
@@ -136,9 +176,16 @@ Every capability result communicates its status explicitly (plan.md decision D6)
 | `unavailable` | Supported, but a prerequisite is missing |
 | `failed` | Analysis was attempted but could not complete |
 
-Each result carries a stable capability identifier, a concise message, and — for failures — a
-stable machine-readable error code. Unavailable results are never silently omitted, and one
-unavailable or failed capability must not prevent other available analyses from running.
+Each result carries a stable capability identifier, a concise message, a `help` reference and —
+for failures — a stable machine-readable error code. Optional structured payloads live in `data`.
+`fs_tool/output/results.py` is the single serializer for this shape. Unavailable results are never
+silently omitted, and one unavailable or failed capability never prevents other available
+analyses from running.
+
+A file format with no applicable capability is distinguishable from an unavailable one: its
+`inspect analyze` result has `supported: false` and an empty `analyses` list, while `inspect info`
+returns `metadata: null` with `metadata_result: null`.
+
 
 ### Separation of metadata, analysis and content reading (decisions D1 and D2)
 
