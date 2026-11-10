@@ -19,6 +19,7 @@ directory trees, and performing controlled file operations.
 - [Configuration](usage/configuration.md) — TOML configuration and allowed roots.
 - [Output formats](usage/output.md) — JSON envelope and human-readable output.
 - [Safety model](usage/safety.md) — access restrictions, symlinks and write protection.
+- [Setup](usage/setup.md) — optional dependencies, capability setup and the YOLO model.
 - [Examples](usage/examples.md) — practical inspection, analysis and write workflows.
 - [Architecture](develop/architecture.md) — layers, modules and data model.
 - [Contributing](develop/contributing.md) — development setup, checks and conventions.

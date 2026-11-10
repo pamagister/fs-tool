@@ -185,6 +185,47 @@ fi
 printf '%s' "$result" | jq -r '.result.entries[].rel_path'
 ```
 
+## Capability discovery and setup
+
+Discover every supported capability and which prerequisites are missing:
+
+```bash
+fs-tool capabilities --plain
+fs-tool capabilities --json | jq '.result.capabilities[] | {id, available, next_steps}'
+```
+
+Check and prepare optional dependencies without changing the Python environment:
+
+```bash
+fs-tool setup pdf
+fs-tool setup image
+```
+
+Download and verify the YOLO object-detection model (explicit setup only; nothing is downloaded
+automatically):
+
+```bash
+fs-tool setup yolo
+```
+
+Prepare every setup target at once; one failing target does not stop the others:
+
+```bash
+fs-tool setup --all
+```
+
+Replace only an invalid existing model file:
+
+```bash
+fs-tool setup yolo --force
+```
+
+Use a custom model directory:
+
+```bash
+FS_TOOL_MODEL_DIR=/mnt/models/fs-tool fs-tool setup yolo
+```
+
 ## Working with large trees
 
 Bound traversal to keep runtimes predictable:

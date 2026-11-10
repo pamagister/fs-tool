@@ -221,6 +221,126 @@ If the optional dependency is missing, the command fails with the structured err
 `CAPABILITY_UNAVAILABLE` and points to `fs-tool capabilities` for setup instructions. Plain output
 prints the content and writes a truncation warning to stderr.
 
+## `capabilities`
+
+List every supported capability and its current availability.
+
+```bash
+fs-tool capabilities
+fs-tool capabilities --plain
+fs-tool capabilities --json
+```
+
+The command only checks the environment; it does not analyze files, install packages or download
+resources. JSON is the default and is the primary interface for agents; use `--plain` for
+human-readable output.
+
+Each capability reports:
+
+- `id` — stable capability identifier (for example `image_object_detection`).
+- `supported` — `true` for every registered capability. An unsupported format is reported
+  differently by `inspect info` (`metadata: null` with `metadata_result: null`) and `inspect
+  analyze` (`supported: false` with an empty `analyses` list).
+- `available` — whether all prerequisites are present right now.
+- `status` — `available`, `unavailable` or `failed`.
+- `requirements` — each declared Python package or external resource, with its availability and an
+  exact installation command for missing packages.
+- `missing_requirements` — the unavailable requirements, repeated for convenient consumption.
+- `next_steps` — actionable commands such as `pip install "fs-tool-cli[image]"` or
+  `fs-tool setup yolo`.
+- `setup` — the setup command, when the capability has one (for example `fs-tool setup yolo`).
+
+The top-level result also includes `count`, `available_count` and `model_directory` (the resolved
+model storage directory).
+
+Example JSON response for a capability whose prerequisites are missing:
+
+```json
+{
+  "schema_version": 1,
+  "success": true,
+  "command": "capabilities",
+  "result": {
+    "capabilities": [
+      {
+        "id": "image_object_detection",
+        "label": "Image object detection",
+        "description": "Detect objects with YOLO through ONNX Runtime.",
+        "provider": "image",
+        "supported": true,
+        "available": false,
+        "status": "unavailable",
+        "requirements": [
+          {
+            "kind": "python_package",
+            "name": "onnxruntime",
+            "import_name": "onnxruntime",
+            "extra": "image",
+            "available": false,
+            "install_command": 'pip install "fs-tool-cli[image]"'
+          },
+          {
+            "kind": "external_resource",
+            "name": "yolo26n.onnx",
+            "expected_path": "~/.local/share/fs-tool/models/yolo26n.onnx",
+            "available": false
+          }
+        ],
+        "missing_requirements": [...],
+        "next_steps": [
+          'pip install "fs-tool-cli[image]"',
+          "fs-tool setup yolo"
+        ],
+        "setup": {
+          "command": "fs-tool setup yolo"
+        }
+      }
+    ],
+    "count": 9,
+    "available_count": 5,
+    "model_directory": "~/.local/share/fs-tool/models/"
+  },
+  "errors": [],
+  "warnings": [],
+  "complete": true
+}
+```
+
+See [Setup](setup.md) for the full setup instructions, the YOLO model details and the
+`FS_TOOL_MODEL_DIR` override.
+
+## `setup`
+
+Prepare optional capabilities without changing the Python environment.
+
+```bash
+fs-tool setup pdf
+fs-tool setup image
+fs-tool setup yolo
+fs-tool setup --all
+fs-tool setup yolo --force
+```
+
+Setup never installs Python packages or modifies the active Python environment. Missing packages are
+reported with exact installation commands instead. Each target is independent, so `setup --all`
+keeps going when one target fails.
+
+| Target | What it prepares |
+|---|---|
+| `pdf` | Checks the `pypdf` dependency (extra `metadata`) used by PDF metadata, page-structure and text capabilities. |
+| `image` | Checks Pillow, numpy and ONNX Runtime (extra `image`) used by image metadata and object detection. Never downloads the model. |
+| `yolo` | Checks the image dependencies and downloads and verifies the YOLO26n ONNX model when it is missing. |
+
+Use `--all` to prepare every target independently. Use `--force` with `yolo` to replace only an
+invalid existing model file; a valid model is never overwritten.
+
+Setup is idempotent: calling it again for an already-ready target does not re-download or re-check
+unnecessarily beyond re-verifying requirements.
+
+Exit code 1 indicates that at least one target failed; invalid usage exits with code 2. See
+[Setup](setup.md) for the YOLO model source, license, checksum, storage location and the
+`FS_TOOL_MODEL_DIR` override.
+
 ---
 
 ## `find`
