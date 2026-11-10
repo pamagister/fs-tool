@@ -705,18 +705,18 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Make optional functionality discoverable and manageable by users and agents.
 
-- [ ] P5-W01: Implement `fs-tool capabilities`.
-- [ ] P5-W02: Implement structured JSON capability output.
-- [ ] P5-W03: Implement readable Plain capability output.
-- [ ] P5-W04: Include exact missing Python dependencies and installation commands.
-- [ ] P5-W05: Include exact model paths and setup commands.
-- [ ] P5-W06: Implement `fs-tool setup <capability>`.
-- [ ] P5-W07: Implement `fs-tool setup --all`.
-- [ ] P5-W08: Ensure setup does not install Python packages.
-- [ ] P5-W09: Ensure setup is idempotent.
-- [ ] P5-W10: Implement safe download and existing-resource handling.
-- [ ] P5-W11: Add tests for missing dependencies, missing models and partial setup.
-- [ ] P5-W12: Add CLI help and error handling.
+- [x] P5-W01: Implement `fs-tool capabilities`.
+- [x] P5-W02: Implement structured JSON capability output.
+- [x] P5-W03: Implement readable Plain capability output.
+- [x] P5-W04: Include exact missing Python dependencies and installation commands.
+- [x] P5-W05: Include exact model paths and setup commands.
+- [x] P5-W06: Implement `fs-tool setup <capability>`.
+- [x] P5-W07: Implement `fs-tool setup --all`.
+- [x] P5-W08: Ensure setup does not install Python packages.
+- [x] P5-W09: Ensure setup is idempotent.
+- [x] P5-W10: Implement safe download and existing-resource handling.
+- [x] P5-W11: Add tests for missing dependencies, missing models and partial setup.
+- [x] P5-W12: Add CLI help and error handling.
 
 **Acceptance criteria**
 
@@ -921,3 +921,25 @@ The mission is complete when:
 - Issue: #14 (closed after CI passed).
 - Commits: `eebe36d`, `c2b8f65`, plus this plan status update; CI run `42898450826` passed.
 - Next: Phase 5 (capability and setup CLI).
+
+### 2026-11-10 – Phase 5 complete
+
+- Phase 5 (capability and setup CLI) is implemented, tested, documented and pushed.
+- `fs-tool capabilities` reports every registered capability with deterministic ordering, per-requirement
+  availability, missing requirements, install commands for Python extras (`metadata`, `image`), model
+  paths and `setup` next steps. JSON is the default; `--plain` provides readable output.
+- `fs-tool setup <capability>` supports `pdf`, `image` and `yolo`; `--all` runs each target
+  independently. Setup reports missing Python dependencies and exact install commands but never installs
+  packages or changes the Python environment.
+- `setup yolo` reuses the verified model workflow and is idempotent; valid existing models are preserved,
+  corrupt models require `--force`, and downloads remain atomic and checksum-verified. `setup image`
+  checks Python dependencies only and never downloads a model.
+- Missing Python dependencies are reported as `missing-dependencies` without failing the command; actual
+  setup or download failures mark the target `failed`, contribute to `failed_count`, populate envelope
+  errors and return exit 1. Invalid usage returns exit 2 with `INVALID_ARGUMENT`.
+- Tests cover capability JSON/Plain output, missing dependencies, partial setup, corrupt-model handling,
+  idempotency, `--all`, invalid usage, help and error envelopes. Downloads are mocked; the suite never
+  requires network access.
+- Issue: #15 (reused, not closed).
+- Commits: `f829f22`, `52d8e6c`; CI run `42905527267` passed.
+- Next: Phase 6 (documentation, integration and quality assurance).
