@@ -734,15 +734,15 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Complete the implementation and ensure consistency across code, documentation and tests.
 
-- [ ] P6-W01: Finalize `docs/develop/architecture.md`.
-- [ ] P6-W02: Document the provider and capability architecture.
-- [ ] P6-W03: Document all new CLI commands.
-- [ ] P6-W04: Document optional Python extras and their installation commands.
-- [ ] P6-W05: Document YOLO model setup, source, license, checksum and exact storage location.
-- [ ] P6-W06: Document `FS_TOOL_MODEL_DIR`.
-- [ ] P6-W07: Document capability statuses and example JSON responses.
-- [ ] P6-W08: Update user documentation navigation where necessary.
-- [ ] P6-W09: Update project overview and CLI examples.
+[x] P6-W01: Finalize `docs/develop/architecture.md`.
+[x] P6-W02: Document the provider and capability architecture.
+[x] P6-W03: Document all new CLI commands.
+[x] P6-W04: Document optional Python extras and their installation commands.
+[x] P6-W05: Document YOLO model setup, source, license, checksum and exact storage location.
+[x] P6-W06: Document `FS_TOOL_MODEL_DIR`.
+[x] P6-W07: Document capability statuses and example JSON responses.
+[x] P6-W08: Update user documentation navigation where necessary.
+[x] P6-W09: Update project overview and CLI examples.
 - [ ] P6-W10: Review package build and optional dependency declarations.
 - [ ] P6-W11: Run the full test suite.
 - [ ] P6-W12: Run Ruff, formatting checks and mypy.
