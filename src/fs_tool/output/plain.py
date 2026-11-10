@@ -291,3 +291,56 @@ def render_verify(result: dict[str, Any]) -> str:
                 lines.append(f"  {item}")
     lines.append(f"complete: {result.get('complete', False)}")
     return "\n".join(lines)
+
+
+def _render_missing_requirement(requirement: dict[str, Any]) -> str:
+    """Render one missing requirement with its actionable detail."""
+    name = requirement.get("name", "unknown")
+    if requirement.get("kind") == "external_resource":
+        return f"    missing: {name} ({requirement.get('expected_path')})"
+    import_name = requirement.get("import_name") or name
+    return f"    missing: {name} (import {import_name})"
+
+
+def render_capabilities(report: dict[str, Any]) -> str:
+    """Render the capability report as plain-text lines."""
+    capabilities = report.get("capabilities", [])
+    count = report.get("count", len(capabilities))
+    available_count = report.get("available_count", 0)
+    lines = [
+        f"capabilities: {count} total, {available_count} available",
+        f"model directory: {report.get('model_directory')}",
+    ]
+    for capability in capabilities:
+        status = capability.get("status", "unknown")
+        lines.append(f"  {capability.get('id')} [{status}] {capability.get('label')}")
+        for requirement in capability.get("missing_requirements", []):
+            lines.append(_render_missing_requirement(requirement))
+        next_steps = capability.get("next_steps", [])
+        for step in next_steps:
+            lines.append(f"    next: {step}")
+        setup = capability.get("setup")
+        if setup is not None and setup.get("command") not in next_steps:
+            lines.append(f"    setup: {setup['command']}")
+    return "\n".join(lines)
+
+
+def render_setup(report: dict[str, Any]) -> str:
+    """Render setup results as plain-text lines."""
+    targets = report.get("targets", [])
+    lines = [f"setup: {report.get('count', len(targets))} target(s)"]
+    for target in targets:
+        lines.append(
+            f"  {target.get('capability')} [{target.get('status')}] {target.get('message')}"
+        )
+        for requirement in target.get("missing_requirements", []):
+            lines.append(_render_missing_requirement(requirement))
+        resource = target.get("resource")
+        if resource is not None:
+            lines.append(
+                f"    model: {resource.get('path')} [{resource.get('status')}] "
+                f"{resource.get('message')}"
+            )
+        for step in target.get("next_steps", []):
+            lines.append(f"    next: {step}")
+    return "\n".join(lines)

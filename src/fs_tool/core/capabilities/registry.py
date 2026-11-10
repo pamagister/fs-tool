@@ -102,6 +102,7 @@ def _default_capabilities() -> tuple[Capability, ...]:
             requirements=(
                 PythonPackageRequirement(name="onnxruntime", extra="image"),
                 PythonPackageRequirement(name="Pillow", extra="image", import_name="PIL"),
+                PythonPackageRequirement(name="numpy", extra="image"),
                 ExternalResourceRequirement(
                     name="yolo26n.onnx",
                     expected_path=str(expected_model_path()),

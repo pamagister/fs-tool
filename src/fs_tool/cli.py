@@ -757,6 +757,132 @@ def inspect_read(
     return EXIT_SUCCESS
 
 
+@app.command(name="capabilities")
+def capabilities_cmd(ctx: typer.Context) -> int:
+    """List supported capabilities and their current availability.
+
+    Every capability reports its requirements, missing prerequisites and
+    actionable next steps. The command only checks the environment; it does
+    not analyze files, install packages or download resources.
+
+    Example: ``fs-tool capabilities --plain``.
+    """
+    from fs_tool.core.capabilities.report import capabilities_report
+
+    report = capabilities_report()
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_capabilities
+
+        typer.echo(render_capabilities(report))
+        return EXIT_SUCCESS
+
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=True,
+        command="capabilities",
+        result=report,
+        complete=True,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_SUCCESS
+
+
+def _emit_setup_error(ctx: typer.Context, message: str) -> int:
+    """Emit an invalid setup invocation in the selected output format."""
+    if ctx.obj.output_format == "plain":
+        print(f"fs-tool: error: {message}", file=sys.stderr)
+    else:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="setup",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT.value,
+                    message=message,
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+    return EXIT_INVALID_ARGS
+
+
+@app.command(name="setup")
+def setup_cmd(
+    ctx: typer.Context,
+    capability: str | None = typer.Argument(
+        None,
+        help="Capability to prepare: pdf, image or yolo.",
+    ),
+    all_targets: bool = typer.Option(
+        False,
+        "--all",
+        help="Prepare every setup target (pdf, image and yolo).",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Replace an existing invalid model file (yolo only).",
+    ),
+) -> int:
+    """Prepare optional capabilities without changing the Python environment.
+
+    ``pdf`` and ``image`` check their Python dependencies and report exact
+    installation commands. ``yolo`` additionally downloads and verifies the
+    model when it is missing. Use ``--all`` to prepare every target
+    independently.
+
+    Example: ``fs-tool setup yolo --plain``.
+    """
+    from fs_tool.setup.service import SETUP_TARGET_NAMES, setup_report
+
+    if all_targets and capability is not None:
+        return _emit_setup_error(ctx, "Specify either a capability or --all, not both.")
+    if not all_targets and capability is None:
+        return _emit_setup_error(
+            ctx,
+            "Specify a capability (pdf, image or yolo) or use --all.",
+        )
+    if capability is not None and capability not in SETUP_TARGET_NAMES:
+        return _emit_setup_error(
+            ctx,
+            f"Unknown setup target {capability!r}; use pdf, image or yolo.",
+        )
+
+    target_names = SETUP_TARGET_NAMES if capability is None else (capability,)
+    report = setup_report(target_names, force=force)
+    failed = report["failed_count"] > 0
+
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_setup
+
+        typer.echo(render_setup(report))
+        return EXIT_FAILURE if failed else EXIT_SUCCESS
+
+    errors = tuple(
+        Error(
+            code=target.get("error_code") or ErrorCode.SETUP_FAILED.value,
+            message=target["message"],
+            path=(target.get("resource") or {}).get("path"),
+        )
+        for target in report["targets"]
+        if target["status"] == "failed"
+    )
+    envelope = Envelope(
+        schema_version=SCHEMA_VERSION,
+        success=not failed,
+        command="setup",
+        result=report,
+        errors=errors,
+        complete=True,
+    )
+    typer.echo(envelope.to_json())
+    return EXIT_FAILURE if failed else EXIT_SUCCESS
+
+
 @app.command(name="find")
 def find_cmd(
     ctx: typer.Context,
