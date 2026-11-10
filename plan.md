@@ -673,20 +673,20 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Implement the first model-backed analysis capability.
 
-- [ ] P4-W01: Review image examples in `res/example_filesystem_unstructured/Bilder`.
-- [ ] P4-W02: Evaluate suitable image metadata and ONNX Runtime dependencies.
-- [ ] P4-W03: Define the `[image]` optional dependency group.
+- [x] P4-W01: Review image examples in `res/example_filesystem_unstructured/Bilder`.
+- [x] P4-W02: Evaluate suitable image metadata and ONNX Runtime dependencies.
+- [x] P4-W03: Define the `[image]` optional dependency group.
 - [x] P4-W04: Research and select the YOLO ONNX model source.
 - [x] P4-W05: Verify model license, provenance and checksum.
 - [x] P4-W06: Define the model storage path and `FS_TOOL_MODEL_DIR` override.
 - [x] P4-W07: Implement safe model discovery and validation.
 - [x] P4-W08: Implement the explicit YOLO setup handler.
-- [ ] P4-W09: Implement image metadata extraction.
-- [ ] P4-W10: Implement ONNX-based object detection.
-- [ ] P4-W11: Return structured detections with class, confidence and bounding box.
-- [ ] P4-W12: Ensure object detection is independently available from image metadata.
-- [ ] P4-W13: Add tests using mocked model loading and inference.
-- [ ] P4-W14: Add optional integration tests for a locally available model.
+- [x] P4-W09: Implement image metadata extraction.
+- [x] P4-W10: Implement ONNX-based object detection.
+- [x] P4-W11: Return structured detections with class, confidence and bounding box.
+- [x] P4-W12: Ensure object detection is independently available from image metadata.
+- [x] P4-W13: Add tests using mocked model loading and inference.
+- [x] P4-W14: Add optional integration tests for a locally available model.
 
 **Acceptance criteria**
 

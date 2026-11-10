@@ -29,6 +29,7 @@ src/fs_tool/
 │   │   ├── base.py        Provider interface
 │   │   ├── registry.py    Explicit provider registry
 │   │   ├── inspection.py  Metadata and analysis orchestration
+│   │   ├── image.py       Image metadata and ONNX object detection
 │   │   ├── markdown.py    Markdown structure analysis
 │   │   ├── odf.py         ODF metadata
 │   │   ├── ooxml.py       OOXML metadata
@@ -50,8 +51,11 @@ src/fs_tool/
 │   ├── json.py            JSON envelope
 │   ├── results.py         Capability result serialization
 │   └── plain.py           Human-readable renderers
-└── safety/
-    └── validation.py      Allowed-root checks
+├── safety/
+│   └── validation.py      Allowed-root checks
+└── setup/
+    ├── models.py          Model storage, validation and verified download
+    └── yolo.py            Explicit YOLO setup handler
 ```
 
 ## Layers
@@ -119,6 +123,7 @@ The built-in providers are registered explicitly in
 
 | Provider | Extensions | Metadata | Analysis | Content |
 |----------|------------|----------|----------|---------|
+| `image` | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tif`, `.tiff`, `.webp` | `image_metadata` | `image_object_detection` | — |
 | `markdown` | `.md`, `.markdown` | — | `markdown_structure` | — |
 | `odf` | `.odt`, `.ods`, `.odp`, `.odg` | `odf_metadata` | — | — |
 | `ooxml` | `.docx`, `.xlsx`, `.pptx` | `ooxml_metadata` | — | — |
@@ -148,6 +153,27 @@ does not render output. Providers raise `FsToolError` for extraction, analysis o
 the orchestrator converts metadata and analysis failures into structured capability results. A
 missing reading prerequisite is raised as `CAPABILITY_UNAVAILABLE`, because returning no content
 without an explicit error would be misleading.
+
+#### Image analysis
+
+`fs_tool/core/providers/image.py` implements two independent capabilities:
+
+- `image_metadata` reads format, dimensions, colour mode and EXIF data with Pillow. It never loads
+  ONNX Runtime or the YOLO model.
+- `image_object_detection` runs the installed YOLO26n ONNX model through ONNX Runtime. Missing ONNX
+  Runtime, numpy, Pillow or the model makes only this capability unavailable.
+
+Detection input is a `[1, 3, 640, 640]` float32 tensor with pixel values normalized to 0-1. Images
+are letterboxed with the Ultralytics padding colour `(114, 114, 114)` and the applied scale and
+offsets are used to map boxes back to original-image pixel coordinates. The verified end-to-end
+export produces `output0` with shape `[1, 300, 6]`; each row is
+`x1, y1, x2, y2, confidence, class_id` in model-input coordinates. Rows below the confidence
+threshold (default `0.25`) and empty boxes are discarded. Results are sorted by descending
+confidence, then class and coordinates, so output is deterministic for the same model and input.
+Class identifiers are mapped to the standard 80 COCO class names.
+
+The provider loads one ONNX Runtime session per model file version and caches it by path, mtime and
+size. A model changed on disk therefore gets a fresh session.
 
 #### Capability registry
 
@@ -246,8 +272,9 @@ family. The CLI decides which representation to use; the core never imports eith
 ### Optional dependencies, external resources and model storage (decisions D5 and D8)
 
 Python dependencies are managed by the package manager through optional extras (for example
-`fs-tool-cli[pdf]`, `fs-tool-cli[image]`). `fs-tool setup` never silently installs Python packages
-or modifies the active Python environment.
+`fs-tool-cli[pdf]`, `fs-tool-cli[image]`). The `image` extra installs `Pillow`, `numpy` and
+`onnxruntime`. `fs-tool setup` never silently installs Python packages or modifies the active Python
+environment.
 
 External resources such as ONNX models may be managed by fs-tool through an explicit `setup`
 invocation only. Models are stored in a predictable user-specific directory:
@@ -259,6 +286,21 @@ invocation only. Models are stored in a predictable user-specific directory:
 The directory can be overridden through the `FS_TOOL_MODEL_DIR` environment variable and is
 resolved centrally by `fs_tool.core.capabilities.models.resolve_model_dir()`. The model is not
 bundled in the Python package and is never downloaded automatically during normal operation.
+
+#### YOLO model
+
+The supported model is `yolo26n.onnx` from the `zwh20081/yolo26-onnx` Hugging Face repository, a
+direct ONNX export of the official Ultralytics YOLO26 weights. It is licensed AGPL-3.0. The file is
+9,941,470 bytes with SHA-256:
+
+```text
+356b2726bbdba982e2a304e14b4d9a18b2726b7705b3206093d21331e4dbdd98
+```
+
+`setup_yolo()` downloads only from the documented HTTPS URL, streams to a temporary file in the
+model directory, verifies size and checksum, and atomically replaces the destination. Existing
+valid models are preserved; `force` replaces only invalid files. Download and validation logic
+lives in `fs_tool/setup/models.py`; the handler lives in `fs_tool/setup/yolo.py`.
 
 ### Error codes
 
@@ -318,7 +360,7 @@ Tests live in `tests/` and mirror the package structure:
 |------|------------|
 | Traversal and models | `test_traversal.py`, `test_tree.py` |
 | Inspection | `test_info.py`, `test_inventory.py`, `test_read.py` |
-| Capabilities and providers | `test_capabilities.py` |
+| Capabilities and providers | `test_capabilities.py`, `test_setup.py`, `test_image_analysis.py` |
 | Analysis | `test_find.py`, `test_duplicates.py`, `test_compare.py`, `test_verify.py`, `test_python_analysis.py` |
 | Operations | `test_operations.py` |
 | Safety and configuration | `test_safety.py`, `test_config.py`, `test_hashing.py` |

@@ -62,7 +62,9 @@ def _default_capabilities() -> tuple[Capability, ...]:
             label="Image metadata",
             description="Extract format, dimensions, color mode and EXIF data from images.",
             provider="image",
-            requirements=(PythonPackageRequirement(name="Pillow", extra="image"),),
+            requirements=(
+                PythonPackageRequirement(name="Pillow", extra="image", import_name="PIL"),
+            ),
         ),
         Capability(
             id=CapabilityId.PYTHON_AST,
@@ -99,7 +101,7 @@ def _default_capabilities() -> tuple[Capability, ...]:
             provider="image",
             requirements=(
                 PythonPackageRequirement(name="onnxruntime", extra="image"),
-                PythonPackageRequirement(name="Pillow", extra="image"),
+                PythonPackageRequirement(name="Pillow", extra="image", import_name="PIL"),
                 ExternalResourceRequirement(
                     name="yolo26n.onnx",
                     expected_path=str(expected_model_path()),

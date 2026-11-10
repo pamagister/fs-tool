@@ -51,11 +51,13 @@ class PythonPackageRequirement:
     """A required Python package.
 
     ``extra`` names the package extra that installs it, e.g. ``"pdf"`` for
-    ``pypdf`` or ``"image"`` for ``Pillow``/``onnxruntime``.
+    ``pypdf`` or ``"image"`` for ``Pillow``/``onnxruntime``. ``import_name``
+    may differ from the distribution name, as for ``Pillow`` (``PIL``).
     """
 
     name: str
     extra: str | None = None
+    import_name: str | None = None
     available: bool = False
 
 

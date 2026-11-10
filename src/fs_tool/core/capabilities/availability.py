@@ -46,9 +46,10 @@ class AvailabilityChecker:
     def check_requirement(self, requirement: Requirement) -> Requirement:
         """Return a copy of ``requirement`` with ``available`` populated."""
         if isinstance(requirement, PythonPackageRequirement):
+            module_name = requirement.import_name or requirement.name
             return replace(
                 requirement,
-                available=self.python_package_available(requirement.name),
+                available=self.python_package_available(module_name),
             )
         if isinstance(requirement, ExternalResourceRequirement):
             return replace(

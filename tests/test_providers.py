@@ -32,6 +32,7 @@ EXAMPLE_FILES = PROJECT_ROOT / "res" / "example_filesystem_unstructured"
 def test_default_provider_registry_is_deterministic() -> None:
     providers = default_provider_registry()
     assert [provider.id for provider in providers.all()] == [
+        "image",
         "markdown",
         "odf",
         "ooxml",

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fs_tool.core.capabilities.models import Capability
 from fs_tool.core.providers.base import Provider
+from fs_tool.core.providers.image import ImageProvider
 from fs_tool.core.providers.markdown import MarkdownProvider
 from fs_tool.core.providers.odf import OdfProvider
 from fs_tool.core.providers.ooxml import OoxmlProvider
@@ -63,6 +64,7 @@ def default_provider_registry() -> ProviderRegistry:
     """Registry pre-populated with all built-in format providers."""
     registry = ProviderRegistry()
     for provider in (
+        ImageProvider(),
         MarkdownProvider(),
         OdfProvider(),
         OoxmlProvider(),

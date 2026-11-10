@@ -139,6 +139,17 @@ def test_python_package_availability_without_side_effects() -> None:
     assert checker.python_package_available("does-not-exist-package") is False
 
 
+def test_requirement_uses_import_name_when_it_differs() -> None:
+    checker = AvailabilityChecker()
+    requirement = PythonPackageRequirement(name="Pillow", extra="image", import_name="PIL")
+
+    checked = checker.check_requirement(requirement)
+
+    assert checked.import_name == "PIL"
+    assert checked.available is (importlib.util.find_spec("PIL") is not None)
+    assert checked.available is True
+
+
 def test_availability_check_does_not_execute_file_analysis(tmp_path: Path) -> None:
     # The checker is stateless and path-free: it never reads or analyzes files.
     source = tmp_path / "source.py"
