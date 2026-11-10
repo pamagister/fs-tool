@@ -6,6 +6,7 @@ registry, requirements, availability checks, and result models.
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -108,7 +109,10 @@ def test_registry_register_get_and_all_are_deterministic() -> None:
     assert ids == ["python_ast", "text_structure"]
 
 
-def test_default_registry_assigns_requirements() -> None:
+def test_default_registry_assigns_requirements(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("FS_TOOL_MODEL_DIR", str(tmp_path))
     registry = default_registry()
     yolo = registry.get(CapabilityId.IMAGE_OBJECT_DETECTION)
     assert yolo is not None
@@ -118,7 +122,7 @@ def test_default_registry_assigns_requirements() -> None:
     models = [req for req in yolo.requirements if isinstance(req, ExternalResourceRequirement)]
     assert len(models) == 1
     assert models[0].name == "yolo26n.onnx"
-    assert models[0].expected_path == "~/.local/share/fs-tool/models/yolo26n.onnx"
+    assert models[0].expected_path == str(tmp_path / "yolo26n.onnx")
     assert yolo.setup_command == "fs-tool setup yolo"
 
 
@@ -128,8 +132,10 @@ def test_python_package_availability_without_side_effects() -> None:
     assert checker.python_package_available("json") is True
     # pypdf is installed in this environment.
     assert checker.python_package_available("pypdf") is True
-    # onnxruntime is not installed; the check only inspects import specs.
-    assert checker.python_package_available("onnxruntime") is False
+    # The check reflects the environment without importing the package.
+    assert checker.python_package_available("onnxruntime") is (
+        importlib.util.find_spec("onnxruntime") is not None
+    )
     assert checker.python_package_available("does-not-exist-package") is False
 
 
@@ -161,7 +167,7 @@ def test_external_resource_availability(tmp_path: Path) -> None:
     assert checker.external_resource_available(str(present)) is True
 
 
-def test_capability_status_unavailable_when_prerequisite_missing() -> None:
+def test_capability_status_unavailable_when_prerequisite_missing(tmp_path: Path) -> None:
     checker = AvailabilityChecker()
     cap = Capability(
         id=CapabilityId.IMAGE_OBJECT_DETECTION,
@@ -172,7 +178,7 @@ def test_capability_status_unavailable_when_prerequisite_missing() -> None:
             PythonPackageRequirement(name="onnxruntime", extra="image"),
             ExternalResourceRequirement(
                 name="yolo26n.onnx",
-                expected_path="~/.local/share/fs-tool/models/yolo26n.onnx",
+                expected_path=str(tmp_path / "missing.onnx"),
             ),
         ),
     )
@@ -191,7 +197,10 @@ def test_capability_status_available_when_all_requirements_met() -> None:
     assert checker.check_capability(cap) is CapabilityStatus.AVAILABLE
 
 
-def test_available_entries_populate_requirement_availability() -> None:
+def test_available_entries_populate_requirement_availability(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("FS_TOOL_MODEL_DIR", str(tmp_path))
     entries = available_entries()
     assert entries
     yolo = next(
@@ -199,7 +208,8 @@ def test_available_entries_populate_requirement_availability() -> None:
     )
     assert yolo is not None
     assert yolo.status is CapabilityStatus.UNAVAILABLE
-    assert all(not req.available for req in yolo.requirements)
+    models = [req for req in yolo.requirements if isinstance(req, ExternalResourceRequirement)]
+    assert [req.available for req in models] == [False]
     pdf = next((e for e in entries if e.capability.id == CapabilityId.PDF_METADATA), None)
     assert pdf is not None
     assert pdf.status is CapabilityStatus.AVAILABLE

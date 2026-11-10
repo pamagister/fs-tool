@@ -676,11 +676,11 @@ The existing Python analysis and metadata implementations should be reused where
 - [ ] P4-W01: Review image examples in `res/example_filesystem_unstructured/Bilder`.
 - [ ] P4-W02: Evaluate suitable image metadata and ONNX Runtime dependencies.
 - [ ] P4-W03: Define the `[image]` optional dependency group.
-- [ ] P4-W04: Research and select the YOLO ONNX model source.
-- [ ] P4-W05: Verify model license, provenance and checksum.
-- [ ] P4-W06: Define the model storage path and `FS_TOOL_MODEL_DIR` override.
-- [ ] P4-W07: Implement safe model discovery and validation.
-- [ ] P4-W08: Implement the explicit YOLO setup handler.
+- [x] P4-W04: Research and select the YOLO ONNX model source.
+- [x] P4-W05: Verify model license, provenance and checksum.
+- [x] P4-W06: Define the model storage path and `FS_TOOL_MODEL_DIR` override.
+- [x] P4-W07: Implement safe model discovery and validation.
+- [x] P4-W08: Implement the explicit YOLO setup handler.
 - [ ] P4-W09: Implement image metadata extraction.
 - [ ] P4-W10: Implement ONNX-based object detection.
 - [ ] P4-W11: Return structured detections with class, confidence and bounding box.

@@ -18,6 +18,7 @@ from fs_tool.core.capabilities.models import (
     PythonPackageRequirement,
     Requirement,
 )
+from fs_tool.setup.models import expected_model_path
 
 
 @dataclass(frozen=True)
@@ -35,8 +36,6 @@ def _default_capabilities() -> tuple[Capability, ...]:
     This is the single source of capability definitions. Requirements describe
     what is needed; :class:`AvailabilityChecker` determines what is present.
     """
-
-    model_dir = "~/.local/share/fs-tool/models"
 
     return (
         Capability(
@@ -103,7 +102,7 @@ def _default_capabilities() -> tuple[Capability, ...]:
                 PythonPackageRequirement(name="Pillow", extra="image"),
                 ExternalResourceRequirement(
                     name="yolo26n.onnx",
-                    expected_path=f"{model_dir}/yolo26n.onnx",
+                    expected_path=str(expected_model_path()),
                 ),
             ),
             setup_command="fs-tool setup yolo",
