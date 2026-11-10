@@ -669,7 +669,7 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Phase gate:** `read` must provide actual textual content or an explicitly identified textual representation, never silently substitute analysis results.
 
-### Phase 4 – Image Analysis and Model Setup
+### Phase 4 – Image Analysis and Model Setup [x]
 
 **Objective:** Implement the first model-backed analysis capability.
 
@@ -900,3 +900,24 @@ The mission is complete when:
 - Issue: #12 (reused, not closed).
 - Commits: `6781273`, `1cde1f6`, `b225d9d`; CI run `42531097345` passed on all platforms.
 - Next: Phase 4 (image analysis and model setup), not started.
+
+### 2026-11-10 – Phase 4 complete
+
+- Phase 4 (image analysis and model setup) is implemented, tested, documented and pushed.
+- `ImageProvider` adds `image_metadata` (Pillow) and `image_object_detection` (ONNX Runtime),
+  registered independently so metadata works without the YOLO model or ONNX Runtime.
+- `fs_tool.setup` provides a verified YOLO26n ONNX model workflow: HTTPS streaming download from
+  the documented Hugging Face source, size and SHA-256 verification, atomic replacement, cleanup
+  on failure, and idempotent re-runs. Valid existing models are never overwritten; `force`
+  replaces only invalid files. Normal analysis never downloads models.
+- The `[image]` extra declares `Pillow`, `numpy` and `onnxruntime`; capability checks honor an
+  optional `import_name` so Pillow is detected via `PIL`.
+- Detection uses letterboxing, maps boxes back to original image coordinates and returns
+  deterministic, confidence-sorted structured output; tests mock inference and an optional
+  integration test runs against a locally available model.
+- Model provenance: `zwh20081/yolo26-onnx`, file `yolo26n.onnx`, AGPL-3.0, direct ONNX export
+  from official Ultralytics YOLO26 weights; size 9,941,470 bytes; SHA-256
+  `356b2726bbdba982e2a304e14b4d9a18b2726b7705b3206093d21331e4dbdd98`.
+- Issue: #14 (closed after CI passed).
+- Commits: `eebe36d`, `c2b8f65`, plus this plan status update; CI run `42898450826` passed.
+- Next: Phase 5 (capability and setup CLI).
