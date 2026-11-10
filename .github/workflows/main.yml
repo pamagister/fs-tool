@@ -1,53 +1,94 @@
 name: CI
 
+# Linux is the always-on quality gate. Cross-platform tests are opt-in to keep
+# normal feedback fast and runner usage predictable.
+#
+# Opt in by:
+#   - adding --all to the commit subject or pull request title
+#   - running this workflow manually with all=true
+#
+# A feature branch under ci/** also runs on push, which makes it possible to
+# validate CI changes before opening a pull request.
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'ci/**'
+    paths-ignore:
+      - 'HISTORY.md'
   pull_request:
-    branches: [main]
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      all:
+        description: 'Also test Windows and macOS'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Superseded runs for the same ref are cancelled, so the latest commit
+  # gets its result sooner and no CI minutes are wasted on stale pushes.
+  cancel-in-progress: true
 
 jobs:
-  test:
+  # Detects the `--all` opt-in once per run. It runs in parallel with `tests`
+  # and publishes the result as a job output for the optional platform jobs.
+  flags:
+    runs-on: ubuntu-latest
+    outputs:
+      build_all: ${{ steps.detect.outputs.build_all }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: detect
+        shell: bash
+        env:
+          INPUT_ALL: ${{ inputs.all }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          COMMIT_SUBJECT="$(git log -1 --format=%s)"
+          if [[ "$COMMIT_SUBJECT" == *"--all"* || "$PR_TITLE" == *"--all"* || "$INPUT_ALL" == "true" ]]; then
+            echo "build_all=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_all=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  tests:
+    name: Linux / lint + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Setup Environment
+        uses: ./.github/actions/setup-environment
+      - name: Run lint and tests
+        run: make lint && make test
+
+  tests-cross-platform:
+    name: Tests / ${{ matrix.os }}
+    needs: [flags, tests]
+    if: needs.flags.outputs.build_all == 'true'
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11"]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Setup environment
+          python-version: '3.11'
+      - name: Setup Environment
         uses: ./.github/actions/setup-environment
-      - name: Run checks
-        if: runner.os != 'Windows'
-        run: make check
-      - name: Run Windows checks
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          uv run ruff check src/ tests/
-          uv run ruff format --check src/ tests/
-          uv run mypy src/
-          uv run pytest -v --cov=fs_tool -l --tb=short --maxfail=1 tests/
-          uv run coverage xml
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment
-      - name: Build Python distributions
-        run: make build
+      - name: Run tests
+        run: uv run pytest -v --cov=fs_tool -l --tb=short --maxfail=1 tests/

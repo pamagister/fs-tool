@@ -1,45 +1,108 @@
-name: Upload Python Package
+name: Release
+
+# Triggered by a tag push, normally created by `make release`.
+#
+# Linux-only release (default):
+#   make release
+#
+# Release with optional Windows/macOS builds:
+#   make release ALL=1
+#
+# Re-run the pipeline for an existing tag:
+#   gh workflow run release.yml --ref <tag> -f all=true
+#
+# A tag push always runs the quality gate, creates the GitHub release and
+# publishes to PyPI.
+
 permissions:
   contents: write
 
 on:
   push:
     tags:
-      - "*"
+      - '*'
+  workflow_dispatch:
+    inputs:
+      all:
+        description: 'Also build Windows and macOS'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  release:
-    name: Create Release
+  # Detects `--all` in the tagged commit subject (or the manual `all` input)
+  # and exposes it as a job output.
+  flags:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      build_all: ${{ steps.detect.outputs.build_all }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Release
-        uses: softprops/action-gh-release@v2
+      - id: detect
+        shell: bash
+        env:
+          INPUT_ALL: ${{ github.event.inputs.all }}
+        run: |
+          COMMIT_SUBJECT="$(git log -1 --format=%s)"
+          if [[ "$COMMIT_SUBJECT" == *"--all"* || "$INPUT_ALL" == "true" ]]; then
+            echo "build_all=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_all=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Quality gate: lint + unit tests before any release artifact is created.
+  quality:
+    needs: flags
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
         with:
-          generate_release_notes: true
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Setup Environment # Composite Action
+        uses: ./.github/actions/setup-environment
+      - name: Run quality gate (lint + tests)
+        run: make lint && make test
+
+  release:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Generate Changelog
+        run: .github/release_message.sh > release_message.md
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: release_message.md
 
   deploy:
-    needs: release
+    needs: quality
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: '3.11'
       - name: Install build tools
         run: python -m pip install --upgrade build
       - name: Build distributions
