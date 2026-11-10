@@ -75,6 +75,10 @@ jobs:
 
   release:
     needs: quality
+    # Ein GitHub Release braucht zwingend einen Tag. Bei Triggern ohne Tag-Ref
+    # (z. B. manueller workflow_dispatch auf einem Branch) daher überspringen,
+    # statt mit "GitHub Releases requires a tag" hart zu scheitern.
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
