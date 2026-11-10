@@ -6,6 +6,7 @@ Downloads are fully mocked: the test suite never requires network access.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,11 @@ from fs_tool.setup.service import (
 )
 
 ALL_PACKAGES = {"pypdf", "onnxruntime", "PIL", "numpy"}
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI styling so help assertions are color-mode independent."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 class FakeChecker:
@@ -410,5 +416,5 @@ def test_setup_help(cli: Any, capsys: Any) -> None:
 
     output = capsys.readouterr().out
     assert "setup" in output
-    assert "--all" in output
-    assert "--force" in output
+    assert "--all" in _strip_ansi(output)
+    assert "--force" in _strip_ansi(output)
