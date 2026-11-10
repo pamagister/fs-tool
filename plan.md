@@ -743,12 +743,12 @@ The existing Python analysis and metadata implementations should be reused where
 [x] P6-W07: Document capability statuses and example JSON responses.
 [x] P6-W08: Update user documentation navigation where necessary.
 [x] P6-W09: Update project overview and CLI examples.
-- [ ] P6-W10: Review package build and optional dependency declarations.
-- [ ] P6-W11: Run the full test suite.
-- [ ] P6-W12: Run Ruff, formatting checks and mypy.
-- [ ] P6-W13: Run `make precommit`.
-- [ ] P6-W14: Build the package and verify optional extras.
-- [ ] P6-W15: Perform an end-to-end test with and without optional dependencies and models.
+[x] P6-W10: Review package build and optional dependency declarations.
+[x] P6-W11: Run the full test suite.
+[x] P6-W12: Run Ruff, formatting checks and mypy.
+[x] P6-W13: Run `make precommit`.
+[x] P6-W14: Build the package and verify optional extras.
+[x] P6-W15: Perform an end-to-end test with and without optional dependencies and models.
 
 **Acceptance criteria**
 
@@ -943,3 +943,24 @@ The mission is complete when:
 - Issue: #15 (reused, not closed).
 - Commits: `f829f22`, `52d8e6c`; CI run `42905527267` passed.
 - Next: Phase 6 (documentation, integration and quality assurance).
+
+### 2026-11-10 – Phase 6 complete
+
+- Phase 6 (documentation, integration and quality assurance) is implemented, tested, documented and pushed.
+- New `docs/usage/setup.md`: optional Python extras (`metadata`, `image`) and install commands,
+  capability statuses (`available`/`unavailable`/`failed`) with example JSON, `fs-tool capabilities`
+  and `fs-tool setup` target descriptions, YOLO model source (`zwh20081/yolo26-onnx`), license AGPL-3.0,
+  size 9,941,470 bytes, SHA-256 `356b2726...`, storage `~/.local/share/fs-tool/models/yolo26n.onnx`,
+  and the `FS_TOOL_MODEL_DIR` override.
+- `docs/usage/cli.md`: added `capabilities` and `setup` command references plus example JSON response.
+- `docs/usage/examples.md`: added capability discovery and setup workflow examples.
+- `docs/index.md`: linked the new Setup page; `mkdocs build` succeeds and renders `usage/setup`.
+- All phase-6 work packages complete: package build (`uv build`) succeeds with sdist+wheel; optional
+  extras verified; no YOLO model bundled or auto-downloaded (model dir absent after normal operation).
+- Tests: 367 passed, 1 skipped (network-dependent model integration test), coverage 85%.
+- Lint/type/format: `ruff check`, `ruff format --check`, `mypy --strict` all pass; `make precommit` green.
+- End-to-end: `capabilities`, `setup pdf`/`setup image`/`setup --all`, `info`, `analyze`, `read`
+  all verified with JSON and plain output.
+- Issue: GitHub issue creation for this phase failed (401 Requires authentication); no issue reference.
+- Commit: `c42cc20`; branch `phase-6-documentation-qa` pushed to origin.
+- Next: none — implementation complete.
