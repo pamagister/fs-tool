@@ -60,6 +60,32 @@ def test_allow_root_after_command(cli: Any, tmp_path: Any) -> None:
     assert cli(["inspect", "info", str(tmp_path / "note.txt"), "--allow-root", str(tmp_path)]) == 0
 
 
+def test_verbose_option_before_command(
+    cli: Any, tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The global --verbose option works before the command."""
+    note = tmp_path / "note.txt"
+    note.write_text("hello")
+    assert cli(["--allow-root", str(tmp_path), "--verbose", "inspect", "info", str(note)]) == 0
+    assert "note.txt" in capsys.readouterr().out
+
+
+def test_verbose_option_after_command(
+    cli: Any, tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The global --verbose option works after the command via hoisting."""
+    note = tmp_path / "note.txt"
+    note.write_text("hello")
+    assert cli(["--allow-root", str(tmp_path), "inspect", "info", str(note), "--verbose"]) == 0
+    assert "note.txt" in capsys.readouterr().out
+
+
+def test_help_documents_verbose_option(cli: Any, capsys: pytest.CaptureFixture[str]) -> None:
+    """Root help lists the global --verbose option."""
+    assert cli(["--help"]) == 0
+    assert "--verbose" in capsys.readouterr().out
+
+
 def test_json_and_plain_are_mutually_exclusive(cli: Any) -> None:
     """``--json`` and ``--plain`` cannot be combined: exit 2."""
     assert cli(["--json", "--plain"]) == 2

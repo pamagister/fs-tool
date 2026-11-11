@@ -62,12 +62,14 @@ class CliContext:
         output_format: str,
         json_output: bool,
         plain_output: bool,
+        verbose: bool = False,
     ) -> None:
         self.allow_root = allow_root
         self.config = config
         self.output_format = output_format
         self.json_output = json_output
         self.plain_output = plain_output
+        self.verbose = verbose
 
 
 def _resolve_format(
@@ -108,6 +110,7 @@ def merge_globals(
     format_value: str | None = None,
     json_output: bool | None = None,
     plain_output: bool | None = None,
+    verbose: bool | None = None,
     version: bool = False,
 ) -> None:
     """Merge subcommand-level global options into the CLI context.
@@ -134,6 +137,8 @@ def merge_globals(
         ctx.obj.json_output = json_output
     if plain_output is not None:
         ctx.obj.plain_output = plain_output
+    if verbose is not None:
+        ctx.obj.verbose = verbose
 
     if ctx.obj.json_output and ctx.obj.plain_output:
         raise FsToolError(
@@ -164,6 +169,11 @@ def _root(
     plain_output: bool = typer.Option(
         False, "--plain", help="Human-readable output instead of JSON."
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="Include all available entry fields instead of the compact default.",
+    ),
     version: bool = typer.Option(False, "--version", help="Show application version and exit."),
 ) -> None:
     """Root callback: global options and version information.
@@ -177,6 +187,7 @@ def _root(
         output_format="auto",
         json_output=False,
         plain_output=False,
+        verbose=False,
     )
     merge_globals(
         ctx,
@@ -185,6 +196,7 @@ def _root(
         format_value=format_value,
         json_output=json_output,
         plain_output=plain_output,
+        verbose=verbose,
         version=version,
     )
 
@@ -1581,7 +1593,7 @@ def write_move(
     return _emit_write_report(ctx, report)
 
 
-_GLOBAL_FLAGS = frozenset({"--json", "--plain", "--version"})
+_GLOBAL_FLAGS = frozenset({"--json", "--plain", "--verbose", "--version"})
 _GLOBAL_VALUE_OPTIONS = frozenset({"--allow-root", "--config", "--format"})
 
 

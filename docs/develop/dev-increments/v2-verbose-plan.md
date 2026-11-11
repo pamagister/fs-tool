@@ -239,12 +239,12 @@ If the current implementation requires additional fields, document and preserve 
 
 **Objective:** Establish a consistent mechanism for selecting compact or complete output representations.
 
-- [ ] P1-W01: Review the existing output architecture, especially `output/json.py`, `output/plain.py`, `output/results.py`, `cli.py` and the relevant core models.
-- [ ] P1-W02: Identify all commands that serialize filesystem-entry objects and document their current output structures.
-- [ ] P1-W03: Define a per-command (decentralized) mechanism where each command/renderer decides which fields belong in its compact profile versus its complete representation; shared helpers may be used where profiles overlap.
-- [ ] P1-W04: Implement the global `--verbose` option and propagate its state through the existing CLI execution and output pipeline.
-- [ ] P1-W05: Ensure both supported option positions work where compatible with the current CLI architecture.
-- [ ] P1-W06: Ensure output filtering happens after analysis and does not modify internal data models.
+- [x] P1-W01: Review the existing output architecture, especially `output/json.py`, `output/plain.py`, `output/results.py`, `cli.py` and the relevant core models.
+- [x] P1-W02: Identify all commands that serialize filesystem-entry objects and document their current output structures.
+- [x] P1-W03: Define a per-command (decentralized) mechanism where each command/renderer decides which fields belong in its compact profile versus its complete representation; shared helpers may be used where profiles overlap.
+- [x] P1-W04: Implement the global `--verbose` option and propagate its state through the existing CLI execution and output pipeline.
+- [x] P1-W05: Ensure both supported option positions work where compatible with the current CLI architecture.
+- [x] P1-W06: Ensure output filtering happens after analysis and does not modify internal data models.
 
 **Acceptance criteria**
 
