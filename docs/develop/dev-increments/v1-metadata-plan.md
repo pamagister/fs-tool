@@ -246,7 +246,7 @@ The model must not be included in the Python package or downloaded automatically
 
 ### D9 – Documentation is part of the architecture
 
-`docs/develop/architecture.md` must be updated as an integral part of this implementation.
+`../architecture.md` must be updated as an integral part of this implementation.
 
 It must describe:
 
@@ -601,7 +601,7 @@ The existing Python analysis and metadata implementations should be reused where
 - [x] P1-W06: Define the availability-checking mechanism.
 - [x] P1-W07: Define result models for `available`, `unavailable` and `failed`.
 - [x] P1-W08: Define stable error codes and diagnostic references.
-- [x] P1-W09: Update `docs/develop/architecture.md` with the approved architecture.
+- [x] P1-W09: Update `../architecture.md` with the approved architecture.
 - [x] P1-W10: Add focused unit tests for the registry and availability mechanism.
 
 **Acceptance criteria**
@@ -673,7 +673,7 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Implement the first model-backed analysis capability.
 
-- [x] P4-W01: Review image examples in `res/example_filesystem_unstructured/Bilder`.
+- [x] P4-W01: Review image examples in `../../../res/example_filesystem_unstructured/Bilder`.
 - [x] P4-W02: Evaluate suitable image metadata and ONNX Runtime dependencies.
 - [x] P4-W03: Define the `[image]` optional dependency group.
 - [x] P4-W04: Research and select the YOLO ONNX model source.
@@ -734,7 +734,7 @@ The existing Python analysis and metadata implementations should be reused where
 
 **Objective:** Complete the implementation and ensure consistency across code, documentation and tests.
 
-[x] P6-W01: Finalize `docs/develop/architecture.md`.
+[x] P6-W01: Finalize `../architecture.md`.
 [x] P6-W02: Document the provider and capability architecture.
 [x] P6-W03: Document all new CLI commands.
 [x] P6-W04: Document optional Python extras and their installation commands.
@@ -816,21 +816,21 @@ Tests should follow the existing repository conventions.
 
 Relevant existing test areas include:
 
-- `tests/test_info.py`
-- `tests/test_read.py`
-- `tests/test_python_analysis.py`
-- `tests/test_hashing.py`
-- `tests/test_output.py`
-- `tests/test_plain_output.py`
-- `tests/test_cli.py`
+- `../../../tests/test_info.py`
+- `../../../tests/test_read.py`
+- `../../../tests/test_python_analysis.py`
+- `../../../tests/test_hashing.py`
+- `../../../tests/test_output.py`
+- `../../../tests/test_plain_output.py`
+- `../../../tests/test_cli.py`
 
 Add focused test modules where appropriate:
 
-- `tests/test_capabilities.py`
-- `tests/test_providers.py`
-- `tests/test_analyze.py`
-- `tests/test_setup.py`
-- `tests/test_image_analysis.py`
+- `../../../tests/test_capabilities.py`
+- `../../../tests/test_providers.py`
+- `../../../tests/test_analyze.py`
+- `../../../tests/test_setup.py`
+- `../../../tests/test_image_analysis.py`
 
 Test at least the following situations:
 
@@ -868,7 +868,7 @@ The mission is complete when:
 7. YOLO setup and object detection work with the documented model.
 8. Missing and failed analyses are explicitly represented.
 9. Hashes consistently identify source files.
-10. `docs/develop/architecture.md` documents the implemented architecture.
+10. `../architecture.md` documents the implemented architecture.
 11. User documentation and CLI help explain installation and setup.
 12. All automated tests, linting, type checking and package build checks pass.
 
@@ -896,7 +896,7 @@ The mission is complete when:
 - PDF text extraction uses the optional `pypdf` dependency, reports `format` and `representation`,
   preserves page boundaries via `pages`, and bounds output and source size.
 - Missing PDF dependencies are reported as `CAPABILITY_UNAVAILABLE`.
-- A real PDF fixture is committed at `tests/example_pdf.pdf`.
+- A real PDF fixture is committed at `../../../tests/example_pdf.pdf`.
 - Issue: #12 (reused, not closed).
 - Commits: `6781273`, `1cde1f6`, `b225d9d`; CI run `42531097345` passed on all platforms.
 - Next: Phase 4 (image analysis and model setup), not started.
@@ -947,14 +947,14 @@ The mission is complete when:
 ### 2026-11-10 – Phase 6 complete
 
 - Phase 6 (documentation, integration and quality assurance) is implemented, tested, documented and pushed.
-- New `docs/usage/setup.md`: optional Python extras (`metadata`, `image`) and install commands,
+- New `../../usage/setup.md`: optional Python extras (`metadata`, `image`) and install commands,
   capability statuses (`available`/`unavailable`/`failed`) with example JSON, `fs-tool capabilities`
   and `fs-tool setup` target descriptions, YOLO model source (`zwh20081/yolo26-onnx`), license AGPL-3.0,
   size 9,941,470 bytes, SHA-256 `356b2726...`, storage `~/.local/share/fs-tool/models/yolo26n.onnx`,
   and the `FS_TOOL_MODEL_DIR` override.
-- `docs/usage/cli.md`: added `capabilities` and `setup` command references plus example JSON response.
-- `docs/usage/examples.md`: added capability discovery and setup workflow examples.
-- `docs/index.md`: linked the new Setup page; `mkdocs build` succeeds and renders `usage/setup`.
+- `../../usage/cli.md`: added `capabilities` and `setup` command references plus example JSON response.
+- `../../usage/examples.md`: added capability discovery and setup workflow examples.
+- `../../index.md`: linked the new Setup page; `mkdocs build` succeeds and renders `usage/setup`.
 - All phase-6 work packages complete: package build (`uv build`) succeeds with sdist+wheel; optional
   extras verified; no YOLO model bundled or auto-downloaded (model dir absent after normal operation).
 - Tests: 367 passed, 1 skipped (network-dependent model integration test), coverage 85%.
