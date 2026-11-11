@@ -26,6 +26,39 @@ fs-tool inspect tree ~/Documents --json
 
 `--help` and `--version` are exceptions: they always print plain text.
 
+## Compact and verbose entry output
+
+Commands that return filesystem entries default to a compact per-command profile. `--verbose`
+restores the complete existing entry fields. The option applies to both JSON and plain output and
+may be placed before or after the command:
+
+```bash
+fs-tool --verbose inspect inventory ~/Documents
+fs-tool inspect inventory ~/Documents --verbose
+fs-tool --plain --verbose find ~/Documents
+```
+
+| Mode | Behavior |
+|---|---|
+| Default | Compact profile of the affected command. |
+| `--verbose` | Complete existing entry fields. |
+| `--json --verbose` | Complete JSON entry fields. |
+| `--plain --verbose` | Compact line plus `key: value` detail lines. |
+
+Verbosity changes presentation only. It never changes the number of returned entries, the analysis
+result, completeness, warnings, errors or exit codes, and it never triggers hashing or additional
+metadata extraction.
+
+| Command | Compact entry fields |
+|---|---|
+| `inspect tree` | `rel_path`, `type` |
+| `inspect inventory` | `rel_path`, `type`, `extension`, `size`, `modified`, plus `sha256` with `--hash` |
+| `find` | `rel_path`, `type`, `size` |
+
+`inspect info` returns a single entry with its complete metadata and `inspect analyze` returns an
+analysis report, so neither command has a compact profile; their output is unchanged by
+`--verbose`.
+
 ## JSON envelope
 
 Every command except `--help` and `--version` returns one JSON object on stdout:
@@ -91,7 +124,7 @@ An incomplete scan still returns partial results, but sets `success` to `false` 
 
 ### Filesystem entry
 
-`inspect tree`, `inspect info`, `find` and the inventory commands use this entry shape:
+`inspect tree`, `inspect info`, `find` and the inventory commands use this complete entry shape:
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -113,6 +146,53 @@ An incomplete scan still returns partial results, but sets `success` to `false` 
 | `sha256` | string or null | Hash, when requested. |
 | `dev_ino` | string | Device and inode identity, for example `2049:12345`. |
 | `metadata` | object or null | Extracted format metadata. Populated by `inspect info`. |
+
+`inspect tree`, `inspect inventory` and `find` return only their compact profile by default;
+`--verbose` returns every field above. `inspect inventory` never includes the absolute `path`.
+
+```json
+{
+  "schema_version": 1,
+  "success": true,
+  "command": "inspect.tree",
+  "result": {
+    "root": "/home/user/documents",
+    "entries": [
+      {"rel_path": "reports", "type": "directory"},
+      {"rel_path": "reports/q4.pdf", "type": "file"}
+    ],
+    "count": 2
+  },
+  "errors": [],
+  "warnings": [],
+  "complete": true
+}
+```
+
+With `--verbose`, each entry expands to the complete representation:
+
+```json
+{
+  "path": "/home/user/documents/reports/q4.pdf",
+  "name": "q4.pdf",
+  "rel_path": "reports/q4.pdf",
+  "type": "file",
+  "extension": ".pdf",
+  "size": 245760,
+  "modified": "2026-11-11T18:30:00+00:00",
+  "created": null,
+  "accessed": "2026-11-11T18:31:02+00:00",
+  "changed": "2026-11-11T18:30:00+00:00",
+  "mode": "-rw-r--r--",
+  "owner": "user",
+  "mime_type": "application/pdf",
+  "is_symlink": false,
+  "target": null,
+  "sha256": null,
+  "dev_ino": "2049:12345",
+  "metadata": null
+}
+```
 
 `inspect info` additionally adds `metadata_result` next to the entry fields. It is a
 [capability result](#capability-results) or `null` when the format has no metadata capability.
@@ -167,12 +247,12 @@ Plain output is intended for humans. It is not a stable machine interface.
 
 | Command | Plain representation |
 |---|---|
-| `inspect tree` | Indented tree. |
+| `inspect tree` | Indented tree; `--verbose` adds a detail block per entry. |
 | `inspect info` | `key: value` lines, including extracted metadata and any metadata status. |
 | `inspect analyze` | One block per analysis with capability, status and structured result. |
-| `inspect inventory` | One line per entry with type, size and hash. |
+| `inspect inventory` | One line per entry with type, size and hash; `--verbose` adds detail lines. |
 | `inspect read` | File content (UTF-8 text or extracted PDF text). A truncation warning goes to stderr. |
-| `find` | One line per match with type and size. |
+| `find` | One line per match with type and size; `--verbose` adds detail lines. |
 | `duplicates` | Duplicate groups with hash, size, count and file paths. |
 | `compare` | Categories with entries, followed by `complete`. |
 | `verify` | Discrepancy categories, followed by `complete`. |
@@ -180,6 +260,32 @@ Plain output is intended for humans. It is not a stable machine interface.
 
 Diagnostics and warnings are written to stderr. Result content is written to stdout, so plain
 output can be redirected without mixing in error messages.
+
+Compact plain output keeps the existing line format. With `--verbose`, each entry line is followed
+by indented `key: value` detail lines for the remaining fields:
+
+```text
+find: /home/user/documents
+  reports [directory] size=4096
+    name: reports
+    modified: 2026-11-11T18:30:00+00:00
+    accessed: 2026-11-11T18:31:02+00:00
+    changed: 2026-11-11T18:30:00+00:00
+    mode: drwxr-xr-x
+    owner: user
+    dev_ino: 2049:12345
+  reports/q4.pdf [file] size=245760
+    name: q4.pdf
+    extension: .pdf
+    modified: 2026-11-11T18:30:00+00:00
+    accessed: 2026-11-11T18:31:02+00:00
+    changed: 2026-11-11T18:30:00+00:00
+    mode: -rw-r--r--
+    owner: user
+    mime_type: application/pdf
+    dev_ino: 2049:12346
+count: 2
+```
 
 ## Determinism
 

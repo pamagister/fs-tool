@@ -51,11 +51,22 @@ fs-tool inspect tree ~/Documents --plain
 | `--format auto\|json\|plain` | Select the output format. Default: `auto`. |
 | `--json` | Explicitly request JSON output. |
 | `--plain` | Human-readable output instead of JSON. |
+| `--verbose` | Return the complete existing entry fields instead of the compact default profile. |
 | `--install-completion` | Install shell completion for the current shell. |
 | `--show-completion` | Print the completion script for the current shell. |
 
 `--json` and `--plain` are mutually exclusive. With `--format auto`, output is plain text when
 stdout is a terminal and JSON otherwise (for pipes, redirection and agents).
+
+Commands that return filesystem entries default to a compact per-command profile. `--verbose`
+restores the complete entry fields. `--verbose` works independently of the output format and never
+triggers extra filesystem analysis, metadata extraction or hashing:
+
+```bash
+fs-tool --verbose inspect inventory ~/Documents
+fs-tool inspect inventory ~/Documents --verbose
+fs-tool --plain --verbose find ~/Documents --extension pdf
+```
 
 See [Output formats](output.md) for the JSON envelope and [Configuration](configuration.md) for the
 configuration file.
@@ -94,8 +105,10 @@ The default ignore set includes `.git`, `.venv`, `__pycache__`, `.pytest_cache`,
 `.mypy_cache`, `node_modules`, `build`, `dist`, `.idea` and `.vscode`. Symlinks are recorded but not
 followed.
 
-JSON result fields: `root`, `entries`, `count`. Each entry contains the fields described in
-[JSON response schemas](output.md#filesystem-entry). Plain output renders a tree.
+JSON result fields: `root`, `entries`, `count`. Each entry contains `rel_path` and `type` by
+default; `--verbose` returns all fields described in
+[JSON response schemas](output.md#filesystem-entry). Plain output renders a tree, and `--verbose`
+adds a detail block below each entry.
 
 If the scan is truncated or contains unreadable entries, the command reports `complete: false` and
 exits with code 5.
@@ -184,8 +197,13 @@ Inventory entries are addressed by `rel_path` relative to the declared root and 
 `path`, so an inventory can be compared across machines. JSON result fields: `root`, `entries`,
 `count`, `generated_at`, `complete`, and optionally `tree_hash`.
 
-The tree hash is computed from the sorted entries using a canonical JSON representation. It excludes
-filesystem-specific fields such as absolute paths, inode identities and timestamps.
+By default each entry contains `rel_path`, `type`, `extension`, `size` and `modified`. `sha256` is
+added only with `--hash`. `--verbose` returns every remaining entry field, still without the
+absolute `path`.
+
+The tree hash is computed from the full sorted entries using a canonical JSON representation. It
+excludes filesystem-specific fields such as absolute paths, inode identities and timestamps, and
+does not depend on the selected output profile.
 
 Use `--hash` when the inventory will later be checked with `verify inventory`; without hashes only
 sizes and types can be compared.
@@ -369,7 +387,9 @@ All specified filters are combined with logical AND. Sizes use binary multiplier
 `M` = 1024², `G` = 1024³, `T` = 1024⁴). Timestamps use the format accepted by
 `datetime.fromisoformat`, for example `2026-01-31` or `2026-01-31T12:00:00+00:00`.
 
-JSON result fields: `root`, `entries`, `count`, `complete`.
+JSON result fields: `root`, `entries`, `count`, `complete`. Each entry contains `rel_path`, `type`
+and `size` by default; `--verbose` returns the complete entry fields described in
+[JSON response schemas](output.md#filesystem-entry).
 
 ## `duplicates`
 
@@ -446,6 +466,11 @@ fs-tool verify inventory INVENTORY_FILE TARGET [OPTIONS]
 The inventory may be either the full JSON envelope produced by `inspect inventory` or a bare
 inventory object. The `schema_version` must be `1`; the inventory must contain `rel_path` and `type`
 for every entry. Inventories produced from an incomplete scan make the verification incomplete.
+
+`size`, `target` and `sha256` are compared only when the inventory contains them. The compact
+default profile keeps `size`, so size mismatches are detected. It omits `target`, so symlink-target
+changes are skipped; generate the inventory with `--verbose` or `--hash` when target or content
+comparison is required.
 
 JSON result fields: `inventory_file`, `target`, `missing`, `unexpected`, `changed`, `size_mismatch`,
 `hash_mismatch`, `complete`. Size and hash mismatches are also listed under `changed`.

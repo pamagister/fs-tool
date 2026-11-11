@@ -49,6 +49,7 @@ src/fs_tool/
 │   └── move.py            No-overwrite moves and renames
 ├── output/
 │   ├── json.py            JSON envelope
+│   ├── entries.py         Per-command compact entry profiles
 │   ├── results.py         Capability result serialization
 │   └── plain.py           Human-readable renderers
 ├── safety/
@@ -65,14 +66,14 @@ src/fs_tool/
 `fs_tool/cli.py` defines the Typer application and all commands. It is responsible for:
 
 - parsing arguments and global options,
-- resolving the output format,
+- resolving the output format and verbosity,
 - validating paths against the allowed roots,
 - calling the core or operations layer,
 - serializing results and mapping errors to exit codes.
 
-The root callback builds a `CliContext` with the allow-listed roots, configuration path and output
-settings. Global options are accepted before or after the command: `main()` hoists known global
-options in front of the command before Click parses them.
+The root callback builds a `CliContext` with the allow-listed roots, configuration path, output
+settings and verbosity. Global options are accepted before or after the command: `main()` hoists
+known global options in front of the command before Click parses them.
 
 `main()` is the process boundary. It converts `FsToolError` into a diagnostic and an exit code,
 treats Click usage errors as exit code 2, and reports unexpected exceptions instead of swallowing
@@ -266,8 +267,19 @@ The `operations` package performs filesystem modifications. Every operation:
 ### Output
 
 `output/json.py` defines the stable `Envelope` with `schema_version`, `success`, `command`,
-`result`, `errors`, `warnings` and `complete`. `output/plain.py` contains renderers for each command
-family. The CLI decides which representation to use; the core never imports either module.
+`result`, `errors`, `warnings` and `complete`. `output/entries.py` defines the compact serialization
+profiles for commands that return filesystem entries, and `output/plain.py` contains renderers for
+each command family. The CLI decides which representation to use; the core never imports either
+module.
+
+Compact profiles are command-specific. `inspect tree` keeps `rel_path` and `type`, `inspect
+inventory` keeps portable metadata (`rel_path`, `type`, `extension`, `size`, `modified`, plus
+`sha256` only with `--hash`), and `find` keeps `rel_path`, `type` and `size`. The global `--verbose`
+option restores the complete `FilesystemEntry` representation for these commands. Filtering happens
+after analysis in the presentation layer: core models stay complete, entry counts and completeness
+are unchanged, and verbose mode performs no additional filesystem work or hashing. `inspect info`
+and `inspect analyze` have no compact profile, and `tree_hash` is computed from the full entry
+representation so it does not depend on the selected profile.
 
 ### Optional dependencies, external resources and model storage (decisions D5 and D8)
 

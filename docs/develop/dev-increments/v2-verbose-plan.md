@@ -310,15 +310,15 @@ If the current implementation requires additional fields, document and preserve 
 
 **Objective:** Make the new output behavior discoverable and ensure implementation and documentation agree.
 
-- [ ] P4-W01: Update `docs/usage/cli.md` with the global `--verbose` option and examples.
-- [ ] P4-W02: Update `docs/usage/output.md` with compact and verbose output examples for affected commands.
-- [ ] P4-W03: Update `docs/develop/architecture.md` if the output architecture or serialization responsibilities have changed.
-- [ ] P4-W04: Ensure CLI help clearly documents `--verbose` and its behavior.
-- [ ] P4-W05: Review examples and documentation for schema version consistency.
-- [ ] P4-W06: Run the complete test suite.
-- [ ] P4-W07: Run the project's configured linting, formatting and type-checking tools.
-- [ ] P4-W08: Run `make precommit`.
-- [ ] P4-W09: Build the package and verify that the CLI works through the installed entry point.
+- [x] P4-W01: Update `docs/usage/cli.md` with the global `--verbose` option and examples.
+- [x] P4-W02: Update `docs/usage/output.md` with compact and verbose output examples for affected commands.
+- [x] P4-W03: Update `docs/develop/architecture.md` if the output architecture or serialization responsibilities have changed.
+- [x] P4-W04: Ensure CLI help clearly documents `--verbose` and its behavior.
+- [x] P4-W05: Review examples and documentation for schema version consistency.
+- [x] P4-W06: Run the complete test suite.
+- [x] P4-W07: Run the project's configured linting, formatting and type-checking tools.
+- [x] P4-W08: Run `make precommit`.
+- [x] P4-W09: Build the package and verify that the CLI works through the installed entry point.
 
 **Acceptance criteria**
 
