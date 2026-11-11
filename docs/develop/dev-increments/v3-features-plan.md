@@ -6,7 +6,7 @@ Improve `fs-tool` along three axes without changing its safety model or JSON env
 
 1. **Correctness:** Make `inspect inventory` output profiles consistent between JSON and plain text, make `tree_hash` genuinely portable across machines and users, and surface scan truncation and skipped entries.
 2. **Performance and usability:** Avoid unnecessary full-entry materialization, add bounded hashing and progress feedback, and provide field selection and filtering for large inventories.
-3. **CLI comfort:** Add deterministic sorting, optional symlink following, configurable default ignores, CSV/TSV export, short/negatable verbose flags, and a documented verbose audit for non-entry commands.
+3. **CLI comfort:** Add deterministic sorting, configurable default ignores, CSV/TSV export, short/negatable verbose flags, and a documented verbose audit for non-entry commands.
 
 The work is split into five phases. Each phase is independently testable, documented and committed. The JSON envelope and `schema_version` remain unchanged at `1`.
 
@@ -26,7 +26,7 @@ The user selected the following items from the assessment. This plan maps every 
 | F1 | I4 | Add `--fields` to `inspect inventory` |
 | F9 | I5 | Add extension and size filters to `inspect inventory` |
 | F2 | T1 | Add `--sort-by` to traversal commands |
-| F3 | T2 | Add `--follow-symlinks` to traversal commands |
+| F3 | - | Rejected: never implement `--follow-symlinks` |
 | F4 | T3 | Add `--no-default-ignore` |
 | F5 | O1 | Add CSV/TSV output for `inspect inventory` |
 | F7 | O2 | Add `-v` and `--no-verbose` |
@@ -34,6 +34,9 @@ The user selected the following items from the assessment. This plan maps every 
 
 ### Explicit non-goals
 
+- **`--follow-symlinks`: never implement.** The CLI must not expose an option to follow symbolic
+  links. Symlinks are recorded, never followed, and never traversed. This is a permanent decision,
+  not a deferred item.
 - `--output FILE`, atomic file writing and `--pretty` / `--indent` JSON output. These were listed as possible improvements but were not selected.
 - `P4` (globally clarifying the `--verbose` help text) and `P5` (`generated_at` determinism) beyond what the O3 audit requires.
 - Changing the JSON envelope structure or bumping `schema_version`.
@@ -144,15 +147,15 @@ Filters never change `complete` or exit codes. A filter is not an error.
 - `tree_hash` is still calculated, using `null` for the skipped hash.
 - Without `--max-hash-bytes`, behavior is unchanged.
 
-### 6. Symlink following is opt-in and root-contained
+### 6. Symlinks are never followed
 
-`--follow-symlinks` is opt-in. When enabled:
+The CLI must never follow symbolic links. Traversal records a symlink as an entry with
+`type: "symlink"` and its `target`, but does not resolve, open or descend into it. No CLI option may
+enable symlink following. Existing core behavior for callers that explicitly use the traversal API is
+outside this plan; the CLI never enables it.
 
-- The symlink target is resolved and must stay inside one of the configured allowed roots.
-- A target outside the allowed roots is reported as an error and skipped.
-- Cycles are detected by `(st_dev, st_ino)` and skipped.
-- Broken links are reported as errors and skipped.
-- `target` is `null` for followed entries because the entry is presented as its target.
+Broken links are reported as symlink entries with their target when available. No cycle detection for
+followed links is needed because the CLI never follows them.
 
 ### 7. Sorting is deterministic
 
@@ -208,19 +211,18 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 - [ ] T1-W01: Extend `SortBy` and `traverse()` with `size`, `modified` and `extension` sorting, including deterministic `name` tie-breaking.
 - [ ] T1-W02: Add `--sort-by` to `inspect tree`, `inspect inventory` and `find`.
 - [ ] T1-W03: Add tests for every sort key, tie-breaking and interaction with `--max-entries`.
-- [ ] T2-W01: Add root-containment validation for followed symlinks in `traverse()` or a shared traversal helper.
-- [ ] T2-W02: Add `--follow-symlinks` to `inspect tree`, `inspect inventory` and `find`.
-- [ ] T2-W03: Add tests for following internal symlinks, rejecting external targets, cycle detection and broken links.
 - [ ] T3-W01: Add `use_default_ignores` to `traverse()` so the default ignore list can be disabled.
 - [ ] T3-W02: Add `--no-default-ignore` to `inspect tree`, `inspect inventory`, `find`, `duplicates` and `compare`.
 - [ ] T3-W03: Add tests proving default ignores are active by default and disabled on request, while `--ignore-dir` and `--ignore-pattern` still apply.
 
+`T2` was rejected and removed: `--follow-symlinks` must never be implemented. The ID is not reused.
+
 **Acceptance criteria**
 
 - All sort modes produce deterministic, documented order.
-- `--follow-symlinks` never escapes the allowed roots.
 - `--no-default-ignore` includes previously ignored directories such as `.git` when explicitly requested.
 - Existing traversal behavior remains unchanged when the new options are not used.
+- Symlinks are never followed by the CLI.
 - All existing traversal, tree, inventory, find, duplicates and compare tests pass.
 
 **Phase gate:** Traversal options are stable and safe before inventory features depend on them.
@@ -289,9 +291,9 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 
 - [ ] D1-W01: Update `docs/usage/cli.md` with all new options, examples, validation rules and exit codes.
 - [ ] D2-W01: Update `docs/usage/output.md` with the compact, verbose, `--fields`, filtered, skipped, truncated, warning and CSV/TSV representations.
-- [ ] D3-W01: Update `docs/usage/safety.md` with the `--follow-symlinks` root-containment and cycle rules.
+- [ ] D3-W01: Update `docs/usage/safety.md` to state that the CLI never follows symbolic links and that no `--follow-symlinks` option exists.
 - [ ] D4-W01: Update `docs/usage/examples.md` with inventory, filtering, hashing, CSV and verification examples.
-- [ ] D5-W01: Update `docs/develop/architecture.md` with traversal sorting, symlink policy, inventory field projection, tree-hash algorithm version 2 and CSV rendering.
+- [ ] D5-W01: Update `docs/develop/architecture.md` with traversal sorting, the never-follow-symlinks policy, inventory field projection, tree-hash algorithm version 2 and CSV rendering.
 - [ ] D6-W01: Run the full test suite and confirm the baseline plus all new tests pass.
 - [ ] D7-W01: Run `make lint` and `make precommit`.
 - [ ] D8-W01: Build the package and run an end-to-end smoke test through the installed entry point.
@@ -311,7 +313,7 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 ## Dependencies and Ordering
 
 1. Phase 1 must land first because it changes the output contract and tree-hash definition that later phases rely on.
-2. Phase 2 must land before Phase 3 because inventory sorting, symlink handling and ignore behavior use the traversal core.
+2. Phase 2 must land before Phase 3 because inventory sorting and ignore behavior use the traversal core.
 3. Phase 3 must land before Phase 4 because CSV export uses the final field-selection and filtering behavior.
 4. Phase 4 must land before Phase 5 so documentation describes the final CLI surface.
 5. Each work package is committed separately with its tests and any required documentation update.
@@ -326,9 +328,9 @@ Mitigation: Document the algorithm change as version 2, add regression tests for
 
 Mitigation: Sort per directory, keep traversal iterative where possible, and add tests for large directory trees. Do not collect the entire tree in memory just to sort globally.
 
-**Risk: Following symlinks escapes the allowed roots.**
+**Risk: Symlink following could escape the allowed roots.**
 
-Mitigation: Resolve every followed target and verify containment against the configured allowed roots before descending. Add explicit security tests for internal, external, broken and cyclic links.
+Mitigation: The CLI never follows symbolic links. No `--follow-symlinks` option is added, so this risk does not apply. Symlinks are recorded as entries and never traversed.
 
 **Risk: Filters and field selection change `tree_hash` unexpectedly.**
 
@@ -353,7 +355,7 @@ GitHub issues are created before Phase 1 and recorded here. One issue per phase.
 | Phase | Issue | Title |
 |---|---|---|
 | Phase 1 | #19 | Inventory output correctness and portable tree hash |
-| Phase 2 | #20 | Traversal sorting, symlink following and ignore overrides |
+| Phase 2 | #20 | Traversal sorting and ignore overrides (symlink following rejected) |
 | Phase 3 | #21 | Inventory field selection, filtering, hashing and progress |
 | Phase 4 | #22 | CSV/TSV output, verbose flags and verbose audit |
 | Phase 5 | #23 | Documentation, integration and quality assurance |
@@ -368,6 +370,13 @@ GitHub issues are created before Phase 1 and recorded here. One issue per phase.
 - Baseline tests: `394 passed`.
 - Baseline lint: `make lint` passes.
 - Next action: create the five phase issues, record their numbers in the tracking table, then start C1-W01.
+
+### 2026-11-11 - Scope change: symlink following rejected
+
+- The user explicitly rejected `--follow-symlinks`: **never implement it**.
+- Removed work package `T2` and all CLI symlink-following requirements from this plan.
+- The CLI records symlinks but never follows, resolves, opens or descends into them.
+- Issue #20 keeps its historical title for traceability; a comment records the reduced scope.
 
 ### Handoff notes for an autonomous agent
 
