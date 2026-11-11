@@ -214,8 +214,9 @@ def render_analyze(result: dict[str, Any]) -> str:
 def render_inventory(inventory: dict[str, Any], root: Path, *, verbose: bool = False) -> str:
     """Render an inventory as plain-text lines.
 
-    Compact lines show rel_path, type, size and optional SHA-256 hash.
-    ``verbose`` adds the remaining entry attributes as detail lines.
+    Compact lines show rel_path, type, size, modification time, extension and
+    optional SHA-256 hash. ``verbose`` adds the remaining entry attributes as
+    detail lines.
     """
     lines: list[str] = [f"inventory: {root}"]
     entries = inventory.get("entries", [])
@@ -225,15 +226,26 @@ def render_inventory(inventory: dict[str, Any], root: Path, *, verbose: bool = F
         if isinstance(entry_type, EntryType):
             entry_type = entry_type.value
         size = entry.get("size")
+        modified = entry.get("modified")
+        extension = entry.get("extension")
         sha256 = entry.get("sha256")
         line = f"  {rel_path} [{entry_type}]"
         if size is not None:
             line += f" size={size}"
+        if modified is not None:
+            line += f" modified={modified}"
+        if extension is not None:
+            line += f" extension={extension}"
         if sha256 is not None:
             line += f" sha256={sha256}"
         lines.append(line)
         if verbose:
-            for detail in entry_dict_detail_lines(entry, exclude=("size", "sha256")):
+            exclude = tuple(
+                field
+                for field in ("size", "modified", "extension", "sha256")
+                if entry.get(field) is not None
+            )
+            for detail in entry_dict_detail_lines(entry, exclude=exclude):
                 lines.append(f"    {detail}")
     lines.append(f"count: {inventory.get('count', len(entries))}")
     lines.append(f"complete: {inventory.get('complete', False)}")

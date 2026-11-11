@@ -199,7 +199,8 @@ Inventory entries are addressed by `rel_path` relative to the declared root and 
 
 By default each entry contains `rel_path`, `type`, `extension`, `size` and `modified`. `sha256` is
 added only with `--hash`. `--verbose` returns every remaining entry field, still without the
-absolute `path`.
+absolute `path`. Plain output uses the same compact fields on each entry line, so JSON and plain
+default output expose the same inventory information.
 
 The tree hash uses algorithm version 2. It is computed from the sorted entries and hashes only
 `rel_path`, `type`, `extension`, `size` and `sha256`. Directory and symlink sizes are normalized to

@@ -250,7 +250,7 @@ Plain output is intended for humans. It is not a stable machine interface.
 | `inspect tree` | Indented tree; `--verbose` adds a detail block per entry. |
 | `inspect info` | `key: value` lines, including extracted metadata and any metadata status. |
 | `inspect analyze` | One block per analysis with capability, status and structured result. |
-| `inspect inventory` | One line per entry with type, size and hash; `--verbose` adds detail lines. |
+| `inspect inventory` | One line per entry with type, size, modification time, extension and optional hash; `--verbose` adds detail lines. |
 | `inspect read` | File content (UTF-8 text or extracted PDF text). A truncation warning goes to stderr. |
 | `find` | One line per match with type and size; `--verbose` adds detail lines. |
 | `duplicates` | Duplicate groups with hash, size, count and file paths. |
@@ -261,8 +261,10 @@ Plain output is intended for humans. It is not a stable machine interface.
 Diagnostics and warnings are written to stderr. Result content is written to stdout, so plain
 output can be redirected without mixing in error messages.
 
-Compact plain output keeps the existing line format. With `--verbose`, each entry line is followed
-by indented `key: value` detail lines for the remaining fields:
+Compact plain output keeps the existing line format. For `inspect inventory`, the compact line uses
+the same information as the JSON compact profile: `rel_path`, `type`, `size`, `modified`, `extension`
+and optional `sha256`. With `--verbose`, each entry line is followed by indented `key: value` detail
+lines for the remaining fields:
 
 ```text
 find: /home/user/documents

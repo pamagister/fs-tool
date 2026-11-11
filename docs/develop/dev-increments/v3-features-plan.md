@@ -183,9 +183,9 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 - [x] C1-W01: Change `_compute_tree_hash` to hash only `rel_path`, `type`, `extension`, `size` and `sha256` using a canonical, sorted representation.
 - [x] C1-W02: Update the `_compute_tree_hash` docstring and `docs/usage/output.md` to describe tree-hash algorithm version 2 and its field set.
 - [x] C1-W03: Add tests proving that `mode`, `owner`, `mime_type` and symlink target changes do not alter `tree_hash`, while content, size, path and type changes do.
-- [ ] C2-W01: Extend the plain compact inventory line to include `modified` and `extension` in addition to `rel_path`, `type`, `size` and optional `sha256`.
-- [ ] C2-W02: Update `docs/usage/output.md` and `docs/usage/cli.md` so the plain compact profile matches the JSON compact profile.
-- [ ] C2-W03: Add plain-output tests for the new compact inventory line.
+- [x] C2-W01: Extend the plain compact inventory line to include `modified` and `extension` in addition to `rel_path`, `type`, `size` and optional `sha256`.
+- [x] C2-W02: Update `docs/usage/output.md` and `docs/usage/cli.md` so the plain compact profile matches the JSON compact profile.
+- [x] C2-W03: Add plain-output tests for the new compact inventory line.
 - [ ] C3-W01: Add a complete plain verbose renderer for inventory that includes `null` and `false` values for all non-path fields not already shown on the compact line.
 - [ ] C3-W02: Document that plain verbose inventory is complete for the entry representation, while tree and find keep their existing human-oriented detail behavior.
 - [ ] C3-W03: Add tests for `sha256: null`, `is_symlink: false`, `target: null` and `metadata: null` in plain verbose inventory output.

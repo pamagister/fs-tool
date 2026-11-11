@@ -303,7 +303,7 @@ def test_inventory_plain_verbose_shows_entry_details(
     assert code == EXIT_SUCCESS
     output = capsys.readouterr().out
     assert "alpha.txt [file]" in output
-    assert "extension: .txt" in output
+    assert "extension=.txt" in output
     assert "mode:" in output
 
 
@@ -316,3 +316,23 @@ def test_inventory_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert "alpha.txt" in output
     assert "count:" in output
     assert "complete:" in output
+    assert "modified=" in output
+    assert "extension=.txt" in output
+
+
+def test_inventory_plain_compact_matches_json_profile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    _, data = inventory_json(root)
+    code = main(["--allow-root", str(tmp_path), "--plain", "inspect", "inventory", str(root)])
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    for entry in data["result"]["entries"]:
+        assert entry["rel_path"] in output
+        assert f"size={entry['size']}" in output
+        assert f"modified={entry['modified']}" in output
+        if entry["extension"] is not None:
+            assert f"extension={entry['extension']}" in output
+        if entry.get("sha256") is not None:
+            assert f"sha256={entry['sha256']}" in output
