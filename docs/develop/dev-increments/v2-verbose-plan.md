@@ -88,6 +88,8 @@ Behavior:
 
 Existing `--format auto|json|plain` behavior must remain unchanged.
 
+Both option positions are supported by the existing CLI architecture without duplicating the option on every subcommand: the root callback accepts ``--verbose`` as a global option and stores it in ``CliContext`` (following the existing ``json_output``/``plain_output`` pattern). ``cli._hoist_global_options`` moves known global flags ahead of the command before Click parses them; adding ``"--verbose"`` to ``_GLOBAL_FLAGS`` makes ``fs-tool inspect inventory /path --verbose`` work identically to ``fs-tool --verbose inspect inventory /path``.
+
 `--verbose` changes presentation only. It must not trigger additional filesystem operations, metadata extraction, hashing or content analysis.
 
 For commands that do not return filesystem-entry collections, preserve their existing output behavior unless a meaningful and clearly defined verbose representation already exists.
@@ -150,6 +152,8 @@ Verbose mode:
 - Include all existing entry fields.
 - Do not calculate hashes or additional metadata merely because verbose mode is enabled.
 
+Verification compatibility: ``verify inventory`` requires ``rel_path`` and ``type`` per entry and reads ``size``, ``target`` and ``sha256`` only when present. The compact profile preserves ``rel_path``, ``type`` and ``size``, so size-mismatch detection continues to work on compact inventories. ``target`` is omitted from the compact profile, so symlink-target changes are not detected when verifying against a compact inventory (verification gracefully skips the check); use ``--hash`` or verbose output when target/hash comparison is required. ``complete`` is preserved at inventory level, so incomplete scans remain visible to verification.
+
 #### `find`
 
 Purpose: Return matching filesystem entries efficiently.
@@ -173,6 +177,8 @@ Requirements:
 Verbose mode:
 - Include all existing entry fields.
 
+Plain-text verbose output shows the same reduced information set as JSON verbose mode, using the same per-command field-selection logic, only in the human-readable format: each renderer decides which fields to include in compact versus verbose mode.
+
 #### Other commands
 
 Review commands such as `inspect info` and `inspect analyze`.
@@ -182,6 +188,8 @@ Do not unnecessarily reduce information that is essential to their purpose.
 Where these commands return filesystem-entry objects, apply the same principle: define a command-specific compact profile and retain the complete representation in verbose mode.
 
 Do not introduce artificial output reduction merely to make every command behave identically.
+
+Scope note: ``inspect info`` returns a single entry with its complete metadata, and ``inspect analyze`` returns an analysis report rather than an entry collection. Neither is a collection of filesystem entries, so no compact output profile is defined for them in this mission; both keep their existing output in default and verbose mode unless a meaningful compact form is defined later.
 
 ### 4. Preserve JSON envelope and semantics
 
@@ -233,14 +241,15 @@ If the current implementation requires additional fields, document and preserve 
 
 - [ ] P1-W01: Review the existing output architecture, especially `output/json.py`, `output/plain.py`, `output/results.py`, `cli.py` and the relevant core models.
 - [ ] P1-W02: Identify all commands that serialize filesystem-entry objects and document their current output structures.
-- [ ] P1-W03: Define a central and maintainable mechanism for selecting compact or verbose output representations.
+- [ ] P1-W03: Define a per-command (decentralized) mechanism where each command/renderer decides which fields belong in its compact profile versus its complete representation; shared helpers may be used where profiles overlap.
 - [ ] P1-W04: Implement the global `--verbose` option and propagate its state through the existing CLI execution and output pipeline.
 - [ ] P1-W05: Ensure both supported option positions work where compatible with the current CLI architecture.
 - [ ] P1-W06: Ensure output filtering happens after analysis and does not modify internal data models.
 
 **Acceptance criteria**
 
-- A single global `--verbose` option controls output verbosity.
+- A single global `--verbose` option controls output verbosity and works both before and after the command.
+- Each affected command defines its own compact field set; verbose mode returns the complete existing entry representation.
 - Both JSON and plain-text renderers can access the verbosity setting.
 - Internal filesystem data remains complete.
 - Verbose mode does not trigger additional analysis or filesystem operations.
@@ -343,7 +352,7 @@ Mitigation: Keep verbosity strictly within the presentation layer. Test that has
 
 **Risk: Different commands apply inconsistent output filtering.**
 
-Mitigation: Use a central mechanism for profile selection, with explicit command-specific field definitions.
+Mitigation: Each command/renderer explicitly defines its own compact field set in a documented profile, and verbose mode always returns the complete existing entry representation; consistency is verified by tests.
 
 **Risk: Incomplete scans become indistinguishable from complete scans.**
 
@@ -363,10 +372,11 @@ Mitigation: Document the new default behavior, retain all fields through `--verb
 - JSON and plain-text output both support compact and verbose representations.
 - Hashing remains controlled by existing explicit options.
 - Pagination and output limits are outside this mission.
+- ``inspect info`` and ``inspect analyze`` keep their existing output in both default and verbose mode.
+- Output filtering is decentralized: each command/renderer decides which fields belong in its compact profile versus its complete representation.
 
 ### Unresolved implementation details
 
 - Exact compact field sets for commands beyond `inspect tree`, `inspect inventory` and `find` should be determined by reviewing their actual purpose and current output contracts.
-- The implementation agent should inspect the current `verify inventory` requirements before finalizing the compact inventory field set.
 
-These details do not require further user clarification. Resolve them conservatively based on the existing implementation and tests.
+`inspect info` and ``inspect analyze`` are excluded from output-profile reduction in this mission. Plain-text verbose output mirrors the JSON compact/verbose field selection using the same per-command logic, only in the human-readable format. The filtering mechanism is decentralized: each command/renderer decides which fields belong in its compact profile.
