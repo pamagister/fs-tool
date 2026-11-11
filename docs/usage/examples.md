@@ -81,6 +81,27 @@ Create a portable inventory with hashes:
 fs-tool inspect inventory ~/Projects/fs-tool --hash --tree-hash > inventory.json
 ```
 
+Create a smaller, sorted inventory of text files with selected fields:
+
+```bash
+fs-tool inspect inventory ~/Projects/fs-tool \
+  --extension txt --min-size 1K --sort-by size --fields rel_path,size,sha256
+```
+
+Export the inventory as CSV or TSV for spreadsheet or data-processing tools:
+
+```bash
+fs-tool inspect inventory ~/Projects/fs-tool --format csv > inventory.csv
+fs-tool inspect inventory ~/Projects/fs-tool --format tsv --verbose > inventory.tsv
+```
+
+Hash large trees with an explicit per-file limit and progress on stderr:
+
+```bash
+fs-tool inspect inventory ~/Projects/fs-tool \
+  --hash --max-hash-bytes 10M --progress > inventory.json
+```
+
 Verify the directory later:
 
 ```bash

@@ -86,9 +86,11 @@ format or on the CLI.
 
 - `models.py` defines the internal `FilesystemEntry` representation. Serialization happens outside
   the model.
-- `traversal.py` walks a tree without following symlinks. Entries are sorted by name, special
-  files are reported as `other`, and unreadable entries are collected as errors instead of aborting
-  the scan.
+- `traversal.py` walks a tree without following symlinks and exposes no option to follow them.
+  Entries are sorted within each directory by `name` (default), `size`, `modified` or `extension`,
+  with a deterministic name tie-breaker. Special files are reported as `other`, unreadable entries
+  are collected as errors instead of aborting the scan, and the built-in ignore list can be disabled
+  with `use_default_ignores=False`.
 - `analysis/` implements filters, duplicate detection, comparison, verification and Python source
   analysis. These modules operate on traversal results or plain paths and do not render output.
 - `hashing.py` opens files read-only and uses `O_NOFOLLOW` where available.
@@ -268,18 +270,28 @@ The `operations` package performs filesystem modifications. Every operation:
 
 `output/json.py` defines the stable `Envelope` with `schema_version`, `success`, `command`,
 `result`, `errors`, `warnings` and `complete`. `output/entries.py` defines the compact serialization
-profiles for commands that return filesystem entries, and `output/plain.py` contains renderers for
-each command family. The CLI decides which representation to use; the core never imports either
-module.
+profiles for commands that return filesystem entries, `output/plain.py` contains renderers for each
+command family, and `output/tabular.py` renders inventory CSV/TSV. The CLI decides which
+representation to use; the core never imports either module.
 
 Compact profiles are command-specific. `inspect tree` keeps `rel_path` and `type`, `inspect
 inventory` keeps portable metadata (`rel_path`, `type`, `extension`, `size`, `modified`, plus
 `sha256` only with `--hash`), and `find` keeps `rel_path`, `type` and `size`. The global `--verbose`
-option restores the complete `FilesystemEntry` representation for these commands. Filtering happens
-after analysis in the presentation layer: core models stay complete, entry counts and completeness
-are unchanged, and verbose mode performs no additional filesystem work or hashing. `inspect info`
-and `inspect analyze` have no compact profile, and `tree_hash` is computed from the full entry
-representation so it does not depend on the selected profile.
+(or `-v`) option restores the complete `FilesystemEntry` representation for these commands;
+`--no-verbose` forces the compact profile. Filtering happens after analysis in the presentation
+layer: core models stay complete, entry counts and completeness are unchanged, and verbose mode
+performs no additional filesystem work or hashing. `inspect info` and `inspect analyze` have no
+compact profile. `--verbose` is a no-op for commands that do not expose additional already-collected
+entry fields.
+
+`inspect inventory` additionally supports `--fields` (explicit field selection), `--extension`,
+`--min-size`, `--max-size`, `--max-hash-bytes`, `--progress`, and `--format csv|tsv`. Filters define
+the inventory scope: `count` and `tree_hash` cover the filtered entries, `filtered` reports removed
+entries, `skipped` reports traversal-level ignores, and `truncated` reports `--max-entries` stops.
+`tree_hash` (algorithm version 2) is computed from a canonical projection of `rel_path`, `type`,
+`extension`, `size` and `sha256`, with directory and symlink sizes normalized to `null`; it is
+independent of the selected output profile. `--max-hash-bytes` skips hashing for larger files and
+emits a `HASH_SKIPPED` warning without making the scan incomplete.
 
 ### Optional dependencies, external resources and model storage (decisions D5 and D8)
 

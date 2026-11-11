@@ -289,15 +289,15 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 
 **Objective:** Make code, CLI help, tests and documentation agree, and verify the complete package.
 
-- [ ] D1-W01: Update `docs/usage/cli.md` with all new options, examples, validation rules and exit codes.
-- [ ] D2-W01: Update `docs/usage/output.md` with the compact, verbose, `--fields`, filtered, skipped, truncated, warning and CSV/TSV representations.
-- [ ] D3-W01: Update `docs/usage/safety.md` to state that the CLI never follows symbolic links and that no `--follow-symlinks` option exists.
-- [ ] D4-W01: Update `docs/usage/examples.md` with inventory, filtering, hashing, CSV and verification examples.
-- [ ] D5-W01: Update `docs/develop/architecture.md` with traversal sorting, the never-follow-symlinks policy, inventory field projection, tree-hash algorithm version 2 and CSV rendering.
-- [ ] D6-W01: Run the full test suite and confirm the baseline plus all new tests pass.
-- [ ] D7-W01: Run `make lint` and `make precommit`.
-- [ ] D8-W01: Build the package and run an end-to-end smoke test through the installed entry point.
-- [ ] D9-W01: Update the progress and handoff section of this plan.
+- [x] D1-W01: Update `docs/usage/cli.md` with all new options, examples, validation rules and exit codes.
+- [x] D2-W01: Update `docs/usage/output.md` with the compact, verbose, `--fields`, filtered, skipped, truncated, warning and CSV/TSV representations.
+- [x] D3-W01: Update `docs/usage/safety.md` to state that the CLI never follows symbolic links and that no `--follow-symlinks` option exists.
+- [x] D4-W01: Update `docs/usage/examples.md` with inventory, filtering, hashing, CSV and verification examples.
+- [x] D5-W01: Update `docs/develop/architecture.md` with traversal sorting, the never-follow-symlinks policy, inventory field projection, tree-hash algorithm version 2 and CSV rendering.
+- [x] D6-W01: Run the full test suite and confirm the baseline plus all new tests pass.
+- [x] D7-W01: Run `make lint` and `make precommit`.
+- [x] D8-W01: Build the package and run an end-to-end smoke test through the installed entry point.
+- [x] D9-W01: Update the progress and handoff section of this plan.
 
 **Acceptance criteria**
 
@@ -390,3 +390,23 @@ GitHub issues are created before Phase 1 and recorded here. One issue per phase.
 - Push after 3-6 coherent commits or at a phase boundary. Monitor GitHub Actions until a definitive result.
 - If CI fails, inspect the logs, reproduce locally, fix, commit, push and monitor again.
 - Do not mark a phase complete until its work packages, tests, documentation, commit, push and CI are all complete.
+
+### 2026-11-11 - Phases 1-4 implemented and CI green
+
+Completed work:
+
+- **Phase 1 (#19):** Tree-hash algorithm version 2, plain/JSON compact inventory alignment, complete plain verbose inventory. Commits: `3e4d5aa`, `9ad6113`, `0d36970`, plus the plan commit `04292f0` and the scope-change commit `d5bb469`.
+- **Phase 2 (#20):** `--sort-by name|size|modified|extension` and `--no-default-ignore` for tree, inventory, find, duplicates and compare. Commit: `254ca01`.
+- **Phase 3 (#21):** Inventory field selection, filters, bounded hashing, progress, skipped/truncated counts, and profile-independent `tree_hash`. Commit: `698a61b`.
+- **Phase 4 (#22):** Inventory CSV/TSV export, `-v`/`--no-verbose`, and the verbose audit for non-entry commands. Commit: `5a60aa8`.
+- **Phase 5 (#23):** Documentation and QA. Full suite: `441 passed`. `make lint`, `make precommit` and `make build` pass. End-to-end smoke test passed through `uv run fs-tool`.
+
+Current state:
+
+- All work packages are implemented, committed and pushed except the final Phase 5 commit.
+- GitHub Actions CI was green for every pushed phase: Phase 1 run `43105819152`, Phase 2 run `43106759454`, Phase 3 run `43107302694`, Phase 4 run `43108117149`.
+- Final Phase 5 CI run is pending after the documentation commit.
+
+Next action:
+
+- Commit and push the Phase 5 documentation and plan updates, monitor the final CI run, then close issue #23.

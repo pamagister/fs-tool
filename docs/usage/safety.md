@@ -27,7 +27,8 @@ to escape an allowed root. Violations fail with exit code 3.
 
 Inspection and analysis commands do not modify the filesystem:
 
-- Traversal records symlinks but never follows them.
+- Traversal records symlinks but never follows them. There is no `--follow-symlinks` option, and
+  no command resolves, opens or descends into a symbolic link.
 - Special files (sockets, devices, FIFOs) are reported as type `other` and are never opened.
 - `inspect read` rejects symlinks and non-regular files, rejects non-UTF-8 binary content, and
   truncates at `--max-bytes` (default 64 KiB). PDF text extraction requires the optional
@@ -63,7 +64,7 @@ Additional safeguards:
 - Data is never deleted.
 - All conflicts are checked before the first write; the operation either applies as a whole or
   aborts.
-- Symlinks are never followed implicitly.
+- Symlinks are never followed, and no option can enable following them.
 - The command verifies the result and returns a structured operation report.
 
 ## Operation-specific rules
