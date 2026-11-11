@@ -24,6 +24,10 @@ def tree_json(source: Path, *extra: str) -> tuple[int, dict]:
     return code, json.loads(buffer.getvalue())
 
 
+def names_of(data: dict) -> list[str]:
+    return [Path(entry["rel_path"]).name for entry in data["result"]["entries"]]
+
+
 def test_tree_json_shape(tmp_path: Path) -> None:
     (tmp_path / "alpha.txt").write_text("a")
     (tmp_path / "beta").mkdir()
@@ -35,12 +39,23 @@ def test_tree_json_shape(tmp_path: Path) -> None:
     assert data["complete"] is True
     assert data["errors"] == []
     assert data["result"]["root"] == str(tmp_path)
-    names = [entry["name"] for entry in data["result"]["entries"]]
-    assert names == ["alpha.txt", "beta", "gamma.txt"]
+    assert names_of(data) == ["alpha.txt", "beta", "gamma.txt"]
     assert data["result"]["count"] == 3
     for entry in data["result"]["entries"]:
-        assert Path(entry["path"]).is_absolute()
-        assert Path(entry["path"]).relative_to(tmp_path) == Path(entry["rel_path"])
+        assert set(entry) == {"rel_path", "type"}
+        assert not Path(entry["rel_path"]).is_absolute()
+
+
+def test_tree_verbose_json_keeps_all_entry_fields(tmp_path: Path) -> None:
+    (tmp_path / "alpha.txt").write_text("a")
+    code, data = tree_json(tmp_path, "--verbose")
+    assert code == EXIT_SUCCESS
+    entry = data["result"]["entries"][0]
+    assert entry["name"] == "alpha.txt"
+    assert Path(entry["path"]).is_absolute()
+    assert entry["size"] == 1
+    assert entry["modified"] is not None
+    assert entry["type"] == "file"
 
 
 def test_tree_max_depth(tmp_path: Path) -> None:
@@ -49,7 +64,7 @@ def test_tree_max_depth(tmp_path: Path) -> None:
     (tmp_path / "top" / "inner" / "deep.txt").write_text("x")
     code, data = tree_json(tmp_path, "--max-depth", "1")
     assert code == EXIT_SUCCESS
-    names = [entry["name"] for entry in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["top"]
     assert "inner" not in names
 
@@ -71,7 +86,7 @@ def test_tree_ignores_default_dirs(tmp_path: Path) -> None:
     (git_dir / "config").write_text("c")
     code, data = tree_json(tmp_path)
     assert code == EXIT_SUCCESS
-    names = [entry["name"] for entry in data["result"]["entries"]]
+    names = names_of(data)
     assert ".git" not in names
     assert "config" not in names
 
@@ -80,7 +95,7 @@ def test_tree_ignore_pattern(tmp_path: Path) -> None:
     (tmp_path / "keep.txt").write_text("k")
     (tmp_path / "secret.py").write_text("x")
     code, data = tree_json(tmp_path, "--ignore-pattern", "*.py")
-    names = [entry["name"] for entry in data["result"]["entries"]]
+    names = names_of(data)
     assert "secret.py" not in names
     assert "keep.txt" in names
 
@@ -89,7 +104,7 @@ def test_tree_dirs_only(tmp_path: Path) -> None:
     (tmp_path / "file.txt").write_text("x")
     (tmp_path / "sub").mkdir()
     code, data = tree_json(tmp_path, "--dirs-only")
-    names = [entry["name"] for entry in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["sub"]
 
 
@@ -163,12 +178,26 @@ def test_tree_plain_reports_incomplete_scan(
     assert "scan incomplete" in capsys.readouterr().err
 
 
+def test_tree_plain_verbose_shows_entry_details(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "alpha.txt").write_text("abc")
+    code = main(
+        ["--allow-root", str(tmp_path), "--plain", "--verbose", "inspect", "tree", str(tmp_path)]
+    )
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    assert "alpha.txt" in output
+    assert "size: 3" in output
+    assert "modified:" in output
+
+
 def test_tree_symlink_recorded_not_followed(tmp_path: Path) -> None:
     target = tmp_path.parent / f"symlink-target-{tmp_path.name}.txt"
     target.write_text("x")
     link = tmp_path / "link.txt"
     link.symlink_to(target)
-    code, data = tree_json(tmp_path)
+    code, data = tree_json(tmp_path, "--verbose")
     assert code == EXIT_SUCCESS
     links = [e for e in data["result"]["entries"] if e["is_symlink"]]
     assert len(links) == 1
@@ -176,4 +205,4 @@ def test_tree_symlink_recorded_not_followed(tmp_path: Path) -> None:
     if recorded.startswith("\\\\?\\"):
         recorded = recorded[4:]
     assert recorded == str(target)
-    assert not any(e["name"] == target.name for e in data["result"]["entries"])
+    assert not any(Path(e["rel_path"]).name == target.name for e in data["result"]["entries"])

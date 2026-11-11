@@ -32,6 +32,7 @@ from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
+from fs_tool.output.entries import tree_entry_dict
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.output.results import capability_result_to_dict
 from fs_tool.safety.validation import validate_path
@@ -249,7 +250,7 @@ def inspect_tree(
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_tree
 
-        typer.echo(render_tree(result.entries, root))
+        typer.echo(render_tree(result.entries, root, verbose=ctx.obj.verbose))
         if not result.complete:
             print("fs-tool: error: scan incomplete", file=sys.stderr)
         for error in result.errors:
@@ -259,7 +260,7 @@ def inspect_tree(
             )
         return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
 
-    entry_dicts = [asdict(entry) for entry in result.entries]
+    entry_dicts = [tree_entry_dict(entry, verbose=ctx.obj.verbose) for entry in result.entries]
     errors = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
         for error in result.errors

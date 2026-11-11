@@ -80,13 +80,21 @@ def find_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[st
     return asdict(entry) if verbose else _project(entry, FIND_COMPACT_FIELDS)
 
 
-def entry_detail_lines(entry: FilesystemEntry) -> list[str]:
-    """Render the verbose-only plain-text detail lines for one entry."""
+def entry_dict_detail_lines(data: dict[str, Any], *, exclude: tuple[str, ...] = ()) -> list[str]:
+    """Render verbose-only plain-text detail lines from a serialized entry."""
     lines: list[str] = []
     for field in ENTRY_DETAIL_FIELDS:
-        value = getattr(entry, field)
+        if field in exclude:
+            continue
+        value = data.get(field)
         if value is not None and value is not False:
             lines.append(f"{field}: {value}")
-    if entry.metadata:
-        lines.append(f"metadata: {entry.metadata}")
+    if data.get("metadata"):
+        lines.append(f"metadata: {data['metadata']}")
     return lines
+
+
+def entry_detail_lines(entry: FilesystemEntry, *, exclude: tuple[str, ...] = ()) -> list[str]:
+    """Render the verbose-only plain-text detail lines for one entry."""
+    data = asdict(entry)
+    return entry_dict_detail_lines(data, exclude=exclude)

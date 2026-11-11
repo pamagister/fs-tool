@@ -261,7 +261,7 @@ If the current implementation requires additional fields, document and preserve 
 
 **Objective:** Reduce default output size while preserving useful information and all returned entries.
 
-- [ ] P2-W01: Implement the compact output profile for `inspect tree`.
+- [x] P2-W01: Implement the compact output profile for `inspect tree`.
 - [ ] P2-W02: Implement the compact output profile for `inspect inventory`.
 - [ ] P2-W03: Implement the compact output profile for `find`.
 - [ ] P2-W04: Review other commands returning filesystem-entry objects and apply compact profiles only where appropriate.

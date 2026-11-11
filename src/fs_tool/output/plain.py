@@ -10,13 +10,15 @@ from typing import Any
 
 from fs_tool.core.capabilities.models import CapabilityResult, CapabilityStatus
 from fs_tool.core.models import EntryType, FilesystemEntry
+from fs_tool.output.entries import entry_detail_lines, entry_dict_detail_lines
 
 
-def render_tree(entries: list[FilesystemEntry], root: Path) -> str:
+def render_tree(entries: list[FilesystemEntry], root: Path, *, verbose: bool = False) -> str:
     """Render traversal entries as a plain-text tree rooted at ``root``.
 
     Entries must be ordered as produced by the traversal (pre-order,
-    siblings sorted by name).
+    siblings sorted by name). Compact output shows the structure only;
+    ``verbose`` adds the remaining entry attributes below each entry.
     """
 
     def parts_of(entry: FilesystemEntry) -> tuple[str, ...]:
@@ -55,6 +57,10 @@ def render_tree(entries: list[FilesystemEntry], root: Path) -> str:
         if entry.is_symlink and entry.target:
             marker += f" -> {entry.target}"
         lines.append(f"{prefix}{connector}{entry.name}{marker}")
+        if verbose:
+            detail_prefix = f"{prefix}{'    ' if is_last(index) else '│   '}"
+            for detail in entry_detail_lines(entry, exclude=("target",)):
+                lines.append(f"{detail_prefix}  {detail}")
         stack.append(is_last(index))
 
     return "\n".join(lines)
@@ -205,10 +211,11 @@ def render_analyze(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def render_inventory(inventory: dict[str, Any], root: Path) -> str:
+def render_inventory(inventory: dict[str, Any], root: Path, *, verbose: bool = False) -> str:
     """Render an inventory as plain-text lines.
 
-    Each line shows rel_path, type, size, and optional SHA-256 hash.
+    Compact lines show rel_path, type, size and optional SHA-256 hash.
+    ``verbose`` adds the remaining entry attributes as detail lines.
     """
     lines: list[str] = [f"inventory: {root}"]
     entries = inventory.get("entries", [])
@@ -223,6 +230,9 @@ def render_inventory(inventory: dict[str, Any], root: Path) -> str:
         if sha256 is not None:
             line += f" sha256={sha256}"
         lines.append(line)
+        if verbose:
+            for detail in entry_dict_detail_lines(entry, exclude=("size", "sha256")):
+                lines.append(f"    {detail}")
     lines.append(f"count: {inventory.get('count', len(entries))}")
     lines.append(f"complete: {inventory.get('complete', False)}")
     if inventory.get("tree_hash"):
@@ -230,10 +240,11 @@ def render_inventory(inventory: dict[str, Any], root: Path) -> str:
     return "\n".join(lines)
 
 
-def render_find(entries: list[FilesystemEntry], root: Path) -> str:
+def render_find(entries: list[FilesystemEntry], root: Path, *, verbose: bool = False) -> str:
     """Render search results as plain-text lines.
 
-    Each line shows rel_path, type, and size.
+    Compact lines show rel_path, type and size. ``verbose`` adds the
+    remaining entry attributes as detail lines.
     """
     lines: list[str] = [f"find: {root}"]
     for entry in entries:
@@ -242,6 +253,9 @@ def render_find(entries: list[FilesystemEntry], root: Path) -> str:
         if entry.size is not None:
             line += f" size={entry.size}"
         lines.append(line)
+        if verbose:
+            for detail in entry_detail_lines(entry, exclude=("size",)):
+                lines.append(f"    {detail}")
     lines.append(f"count: {len(entries)}")
     return "\n".join(lines)
 
