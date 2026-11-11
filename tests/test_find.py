@@ -31,6 +31,10 @@ def find_json(source: Path, *extra: str) -> tuple[int, dict]:
     return code, json.loads(buffer.getvalue())
 
 
+def names_of(data: dict) -> list[str]:
+    return [Path(entry["rel_path"]).name for entry in data["result"]["entries"]]
+
+
 def _make_tree(tmp_path: Path) -> Path:
     (tmp_path / "alpha.txt").write_text("alpha")
     (tmp_path / "beta.py").write_text("beta")
@@ -58,23 +62,38 @@ def test_find_json_shape(tmp_path: Path) -> None:
     result = data["result"]
     assert result["root"] == str(root)
     assert result["count"] == 9
-    names = [e["name"] for e in result["entries"]]
-    assert "alpha.txt" in names
-    assert "beta.py" in names
-    assert "gamma.PDF" in names
-    assert "sub" in names
-    assert "delta.txt" in names
-    assert "epsilon.py" in names
-    assert "nested" in names
-    assert "zeta.txt" in names
-    assert "link.txt" in names
+    assert names_of(data) == [
+        "alpha.txt",
+        "beta.py",
+        "gamma.PDF",
+        "link.txt",
+        "sub",
+        "delta.txt",
+        "epsilon.py",
+        "nested",
+        "zeta.txt",
+    ]
+    for entry in result["entries"]:
+        assert set(entry) == {"rel_path", "type", "size"}
+
+
+def test_find_verbose_json_keeps_all_entry_fields(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = find_json(root, "--verbose")
+    assert code == EXIT_SUCCESS
+    entry = next(e for e in data["result"]["entries"] if e["rel_path"] == "alpha.txt")
+    assert entry["name"] == "alpha.txt"
+    assert Path(entry["path"]).is_absolute()
+    assert entry["extension"] == ".txt"
+    assert entry["size"] == 5
+    assert entry["modified"] is not None
 
 
 def test_find_name_pattern(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--name", "*.txt")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["alpha.txt", "link.txt", "delta.txt", "zeta.txt"]
 
 
@@ -82,7 +101,7 @@ def test_find_name_patterns_are_combined_with_or(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--name", "*.txt", "--name", "*.py")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == [
         "alpha.txt",
         "beta.py",
@@ -113,7 +132,7 @@ def test_find_extension_filter(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--extension", "py")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["beta.py", "epsilon.py"]
 
 
@@ -121,7 +140,7 @@ def test_find_extension_with_dot(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--extension", ".PDF")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["gamma.PDF"]
 
 
@@ -129,7 +148,7 @@ def test_find_type_file(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--type", "file")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert "sub" not in names
     assert "nested" not in names
     assert all(e["type"] == "file" for e in data["result"]["entries"])
@@ -139,7 +158,7 @@ def test_find_type_directory(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--type", "directory")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["sub", "nested"]
 
 
@@ -147,7 +166,7 @@ def test_find_type_symlink(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--type", "symlink")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["link.txt"]
 
 
@@ -164,7 +183,7 @@ def test_find_min_size(tmp_path: Path) -> None:
     (root / "tiny.txt").write_text("x")
     code, data = find_json(root, "--min-size", "5")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     # "tiny.txt" (1 byte) and directories (size None) excluded
     assert "tiny.txt" not in names
     for entry in data["result"]["entries"]:
@@ -177,7 +196,7 @@ def test_find_max_size(tmp_path: Path) -> None:
     (root / "large.txt").write_text("x" * 100)
     code, data = find_json(root, "--max-size", "10")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert "large.txt" not in names
     for entry in data["result"]["entries"]:
         if entry["type"] == "file":
@@ -189,7 +208,7 @@ def test_find_size_with_suffix(tmp_path: Path) -> None:
     (root / "medium.txt").write_text("x" * 2000)
     code, data = find_json(root, "--min-size", "1K")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert "medium.txt" in names
 
 
@@ -241,7 +260,7 @@ def test_find_combined_filters(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = find_json(root, "--name", "*.py", "--type", "file")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["beta.py", "epsilon.py"]
 
 
@@ -266,6 +285,18 @@ def test_find_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert f"find: {root}" in output
     assert "alpha.txt" in output
     assert "count:" in output
+
+
+def test_find_plain_verbose_shows_entry_details(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    code = main(["--allow-root", str(tmp_path), "--plain", "--verbose", "find", str(root)])
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    assert "alpha.txt [file] size=5" in output
+    assert "extension: .txt" in output
+    assert "modified:" in output
 
 
 def test_find_incomplete_scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -34,6 +34,7 @@ from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
 from fs_tool.output.entries import (
     INVENTORY_COMPACT_FIELDS,
+    find_entry_dict,
     inventory_entry_dict,
     project_entry_dict,
     tree_entry_dict,
@@ -1059,7 +1060,7 @@ def find_cmd(
         ignore_patterns=tuple(ignore_pattern),
     )
 
-    entry_dicts = [asdict(entry) for entry in matching]
+    entry_dicts = [find_entry_dict(entry, verbose=ctx.obj.verbose) for entry in matching]
     error_tuples = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=message, path=str(root)) for message in errors
     )
@@ -1074,7 +1075,7 @@ def find_cmd(
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_find
 
-        typer.echo(render_find(matching, root))
+        typer.echo(render_find(matching, root, verbose=ctx.obj.verbose))
         if not complete:
             print("fs-tool: error: scan incomplete", file=sys.stderr)
         for message in errors:
