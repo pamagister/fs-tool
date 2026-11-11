@@ -284,16 +284,16 @@ If the current implementation requires additional fields, document and preserve 
 
 **Objective:** Verify that output reduction does not affect existing functionality or data integrity.
 
-- [ ] P3-W01: Add focused tests for compact JSON output for every affected command.
-- [ ] P3-W02: Add tests verifying that verbose JSON output retains all existing fields.
-- [ ] P3-W03: Add tests for compact and verbose plain-text output.
-- [ ] P3-W04: Test global option handling, including supported option positions and interactions with `--format`, `--json` and `--plain`.
-- [ ] P3-W05: Verify that the number of returned entries remains identical between compact and verbose modes.
-- [ ] P3-W06: Verify that incomplete scans, warnings, errors, `complete` and exit codes remain unchanged.
-- [ ] P3-W07: Test `inspect inventory` with and without `--hash` and `--tree-hash`.
-- [ ] P3-W08: Verify that compact inventory output remains compatible with `verify inventory`.
-- [ ] P3-W09: Verify that existing schema version 1 inventory files remain supported.
-- [ ] P3-W10: Add regression tests ensuring `--verbose` does not trigger hashing or additional metadata analysis.
+- [x] P3-W01: Add focused tests for compact JSON output for every affected command.
+- [x] P3-W02: Add tests verifying that verbose JSON output retains all existing fields.
+- [x] P3-W03: Add tests for compact and verbose plain-text output.
+- [x] P3-W04: Test global option handling, including supported option positions and interactions with `--format`, `--json` and `--plain`.
+- [x] P3-W05: Verify that the number of returned entries remains identical between compact and verbose modes.
+- [x] P3-W06: Verify that incomplete scans, warnings, errors, `complete` and exit codes remain unchanged.
+- [x] P3-W07: Test `inspect inventory` with and without `--hash` and `--tree-hash`.
+- [x] P3-W08: Verify that compact inventory output remains compatible with `verify inventory`.
+- [x] P3-W09: Verify that existing schema version 1 inventory files remain supported.
+- [x] P3-W10: Add regression tests ensuring `--verbose` does not trigger hashing or additional metadata analysis.
 
 **Acceptance criteria**
 
