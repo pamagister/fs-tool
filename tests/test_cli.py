@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pytest
 
 from fs_tool.cli import __version__
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI styling so help assertions are color-mode independent."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 def test_version(cli: Any, capsys: Any) -> None:
@@ -83,7 +89,7 @@ def test_verbose_option_after_command(
 def test_help_documents_verbose_option(cli: Any, capsys: pytest.CaptureFixture[str]) -> None:
     """Root help lists the global --verbose option."""
     assert cli(["--help"]) == 0
-    assert "--verbose" in capsys.readouterr().out
+    assert "--verbose" in _strip_ansi(capsys.readouterr().out)
 
 
 def test_json_and_plain_are_mutually_exclusive(cli: Any) -> None:
