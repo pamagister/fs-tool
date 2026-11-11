@@ -180,9 +180,9 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 
 **Objective:** Fix the inconsistencies identified in the `--verbose` and inventory review before adding new features.
 
-- [ ] C1-W01: Change `_compute_tree_hash` to hash only `rel_path`, `type`, `extension`, `size` and `sha256` using a canonical, sorted representation.
-- [ ] C1-W02: Update the `_compute_tree_hash` docstring and `docs/usage/output.md` to describe tree-hash algorithm version 2 and its field set.
-- [ ] C1-W03: Add tests proving that `mode`, `owner`, `mime_type` and symlink target changes do not alter `tree_hash`, while content, size, path and type changes do.
+- [x] C1-W01: Change `_compute_tree_hash` to hash only `rel_path`, `type`, `extension`, `size` and `sha256` using a canonical, sorted representation.
+- [x] C1-W02: Update the `_compute_tree_hash` docstring and `docs/usage/output.md` to describe tree-hash algorithm version 2 and its field set.
+- [x] C1-W03: Add tests proving that `mode`, `owner`, `mime_type` and symlink target changes do not alter `tree_hash`, while content, size, path and type changes do.
 - [ ] C2-W01: Extend the plain compact inventory line to include `modified` and `extension` in addition to `rel_path`, `type`, `size` and optional `sha256`.
 - [ ] C2-W02: Update `docs/usage/output.md` and `docs/usage/cli.md` so the plain compact profile matches the JSON compact profile.
 - [ ] C2-W03: Add plain-output tests for the new compact inventory line.

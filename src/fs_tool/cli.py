@@ -517,20 +517,46 @@ def inspect_analyze(
     return EXIT_SUCCESS
 
 
-def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHEMA_VERSION) -> str:
-    """Compute a deterministic tree hash over inventory entries.
+# Tree-hash algorithm version 2: only structure- and content-related fields
+# are hashed. Environment-specific fields (permissions, ownership, MIME type,
+# symlink target, timestamps, absolute path, device/inode) are excluded so the
+# hash is portable across machines and users. Directory and symlink sizes are
+# normalized to null because their ``st_size`` is filesystem- or target-path-
+# dependent rather than content.
+TREE_HASH_FIELDS = ("rel_path", "type", "extension", "size", "sha256")
 
-    Entries are sorted by ``rel_path``. Fields that are filesystem-specific
-    (absolute ``path``, inode ``dev_ino``, timestamps) are excluded so the
-    hash depends only on structure and content, making it portable across
-    machines and deterministic across time. ``generated_at`` is never part
-    of the hash input. The result is versioned via ``schema_version``.
+
+def _tree_hash_projection(entry: dict[str, Any]) -> dict[str, Any]:
+    """Project one entry onto the portable tree-hash field set."""
+    entry_type = entry.get("type")
+    type_value = entry_type.value if isinstance(entry_type, EntryType) else entry_type
+    size = entry.get("size")
+    if type_value != EntryType.FILE.value:
+        size = None
+    return {
+        "rel_path": entry.get("rel_path"),
+        "type": type_value,
+        "extension": entry.get("extension"),
+        "size": size,
+        "sha256": entry.get("sha256"),
+    }
+
+
+def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHEMA_VERSION) -> str:
+    """Compute a deterministic, portable tree hash over inventory entries.
+
+    Only :data:`TREE_HASH_FIELDS` are hashed. Entries are sorted by
+    ``rel_path``. Fields that are filesystem- or environment-specific
+    (absolute ``path``, inode ``dev_ino``, timestamps, ``mode``, ``owner``,
+    ``mime_type``, ``target``) are excluded so the hash depends only on
+    structure and content, making it portable across machines and
+    deterministic across time. ``generated_at`` is never part of the hash
+    input. The result is versioned via ``schema_version``.
     """
-    excluded = {"path", "dev_ino", "modified", "accessed", "changed", "created"}
     ordered = sorted(entries, key=lambda entry: entry.get("rel_path") or "")
     hashable = {
         "schema_version": schema_version,
-        "entries": [{k: v for k, v in entry.items() if k not in excluded} for entry in ordered],
+        "entries": [_tree_hash_projection(entry) for entry in ordered],
     }
     canonical = json.dumps(hashable, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

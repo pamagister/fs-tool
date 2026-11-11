@@ -201,9 +201,11 @@ By default each entry contains `rel_path`, `type`, `extension`, `size` and `modi
 added only with `--hash`. `--verbose` returns every remaining entry field, still without the
 absolute `path`.
 
-The tree hash is computed from the full sorted entries using a canonical JSON representation. It
-excludes filesystem-specific fields such as absolute paths, inode identities and timestamps, and
-does not depend on the selected output profile.
+The tree hash uses algorithm version 2. It is computed from the sorted entries and hashes only
+`rel_path`, `type`, `extension`, `size` and `sha256`. Directory and symlink sizes are normalized to
+`null` because their `st_size` is filesystem- or target-path-dependent. It excludes absolute paths,
+inode identities, timestamps, permissions, ownership, MIME type and symlink targets, and does not
+depend on the selected output profile.
 
 Use `--hash` when the inventory will later be checked with `verify inventory`; without hashes only
 sizes and types can be compared.

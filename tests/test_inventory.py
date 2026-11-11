@@ -11,7 +11,13 @@ from pathlib import Path
 
 import pytest
 
-from fs_tool.cli import EXIT_ACCESS_DENIED, EXIT_INCOMPLETE, EXIT_SUCCESS, main
+from fs_tool.cli import (
+    EXIT_ACCESS_DENIED,
+    EXIT_INCOMPLETE,
+    EXIT_SUCCESS,
+    _compute_tree_hash,
+    main,
+)
 
 
 def argv_for(source: Path, *extra: str) -> list[str]:
@@ -126,6 +132,96 @@ def test_inventory_tree_hash_excludes_path(tmp_path: Path) -> None:
     _, data1 = inventory_json(root1, "--tree-hash")
     _, data2 = inventory_json(root2, "--tree-hash")
     assert data1["result"]["tree_hash"] == data2["result"]["tree_hash"]
+
+
+def _tree_hash_entry(**overrides: object) -> dict:
+    entry = {
+        "rel_path": "alpha.txt",
+        "type": "file",
+        "extension": ".txt",
+        "size": 5,
+        "sha256": None,
+        "path": "/tmp/alpha.txt",
+        "dev_ino": "1:2",
+        "modified": "2026-01-01T00:00:00+00:00",
+        "accessed": "2026-01-01T00:00:00+00:00",
+        "changed": "2026-01-01T00:00:00+00:00",
+        "created": None,
+        "mode": "-rw-r--r--",
+        "owner": "user",
+        "mime_type": "text/plain",
+        "is_symlink": False,
+        "target": None,
+        "metadata": None,
+    }
+    entry.update(overrides)
+    return entry
+
+
+def test_compute_tree_hash_ignores_environment_specific_fields() -> None:
+    base = _tree_hash_entry()
+    environment_changed = _tree_hash_entry(
+        mode="-rw-------",
+        owner="other",
+        mime_type="application/octet-stream",
+        target="/somewhere/else",
+        dev_ino="9:9",
+        modified="2030-01-01T00:00:00+00:00",
+        accessed="2030-01-01T00:00:00+00:00",
+        changed="2030-01-01T00:00:00+00:00",
+        created="2030-01-01T00:00:00+00:00",
+        path="/other/alpha.txt",
+    )
+    assert _compute_tree_hash([base]) == _compute_tree_hash([environment_changed])
+
+
+def test_compute_tree_hash_changes_with_content_fields() -> None:
+    base = _tree_hash_entry()
+    changed_fields = (
+        _tree_hash_entry(rel_path="beta.txt"),
+        _tree_hash_entry(type="directory"),
+        _tree_hash_entry(extension=".md"),
+        _tree_hash_entry(size=6),
+        _tree_hash_entry(sha256="a" * 64),
+    )
+    for changed in changed_fields:
+        assert _compute_tree_hash([base]) != _compute_tree_hash([changed])
+
+
+def test_compute_tree_hash_normalizes_non_file_sizes() -> None:
+    directory = _tree_hash_entry(type="directory", size=4096)
+    directory_other_size = _tree_hash_entry(type="directory", size=8192)
+    symlink = _tree_hash_entry(type="symlink", size=10, target="a")
+    symlink_other_size = _tree_hash_entry(type="symlink", size=200, target="b")
+    assert _compute_tree_hash([directory]) == _compute_tree_hash([directory_other_size])
+    assert _compute_tree_hash([symlink]) == _compute_tree_hash([symlink_other_size])
+
+
+def test_inventory_tree_hash_ignores_mode_changes(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    _, before = inventory_json(root, "--tree-hash")
+    os.chmod(root / "alpha.txt", 0o600)
+    _, after = inventory_json(root, "--tree-hash")
+    assert before["result"]["tree_hash"] == after["result"]["tree_hash"]
+
+
+def test_inventory_tree_hash_changes_with_content(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    _, before = inventory_json(root, "--tree-hash")
+    (root / "alpha.txt").write_text("changed")
+    _, after = inventory_json(root, "--tree-hash")
+    assert before["result"]["tree_hash"] != after["result"]["tree_hash"]
+
+
+def test_inventory_tree_hash_ignores_symlink_target(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    link = root / "link"
+    link.symlink_to(root / "alpha.txt")
+    _, before = inventory_json(root, "--tree-hash")
+    link.unlink()
+    link.symlink_to(root / "sub" / "gamma.txt")
+    _, after = inventory_json(root, "--tree-hash")
+    assert before["result"]["tree_hash"] == after["result"]["tree_hash"]
 
 
 def test_inventory_max_depth(tmp_path: Path) -> None:

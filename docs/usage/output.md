@@ -292,8 +292,11 @@ count: 2
 - Entries are sorted by name during traversal; result order is reproducible.
 - Inventory entries use `rel_path` and omit absolute paths, so inventories are portable across
   machines.
-- `tree_hash` is computed from a canonical JSON representation of the sorted entries and excludes
-  filesystem-specific fields.
+- `tree_hash` (algorithm version 2) is computed from a canonical JSON representation of the sorted
+  entries. It hashes only `rel_path`, `type`, `extension`, `size` and `sha256`; directory and
+  symlink sizes are normalized to `null` because their `st_size` is filesystem- or
+  target-path-dependent. It excludes absolute paths, inode identities, timestamps, permissions,
+  ownership, MIME type and symlink targets, and does not depend on the selected output profile.
 - Top-level envelope keys have a fixed order; result keys follow the order defined by each command.
 
 The schema version is part of the contract. Consumers should reject or handle envelopes whose
