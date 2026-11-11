@@ -307,6 +307,55 @@ def test_inventory_plain_verbose_shows_entry_details(
     assert "mode:" in output
 
 
+def test_inventory_plain_verbose_includes_null_and_false_values(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--plain",
+            "--verbose",
+            "inspect",
+            "inventory",
+            str(root),
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    assert "sha256: null" in output
+    assert "is_symlink: false" in output
+    assert "target: null" in output
+    assert "metadata: null" in output
+    # Directory entries have no extension; the detail block must show it.
+    assert "extension: null" in output
+
+
+def test_inventory_plain_verbose_with_hash_does_not_repeat_hash(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "flat"
+    root.mkdir()
+    (root / "only.txt").write_text("only")
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--plain",
+            "--verbose",
+            "inspect",
+            "inventory",
+            str(root),
+            "--hash",
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    assert "sha256: null" not in output
+    assert "sha256=" in output
+
+
 def test_inventory_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     root = _make_tree(tmp_path)
     code = main(["--allow-root", str(tmp_path), "--plain", "inspect", "inventory", str(root)])

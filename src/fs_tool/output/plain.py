@@ -245,7 +245,7 @@ def render_inventory(inventory: dict[str, Any], root: Path, *, verbose: bool = F
                 for field in ("size", "modified", "extension", "sha256")
                 if entry.get(field) is not None
             )
-            for detail in entry_dict_detail_lines(entry, exclude=exclude):
+            for detail in entry_dict_detail_lines(entry, exclude=exclude, include_empty=True):
                 lines.append(f"    {detail}")
     lines.append(f"count: {inventory.get('count', len(entries))}")
     lines.append(f"complete: {inventory.get('complete', False)}")

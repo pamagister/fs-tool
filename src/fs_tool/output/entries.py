@@ -85,17 +85,40 @@ def find_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[st
     return data if verbose else project_entry_dict(data, FIND_COMPACT_FIELDS)
 
 
-def entry_dict_detail_lines(data: dict[str, Any], *, exclude: tuple[str, ...] = ()) -> list[str]:
-    """Render verbose-only plain-text detail lines from a serialized entry."""
+def _format_detail_value(value: Any) -> str:
+    """Render a detail value using JSON-like literals for empty values."""
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    return str(value)
+
+
+def entry_dict_detail_lines(
+    data: dict[str, Any],
+    *,
+    exclude: tuple[str, ...] = (),
+    include_empty: bool = False,
+) -> list[str]:
+    """Render verbose-only plain-text detail lines from a serialized entry.
+
+    By default empty values (``None`` and ``False``) are omitted for compact
+    human-oriented output. ``include_empty`` renders them explicitly as
+    ``null`` and ``false`` so callers can present the complete entry
+    representation.
+    """
     lines: list[str] = []
     for field in ENTRY_DETAIL_FIELDS:
-        if field in exclude:
+        if field in exclude or field not in data:
             continue
-        value = data.get(field)
-        if value is not None and value is not False:
-            lines.append(f"{field}: {value}")
-    if data.get("metadata"):
-        lines.append(f"metadata: {data['metadata']}")
+        value = data[field]
+        if not include_empty and (value is None or value is False):
+            continue
+        lines.append(f"{field}: {_format_detail_value(value)}")
+    if "metadata" in data and (data["metadata"] or include_empty):
+        lines.append(f"metadata: {_format_detail_value(data['metadata'])}")
     return lines
 
 

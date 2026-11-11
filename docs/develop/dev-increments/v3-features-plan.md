@@ -186,9 +186,9 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 - [x] C2-W01: Extend the plain compact inventory line to include `modified` and `extension` in addition to `rel_path`, `type`, `size` and optional `sha256`.
 - [x] C2-W02: Update `docs/usage/output.md` and `docs/usage/cli.md` so the plain compact profile matches the JSON compact profile.
 - [x] C2-W03: Add plain-output tests for the new compact inventory line.
-- [ ] C3-W01: Add a complete plain verbose renderer for inventory that includes `null` and `false` values for all non-path fields not already shown on the compact line.
-- [ ] C3-W02: Document that plain verbose inventory is complete for the entry representation, while tree and find keep their existing human-oriented detail behavior.
-- [ ] C3-W03: Add tests for `sha256: null`, `is_symlink: false`, `target: null` and `metadata: null` in plain verbose inventory output.
+- [x] C3-W01: Add a complete plain verbose renderer for inventory that includes `null` and `false` values for all non-path fields not already shown on the compact line.
+- [x] C3-W02: Document that plain verbose inventory is complete for the entry representation, while tree and find keep their existing human-oriented detail behavior.
+- [x] C3-W03: Add tests for `sha256: null`, `is_symlink: false`, `target: null` and `metadata: null` in plain verbose inventory output.
 
 **Acceptance criteria**
 

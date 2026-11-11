@@ -289,6 +289,11 @@ find: /home/user/documents
 count: 2
 ```
 
+For `inspect inventory`, `--plain --verbose` is complete for the entry representation: fields that
+are `null` or `false` are shown explicitly, for example `sha256: null`, `is_symlink: false`,
+`target: null` and `metadata: null`. `inspect tree` and `find` keep their existing human-oriented
+detail behavior and omit empty values.
+
 ## Determinism
 
 - Entries are sorted by name during traversal; result order is reproducible.
