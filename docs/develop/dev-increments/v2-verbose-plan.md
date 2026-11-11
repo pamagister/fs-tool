@@ -262,11 +262,11 @@ If the current implementation requires additional fields, document and preserve 
 **Objective:** Reduce default output size while preserving useful information and all returned entries.
 
 - [x] P2-W01: Implement the compact output profile for `inspect tree`.
-- [ ] P2-W02: Implement the compact output profile for `inspect inventory`.
+- [x] P2-W02: Implement the compact output profile for `inspect inventory`.
 - [ ] P2-W03: Implement the compact output profile for `find`.
 - [ ] P2-W04: Review other commands returning filesystem-entry objects and apply compact profiles only where appropriate.
 - [ ] P2-W05: Ensure verbose mode returns the complete existing entry representation for all affected commands.
-- [ ] P2-W06: Preserve optional fields and their existing conditions, especially `sha256` and `tree_hash`.
+- [x] P2-W06: Preserve optional fields and their existing conditions, especially `sha256` and `tree_hash`.
 - [ ] P2-W07: Ensure plain-text output follows the same compact-versus-verbose distinction.
 
 **Acceptance criteria**

@@ -54,9 +54,11 @@ def _write(path: Path, content: str) -> None:
     path.write_bytes(content.encode("utf-8"))
 
 
-def _make_inventory(tmp_path: Path, root: Path) -> Path:
+def _make_inventory(tmp_path: Path, root: Path, *extra: str) -> Path:
     """Create an inventory JSON file using the real CLI output envelope."""
-    code, data = run_json(["--allow-root", str(root), "inspect", "inventory", str(root), "--hash"])
+    code, data = run_json(
+        ["--allow-root", str(root), "inspect", "inventory", str(root), "--hash", *extra]
+    )
     assert code == 0
     inventory_file = tmp_path / "inventory.json"
     inventory_file.write_text(json.dumps(data), encoding="utf-8")
@@ -396,7 +398,7 @@ def test_verify_inventory_detects_changed_symlink_target(tmp_path: Path) -> None
     link = root / "link"
     link.symlink_to("aaa")
 
-    inventory_file = _make_inventory(tmp_path, root)
+    inventory_file = _make_inventory(tmp_path, root, "--verbose")
 
     link.unlink()
     link.symlink_to("bbb")

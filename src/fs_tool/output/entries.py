@@ -42,10 +42,16 @@ ENTRY_DETAIL_FIELDS = (
 )
 
 
-def _project(entry: FilesystemEntry, fields: tuple[str, ...]) -> dict[str, Any]:
-    """Return only ``fields`` from the serialized entry, in profile order."""
+def project_entry_dict(data: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
+    """Project a serialized entry onto ``fields`` in profile order."""
+    return {field: data[field] for field in fields if field in data}
+
+
+def _entry_dict(entry: FilesystemEntry, *, exclude_path: bool = False) -> dict[str, Any]:
     data = asdict(entry)
-    return {field: data[field] for field in fields}
+    if exclude_path:
+        data.pop("path", None)
+    return data
 
 
 def tree_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[str, Any]:
@@ -54,7 +60,8 @@ def tree_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[st
     Compact output communicates structure only: relative path and type.
     Verbose output keeps the complete existing entry representation.
     """
-    return asdict(entry) if verbose else _project(entry, TREE_COMPACT_FIELDS)
+    data = _entry_dict(entry)
+    return data if verbose else project_entry_dict(data, TREE_COMPACT_FIELDS)
 
 
 def inventory_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[str, Any]:
@@ -64,11 +71,8 @@ def inventory_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> di
     keeps the metadata needed to identify and describe an entry. Verbose
     output keeps every remaining entry field.
     """
-    data = asdict(entry)
-    data.pop("path", None)
-    if verbose:
-        return data
-    return {field: data[field] for field in INVENTORY_COMPACT_FIELDS}
+    data = _entry_dict(entry, exclude_path=True)
+    return data if verbose else project_entry_dict(data, INVENTORY_COMPACT_FIELDS)
 
 
 def find_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[str, Any]:
@@ -77,7 +81,8 @@ def find_entry_dict(entry: FilesystemEntry, *, verbose: bool = False) -> dict[st
     Compact output keeps the match identity and size. Verbose output keeps
     the complete existing entry representation.
     """
-    return asdict(entry) if verbose else _project(entry, FIND_COMPACT_FIELDS)
+    data = _entry_dict(entry)
+    return data if verbose else project_entry_dict(data, FIND_COMPACT_FIELDS)
 
 
 def entry_dict_detail_lines(data: dict[str, Any], *, exclude: tuple[str, ...] = ()) -> list[str]:

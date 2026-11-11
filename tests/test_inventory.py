@@ -36,6 +36,10 @@ def _make_tree(base: Path) -> Path:
     return base
 
 
+def names_of(data: dict) -> list[str]:
+    return [Path(entry["rel_path"]).name for entry in data["result"]["entries"]]
+
+
 def test_inventory_json_shape(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = inventory_json(root)
@@ -50,12 +54,9 @@ def test_inventory_json_shape(tmp_path: Path) -> None:
     assert result["complete"] is True
     assert "generated_at" in result
     assert "entries" in result
-    names = [e["name"] for e in result["entries"]]
-    assert "alpha.txt" in names
-    assert "beta.txt" in names
-    assert "sub" in names
-    assert "gamma.txt" in names
-    assert "delta.log" in names
+    assert names_of(data) == ["alpha.txt", "beta.txt", "sub", "delta.log", "gamma.txt"]
+    for entry in result["entries"]:
+        assert set(entry) == {"rel_path", "type", "extension", "size", "modified"}
 
 
 def test_inventory_entries_use_relative_paths_only(tmp_path: Path) -> None:
@@ -66,6 +67,21 @@ def test_inventory_entries_use_relative_paths_only(tmp_path: Path) -> None:
         assert entry["rel_path"] is not None
         assert "path" not in entry
         assert not Path(entry["rel_path"]).is_absolute()
+
+
+def test_inventory_verbose_json_keeps_all_entry_fields(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--verbose")
+    assert code == EXIT_SUCCESS
+    entry = next(e for e in data["result"]["entries"] if e["rel_path"] == "alpha.txt")
+    assert entry["name"] == "alpha.txt"
+    assert "path" not in entry
+    assert entry["extension"] == ".txt"
+    assert entry["size"] == 5
+    assert entry["modified"] is not None
+    assert entry["mode"] is not None
+    assert "dev_ino" in entry
+    assert entry["sha256"] is None
 
 
 def test_inventory_with_hash(tmp_path: Path) -> None:
@@ -116,7 +132,7 @@ def test_inventory_max_depth(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = inventory_json(root, "--max-depth", "1")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert "gamma.txt" not in names
     assert "sub" in names
 
@@ -148,7 +164,7 @@ def test_inventory_ignore_pattern(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = inventory_json(root, "--ignore-pattern", "*.log")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert "delta.log" not in names
 
 
@@ -156,7 +172,7 @@ def test_inventory_dirs_only(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = inventory_json(root, "--dirs-only")
     assert code == EXIT_SUCCESS
-    names = [e["name"] for e in data["result"]["entries"]]
+    names = names_of(data)
     assert names == ["sub"]
 
 
@@ -171,6 +187,28 @@ def test_inventory_missing_root(tmp_path: Path) -> None:
     assert code == EXIT_INCOMPLETE
     assert data["success"] is False
     assert data["complete"] is False
+
+
+def test_inventory_plain_verbose_shows_entry_details(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--plain",
+            "--verbose",
+            "inspect",
+            "inventory",
+            str(root),
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    assert "alpha.txt [file]" in output
+    assert "extension: .txt" in output
+    assert "mode:" in output
 
 
 def test_inventory_plain_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

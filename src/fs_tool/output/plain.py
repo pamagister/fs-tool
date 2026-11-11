@@ -222,6 +222,8 @@ def render_inventory(inventory: dict[str, Any], root: Path, *, verbose: bool = F
     for entry in entries:
         rel_path = entry.get("rel_path", ".")
         entry_type = entry.get("type", "unknown")
+        if isinstance(entry_type, EntryType):
+            entry_type = entry_type.value
         size = entry.get("size")
         sha256 = entry.get("sha256")
         line = f"  {rel_path} [{entry_type}]"

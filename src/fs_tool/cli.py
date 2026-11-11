@@ -32,7 +32,12 @@ from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
-from fs_tool.output.entries import tree_entry_dict
+from fs_tool.output.entries import (
+    INVENTORY_COMPACT_FIELDS,
+    inventory_entry_dict,
+    project_entry_dict,
+    tree_entry_dict,
+)
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
 from fs_tool.output.results import capability_result_to_dict
 from fs_tool.safety.validation import validate_path
@@ -511,17 +516,6 @@ def inspect_analyze(
     return EXIT_SUCCESS
 
 
-def _inventory_entry_dict(entry: FilesystemEntry) -> dict[str, Any]:
-    """Serialize an entry for an inventory without its absolute path.
-
-    Inventories are portable: entries are addressed by ``rel_path``
-    relative to the declared root (plan.md section 5.1).
-    """
-    data = asdict(entry)
-    data.pop("path", None)
-    return data
-
-
 def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHEMA_VERSION) -> str:
     """Compute a deterministic tree hash over inventory entries.
 
@@ -582,9 +576,9 @@ def inspect_inventory(
         ignore_patterns=tuple(ignore_pattern),
     )
 
-    entry_dicts: list[dict[str, Any]] = []
+    full_entry_dicts: list[dict[str, Any]] = []
     for entry in result.entries:
-        entry_dict = _inventory_entry_dict(entry)
+        entry_dict = inventory_entry_dict(entry, verbose=True)
         if hash_files and entry.type is EntryType.FILE:
             digest = sha256_of_file(entry.path)
             entry_dict["sha256"] = digest
@@ -596,7 +590,15 @@ def inspect_inventory(
                         message=f"Cannot hash {entry.path}",
                     )
                 )
-        entry_dicts.append(entry_dict)
+        full_entry_dicts.append(entry_dict)
+
+    if ctx.obj.verbose:
+        entry_dicts = full_entry_dicts
+    else:
+        entry_fields = INVENTORY_COMPACT_FIELDS + (("sha256",) if hash_files else ())
+        entry_dicts = [
+            project_entry_dict(entry_dict, entry_fields) for entry_dict in full_entry_dicts
+        ]
 
     errors = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
@@ -605,7 +607,9 @@ def inspect_inventory(
 
     tree_hash_value: str | None = None
     if tree_hash and result.complete:
-        tree_hash_value = _compute_tree_hash(entry_dicts)
+        # Hashing the full representation keeps tree_hash stable regardless
+        # of the selected output profile.
+        tree_hash_value = _compute_tree_hash(full_entry_dicts)
 
     inventory: dict[str, Any] = {
         "root": str(root),
@@ -620,7 +624,7 @@ def inspect_inventory(
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_inventory
 
-        typer.echo(render_inventory(inventory, root))
+        typer.echo(render_inventory(inventory, root, verbose=ctx.obj.verbose))
         if not result.complete:
             print("fs-tool: error: scan incomplete", file=sys.stderr)
         for error in result.errors:
