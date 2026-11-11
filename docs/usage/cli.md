@@ -196,6 +196,12 @@ fs-tool inspect inventory SOURCE [OPTIONS]
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
 | `--sort-by MODE` | Sort entries by `name` (default), `size`, `modified` or `extension`. |
 | `--no-default-ignore` | Include directories from the default ignore list. |
+| `--extension EXT` | Only include regular files with this extension. |
+| `--min-size SIZE` | Minimum file size, for example `1K`, `2M` or `1G`. |
+| `--max-size SIZE` | Maximum file size, for example `1K`, `2M` or `1G`. |
+| `--fields FIELDS` | Comma-separated entry fields to return. Overrides compact and verbose profiles. |
+| `--max-hash-bytes SIZE` | Skip hashing files larger than SIZE and emit a `HASH_SKIPPED` warning. |
+| `--progress` | Write progress information to stderr only. |
 
 Inventory entries are addressed by `rel_path` relative to the declared root and omit the absolute
 `path`, so an inventory can be compared across machines. JSON result fields: `root`, `entries`,
@@ -205,6 +211,15 @@ By default each entry contains `rel_path`, `type`, `extension`, `size` and `modi
 added only with `--hash`. `--verbose` returns every remaining entry field, still without the
 absolute `path`. Plain output uses the same compact fields on each entry line, so JSON and plain
 default output expose the same inventory information.
+
+Filters (`--extension`, `--min-size`, `--max-size`) are applied after traversal and before hashing
+and `tree_hash`. Directories and symlinks are always retained; extension and size filters apply to
+regular files. `filtered` is included when filters remove entries. `skipped` counts traversal-level
+ignores and `truncated` is true when `--max-entries` stopped the scan.
+
+`--fields` overrides both the compact and verbose profiles. It does not change `tree_hash`.
+`--max-hash-bytes` skips hashing for larger files, keeps `sha256: null`, and adds a `HASH_SKIPPED`
+warning without making the scan incomplete. `--progress` writes progress lines to stderr only.
 
 The tree hash uses algorithm version 2. It is computed from the sorted entries and hashes only
 `rel_path`, `type`, `extension`, `size` and `sha256`. Directory and symlink sizes are normalized to

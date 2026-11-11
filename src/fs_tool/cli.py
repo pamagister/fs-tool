@@ -20,7 +20,7 @@ from click.exceptions import ClickException
 from click.exceptions import Exit as ClickExit
 
 from fs_tool import __version__
-from fs_tool.core.analysis.search import find_entries, parse_size
+from fs_tool.core.analysis.search import find_entries, matches_extension, parse_size
 from fs_tool.core.capabilities.models import CapabilityResult
 from fs_tool.core.config import load_config
 from fs_tool.core.errors import ErrorCode, FsToolError
@@ -36,10 +36,9 @@ from fs_tool.output.entries import (
     INVENTORY_COMPACT_FIELDS,
     find_entry_dict,
     inventory_entry_dict,
-    project_entry_dict,
     tree_entry_dict,
 )
-from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error
+from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error, Warning
 from fs_tool.output.results import capability_result_to_dict
 from fs_tool.safety.validation import validate_path
 
@@ -587,6 +586,56 @@ def _compute_tree_hash(entries: list[dict[str, Any]], schema_version: int = SCHE
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+INVENTORY_ALLOWED_FIELDS = tuple(
+    field_name for field_name in FilesystemEntry.__dataclass_fields__ if field_name != "path"
+)
+
+
+def _inventory_output_dict(
+    entry: FilesystemEntry,
+    digest: str | None,
+    *,
+    verbose: bool,
+    fields: tuple[str, ...] | None,
+    include_hash: bool,
+) -> dict[str, Any]:
+    """Build one inventory entry without materializing every field."""
+    if verbose:
+        data = inventory_entry_dict(entry, verbose=True)
+        data["sha256"] = digest
+        return data
+    if fields is not None:
+        data = {}
+        for field_name in fields:
+            data[field_name] = digest if field_name == "sha256" else getattr(entry, field_name)
+        return data
+    data = {field_name: getattr(entry, field_name) for field_name in INVENTORY_COMPACT_FIELDS}
+    if include_hash:
+        data["sha256"] = digest
+    return data
+
+
+def _inventory_entry_matches(
+    entry: FilesystemEntry,
+    *,
+    extension: str | None,
+    min_size: int | None,
+    max_size: int | None,
+) -> bool:
+    """Return whether an entry passes the inventory content filters."""
+    if entry.type is not EntryType.FILE:
+        return True
+    if extension is not None and not matches_extension(entry, extension):
+        return False
+    if entry.size is None:
+        return min_size is None and max_size is None
+    if min_size is not None and entry.size < min_size:
+        return False
+    if max_size is not None and entry.size > max_size:
+        return False
+    return True
+
+
 @inspect_group.command(name="inventory")
 def inspect_inventory(
     ctx: typer.Context,
@@ -622,6 +671,36 @@ def inspect_inventory(
         "--no-default-ignore",
         help="Include directories from the default ignore list.",
     ),
+    extension: str | None = typer.Option(
+        None,
+        "--extension",
+        help="Only include files with this extension.",
+    ),
+    min_size: str | None = typer.Option(
+        None,
+        "--min-size",
+        help="Minimum file size, for example 1K, 2M or 1G.",
+    ),
+    max_size: str | None = typer.Option(
+        None,
+        "--max-size",
+        help="Maximum file size, for example 1K, 2M or 1G.",
+    ),
+    fields: str | None = typer.Option(
+        None,
+        "--fields",
+        help="Comma-separated entry fields to return.",
+    ),
+    max_hash_bytes: str | None = typer.Option(
+        None,
+        "--max-hash-bytes",
+        help="Skip hashing files larger than SIZE.",
+    ),
+    progress: bool = typer.Option(
+        False,
+        "--progress",
+        help="Write progress information to stderr.",
+    ),
 ) -> int:
     """Create a deterministic inventory of a directory tree.
 
@@ -629,6 +708,61 @@ def inspect_inventory(
     the command, e.g. ``fs-tool --plain inspect inventory /tmp``.
     """
     root = validate_path(source, tuple(ctx.obj.allow_root))
+
+    def invalid(message: str) -> int:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command="inspect.inventory",
+            result=None,
+            errors=(
+                Error(
+                    code=ErrorCode.INVALID_ARGUMENT,
+                    message=message,
+                    path=str(root),
+                ),
+            ),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+        return EXIT_INVALID_ARGS
+
+    min_size_value: int | None = None
+    if min_size is not None:
+        try:
+            min_size_value = parse_size(min_size)
+        except ValueError as exc:
+            return invalid(f"Invalid --min-size value {min_size!r}: {exc}")
+
+    max_size_value: int | None = None
+    if max_size is not None:
+        try:
+            max_size_value = parse_size(max_size)
+        except ValueError as exc:
+            return invalid(f"Invalid --max-size value {max_size!r}: {exc}")
+
+    max_hash_bytes_value: int | None = None
+    if max_hash_bytes is not None:
+        try:
+            max_hash_bytes_value = parse_size(max_hash_bytes)
+        except ValueError as exc:
+            return invalid(f"Invalid --max-hash-bytes value {max_hash_bytes!r}: {exc}")
+
+    requested_fields: tuple[str, ...] | None = None
+    if fields is not None:
+        requested_fields = tuple(part.strip() for part in fields.split(",") if part.strip())
+        if not requested_fields:
+            return invalid("--fields must list at least one field.")
+        unknown = [name for name in requested_fields if name not in INVENTORY_ALLOWED_FIELDS]
+        if unknown:
+            return invalid(
+                f"Invalid --fields value(s): {', '.join(unknown)}. "
+                f"Allowed fields: {', '.join(INVENTORY_ALLOWED_FIELDS)}."
+            )
+
+    def report_progress(count: int) -> None:
+        print(f"fs-tool: scanned {count} entries", file=sys.stderr)
+
     result = traverse(
         root,
         max_depth=max_depth,
@@ -638,31 +772,66 @@ def inspect_inventory(
         ignore_patterns=tuple(ignore_pattern),
         sort_by=_validate_sort_by(sort_by),
         use_default_ignores=not no_default_ignore,
+        progress=report_progress if progress else None,
     )
+    if progress:
+        print(f"fs-tool: scan finished: {len(result.entries)} entries", file=sys.stderr)
 
-    full_entry_dicts: list[dict[str, Any]] = []
-    for entry in result.entries:
-        entry_dict = inventory_entry_dict(entry, verbose=True)
+    warnings_list: list[Warning] = []
+    digests: list[str | None] = []
+    for index, entry in enumerate(result.entries, start=1):
+        digest: str | None = None
         if hash_files and entry.type is EntryType.FILE:
-            digest = sha256_of_file(entry.path)
-            entry_dict["sha256"] = digest
-            if digest is None:
-                result.complete = False
-                result.errors.append(
-                    TraversalError(
+            if max_hash_bytes_value is not None and (entry.size or 0) > max_hash_bytes_value:
+                warnings_list.append(
+                    Warning(
+                        code="HASH_SKIPPED",
+                        message=(
+                            f"Skipped hashing {entry.path}; size {entry.size} "
+                            f"exceeds limit {max_hash_bytes_value}."
+                        ),
                         path=entry.path,
-                        message=f"Cannot hash {entry.path}",
+                        details={"size": entry.size, "limit": max_hash_bytes_value},
                     )
                 )
-        full_entry_dicts.append(entry_dict)
+            else:
+                digest = sha256_of_file(entry.path)
+                if digest is None:
+                    result.complete = False
+                    result.errors.append(
+                        TraversalError(
+                            path=entry.path,
+                            message=f"Cannot hash {entry.path}",
+                        )
+                    )
+        digests.append(digest)
+        if progress and index % 1000 == 0:
+            print(f"fs-tool: hashed {index} files", file=sys.stderr)
 
-    if ctx.obj.verbose:
-        entry_dicts = full_entry_dicts
-    else:
-        entry_fields = INVENTORY_COMPACT_FIELDS + (("sha256",) if hash_files else ())
-        entry_dicts = [
-            project_entry_dict(entry_dict, entry_fields) for entry_dict in full_entry_dicts
-        ]
+    selected: list[tuple[FilesystemEntry, str | None]] = []
+    filtered = 0
+    for entry, digest in zip(result.entries, digests):
+        if _inventory_entry_matches(
+            entry,
+            extension=extension,
+            min_size=min_size_value,
+            max_size=max_size_value,
+        ):
+            selected.append((entry, digest))
+        else:
+            filtered += 1
+
+    verbose = ctx.obj.verbose and requested_fields is None
+    entry_dicts = [
+        _inventory_output_dict(
+            entry,
+            digest,
+            verbose=verbose,
+            fields=requested_fields,
+            include_hash=hash_files,
+        )
+        for entry, digest in selected
+    ]
 
     errors = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
@@ -671,9 +840,19 @@ def inspect_inventory(
 
     tree_hash_value: str | None = None
     if tree_hash and result.complete:
-        # Hashing the full representation keeps tree_hash stable regardless
+        # Hashing the canonical projection keeps tree_hash stable regardless
         # of the selected output profile.
-        tree_hash_value = _compute_tree_hash(full_entry_dicts)
+        hash_entries = [
+            {
+                "rel_path": entry.rel_path,
+                "type": entry.type,
+                "extension": entry.extension,
+                "size": entry.size,
+                "sha256": digest,
+            }
+            for entry, digest in selected
+        ]
+        tree_hash_value = _compute_tree_hash(hash_entries)
 
     inventory: dict[str, Any] = {
         "root": str(root),
@@ -681,16 +860,22 @@ def inspect_inventory(
         "count": len(entry_dicts),
         "generated_at": datetime.now(tz=UTC).isoformat(),
         "complete": result.complete,
+        "skipped": result.skipped,
+        "truncated": result.truncated,
     }
+    if filtered:
+        inventory["filtered"] = filtered
     if tree_hash_value is not None:
         inventory["tree_hash"] = tree_hash_value
 
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_inventory
 
-        typer.echo(render_inventory(inventory, root, verbose=ctx.obj.verbose))
+        typer.echo(render_inventory(inventory, root, verbose=verbose))
         if not result.complete:
             print("fs-tool: error: scan incomplete", file=sys.stderr)
+        for warning in warnings_list:
+            print(f"fs-tool: warning: {warning.message} ({warning.path})", file=sys.stderr)
         for error in result.errors:
             print(
                 f"fs-tool: error: {error.message} ({error.path})",
@@ -704,6 +889,7 @@ def inspect_inventory(
         command="inspect.inventory",
         result=inventory,
         errors=errors,
+        warnings=tuple(warnings_list),
         complete=result.complete,
     )
     typer.echo(envelope.to_json())

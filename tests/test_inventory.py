@@ -415,3 +415,157 @@ def test_inventory_invalid_sort_by(tmp_path: Path, capsys: pytest.CaptureFixture
     )
     assert code == EXIT_INVALID_ARGS
     assert "Invalid --sort-by" in capsys.readouterr().err
+
+
+def test_inventory_reports_skipped_entries(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    git_dir = root / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("c")
+    code, data = inventory_json(root)
+    assert code == EXIT_SUCCESS
+    assert data["result"]["skipped"] == 1
+    assert data["result"]["truncated"] is False
+
+
+def test_inventory_reports_truncation(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--max-entries", "2")
+    assert code == EXIT_INCOMPLETE
+    assert data["result"]["truncated"] is True
+    assert data["result"]["complete"] is False
+
+
+def test_inventory_plain_reports_skipped_and_truncated(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    git_dir = root / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("c")
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--plain",
+            "inspect",
+            "inventory",
+            str(root),
+            "--max-entries",
+            "2",
+        ]
+    )
+    assert code == EXIT_INCOMPLETE
+    output = capsys.readouterr().out
+    assert "skipped: 1" in output
+    assert "truncated: True" in output
+
+
+def test_inventory_extension_filter(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--extension", "txt")
+    assert code == EXIT_SUCCESS
+    names = names_of(data)
+    assert "delta.log" not in names
+    assert "alpha.txt" in names
+    assert data["result"]["filtered"] == 1
+    assert data["result"]["complete"] is True
+
+
+def test_inventory_min_size_filter(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--min-size", "5")
+    assert code == EXIT_SUCCESS
+    names = names_of(data)
+    assert "beta.txt" not in names
+    assert "alpha.txt" in names
+    assert data["result"]["filtered"] == 1
+
+
+def test_inventory_max_size_filter(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--max-size", "4")
+    assert code == EXIT_SUCCESS
+    names = names_of(data)
+    assert "beta.txt" in names
+    assert "alpha.txt" not in names
+    assert data["result"]["filtered"] == 3
+
+
+def test_inventory_invalid_size_filter(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--min-size", "bogus")
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"
+
+
+def test_inventory_fields_subset_and_order(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--fields", "size,rel_path")
+    assert code == EXIT_SUCCESS
+    for entry in data["result"]["entries"]:
+        assert list(entry) == ["size", "rel_path"]
+
+
+def test_inventory_fields_reject_path(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--fields", "path")
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"
+
+
+def test_inventory_fields_override_verbose(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--fields", "size", "--verbose")
+    assert code == EXIT_SUCCESS
+    for entry in data["result"]["entries"]:
+        assert list(entry) == ["size"]
+
+
+def test_inventory_fields_do_not_change_tree_hash(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    _, compact = inventory_json(root, "--tree-hash")
+    _, selected = inventory_json(root, "--tree-hash", "--fields", "size,rel_path")
+    assert compact["result"]["tree_hash"] == selected["result"]["tree_hash"]
+
+
+def test_inventory_max_hash_bytes_skips_large_files(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "small.txt").write_text("a")
+    (root / "large.bin").write_bytes(b"x" * 100)
+    code, data = inventory_json(root, "--hash", "--max-hash-bytes", "10")
+    assert code == EXIT_SUCCESS
+    entries = {entry["rel_path"]: entry for entry in data["result"]["entries"]}
+    assert entries["small.txt"]["sha256"] is not None
+    assert entries["large.bin"]["sha256"] is None
+    assert any(warning["code"] == "HASH_SKIPPED" for warning in data["warnings"])
+
+
+def test_inventory_invalid_max_hash_bytes(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--max-hash-bytes", "bogus")
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"
+
+
+def test_inventory_progress_writes_to_stderr_only(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "inspect",
+            "inventory",
+            str(root),
+            "--progress",
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert data["result"]["count"] == 5
+    assert "fs-tool: scan finished" in captured.err
+    assert "fs-tool:" not in captured.out

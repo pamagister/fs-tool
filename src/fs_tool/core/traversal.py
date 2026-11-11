@@ -13,6 +13,7 @@ import mimetypes
 import os
 import stat
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -57,6 +58,7 @@ class TraversalResult:
     errors: list[TraversalError] = field(default_factory=list)
     complete: bool = True
     skipped: int = 0
+    truncated: bool = False
 
 
 def _iso_timestamp(seconds: float) -> str:
@@ -159,6 +161,7 @@ def traverse(
     follow_symlinks: bool = False,
     sort_by: SortBy = "name",
     use_default_ignores: bool = True,
+    progress: Callable[[int], None] | None = None,
 ) -> TraversalResult:
     """Recursively traverse ``root`` and return its entries.
 
@@ -212,6 +215,10 @@ def traverse(
             record_error(path, exc.message)
             return None
 
+    def report_progress() -> None:
+        if progress is not None and len(result.entries) % 1000 == 0:
+            progress(len(result.entries))
+
     def _scan_children(directory: Path) -> list[tuple[Path, bool, bool]] | None:
         try:
             pending = sorted(os.scandir(directory), key=lambda entry: entry.name)
@@ -239,6 +246,7 @@ def traverse(
         relative to ``root`` (root's direct entries have depth 1)."""
         if max_entries is not None and len(result.entries) >= max_entries:
             result.complete = False
+            result.truncated = True
             return
         children = _scan_children(directory)
         if children is None:
@@ -250,11 +258,13 @@ def traverse(
             for path, is_link, is_dir in children:
                 if max_entries is not None and len(result.entries) >= max_entries:
                     result.complete = False
+                    result.truncated = True
                     return
                 built = _prepare(path, is_link, is_dir)
                 if built is None:
                     continue
                 result.entries.append(built)
+                report_progress()
                 if is_dir and (max_depth is None or depth < max_depth):
                     walk(path, depth + 1)
             return
@@ -269,8 +279,10 @@ def traverse(
         for built, path, _is_link, is_dir in sortable:
             if max_entries is not None and len(result.entries) >= max_entries:
                 result.complete = False
+                result.truncated = True
                 return
             result.entries.append(built)
+            report_progress()
             if is_dir and (max_depth is None or depth < max_depth):
                 walk(path, depth + 1)
 

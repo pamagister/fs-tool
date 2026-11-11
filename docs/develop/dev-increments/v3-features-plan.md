@@ -231,23 +231,23 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 
 **Objective:** Make inventory output cheaper to produce and more useful for large or filtered datasets.
 
-- [ ] I1-W01: Refactor `inspect_inventory` so compact output is built directly from `FilesystemEntry` objects without materializing all full entry dictionaries.
-- [ ] I1-W02: Compute `tree_hash` from a canonical lightweight projection of the selected entries, independent of the output profile.
-- [ ] I1-W03: Add tests proving compact and verbose output remain equivalent to the previous behavior and that `tree_hash` is profile-independent.
-- [ ] I2-W01: Add `--max-hash-bytes` to `inspect inventory`, accepting the existing size syntax.
-- [ ] I2-W02: Add `HASH_SKIPPED` warnings for files above the limit and keep `complete` true.
-- [ ] I2-W03: Add tests for files below, at and above the limit, including `tree_hash` behavior.
-- [ ] I3-W01: Add `--progress` to `inspect inventory`, writing periodic progress lines to stderr only.
-- [ ] I3-W02: Add tests proving stdout JSON and plain output are unchanged by `--progress`.
-- [ ] I4-W01: Add `--fields` to `inspect inventory` with validation of allowed field names and stable output order.
-- [ ] I4-W02: Define and test the interaction between `--fields`, `--verbose` and the compact profile.
-- [ ] I4-W03: Prove `--fields` does not change `tree_hash`.
-- [ ] I5-W01: Add `--extension`, `--min-size` and `--max-size` filters to `inspect inventory`.
-- [ ] I5-W02: Add the `filtered` count to the inventory result and plain output when filters remove entries.
-- [ ] I5-W03: Add tests for filter combinations, directories, count, `tree_hash` and `complete`.
-- [ ] C4-W01: Add `truncated` to `TraversalResult` and set it when `--max-entries` stops the scan.
-- [ ] C4-W02: Add `skipped` and `truncated` to the inventory result and plain output.
-- [ ] C4-W03: Add tests distinguishing truncation from inaccessible entries and from ignored entries.
+- [x] I1-W01: Refactor `inspect_inventory` so compact output is built directly from `FilesystemEntry` objects without materializing all full entry dictionaries.
+- [x] I1-W02: Compute `tree_hash` from a canonical lightweight projection of the selected entries, independent of the output profile.
+- [x] I1-W03: Add tests proving compact and verbose output remain equivalent to the previous behavior and that `tree_hash` is profile-independent.
+- [x] I2-W01: Add `--max-hash-bytes` to `inspect inventory`, accepting the existing size syntax.
+- [x] I2-W02: Add `HASH_SKIPPED` warnings for files above the limit and keep `complete` true.
+- [x] I2-W03: Add tests for files below, at and above the limit, including `tree_hash` behavior.
+- [x] I3-W01: Add `--progress` to `inspect inventory`, writing periodic progress lines to stderr only.
+- [x] I3-W02: Add tests proving stdout JSON and plain output are unchanged by `--progress`.
+- [x] I4-W01: Add `--fields` to `inspect inventory` with validation of allowed field names and stable output order.
+- [x] I4-W02: Define and test the interaction between `--fields`, `--verbose` and the compact profile.
+- [x] I4-W03: Prove `--fields` does not change `tree_hash`.
+- [x] I5-W01: Add `--extension`, `--min-size` and `--max-size` filters to `inspect inventory`.
+- [x] I5-W02: Add the `filtered` count to the inventory result and plain output when filters remove entries.
+- [x] I5-W03: Add tests for filter combinations, directories, count, `tree_hash` and `complete`.
+- [x] C4-W01: Add `truncated` to `TraversalResult` and set it when `--max-entries` stops the scan.
+- [x] C4-W02: Add `skipped` and `truncated` to the inventory result and plain output.
+- [x] C4-W03: Add tests distinguishing truncation from inaccessible entries and from ignored entries.
 
 **Acceptance criteria**
 

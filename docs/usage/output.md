@@ -110,6 +110,9 @@ Each error entry has this shape:
 
 Warnings use the same `code`, `message`, `path` and `details` fields.
 
+`inspect inventory --max-hash-bytes` emits a `HASH_SKIPPED` warning for each file above the limit.
+The file keeps `sha256: null`; the scan itself remains complete.
+
 Error codes map to process exit codes. For example, `ROOT_NOT_ALLOWED` exits with code 3,
 `TARGET_EXISTS` with code 4, and `INCOMPLETE_SCAN` with code 5. See
 [Exit codes](cli.md#exit-codes).
@@ -228,7 +231,7 @@ with `analyses: []`.
 | `inspect tree` | `root`, `entries`, `count` |
 | `inspect info` | A single filesystem entry, plus `metadata_result`, metadata values and `sha256` when requested |
 | `inspect analyze` | `path`, `name`, `extension`, `size`, `sha256`, `supported`, `analyses` |
-| `inspect inventory` | `root`, `entries`, `count`, `generated_at`, `complete`, optional `tree_hash` |
+| `inspect inventory` | `root`, `entries`, `count`, `generated_at`, `complete`, `skipped`, `truncated`, optional `filtered`, optional `tree_hash` |
 | `inspect read` | `path`, `name`, `size`, `content`, `truncated`, `encoding`, `format`, `representation`; PDFs add `page_count` and `pages` |
 | `find` | `root`, `entries`, `count`, `complete` |
 | `duplicates` | `root`, `duplicate_groups`, `duplicate_group_count`, `duplicate_file_count`, `complete` |

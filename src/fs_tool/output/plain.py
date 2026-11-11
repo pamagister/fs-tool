@@ -249,6 +249,11 @@ def render_inventory(inventory: dict[str, Any], root: Path, *, verbose: bool = F
                 lines.append(f"    {detail}")
     lines.append(f"count: {inventory.get('count', len(entries))}")
     lines.append(f"complete: {inventory.get('complete', False)}")
+    if inventory.get("skipped"):
+        lines.append(f"skipped: {inventory['skipped']}")
+    lines.append(f"truncated: {inventory.get('truncated', False)}")
+    if inventory.get("filtered"):
+        lines.append(f"filtered: {inventory['filtered']}")
     if inventory.get("tree_hash"):
         lines.append(f"tree_hash: {inventory['tree_hash']}")
     return "\n".join(lines)
