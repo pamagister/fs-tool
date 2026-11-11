@@ -324,3 +324,16 @@ def test_find_max_entries_is_incomplete(tmp_path: Path) -> None:
     assert data["complete"] is False
     assert data["result"]["complete"] is False
     assert data["result"]["count"] == 2
+
+
+def test_find_sort_by_size_and_no_default_ignore(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("a")
+    (tmp_path / "b.txt").write_text("abcdef")
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("c")
+    code, data = find_json(tmp_path, "--sort-by", "size", "--no-default-ignore")
+    assert code == EXIT_SUCCESS
+    rel_paths = [entry["rel_path"] for entry in data["result"]["entries"]]
+    assert ".git/config" in rel_paths
+    assert rel_paths.index("a.txt") < rel_paths.index("b.txt")

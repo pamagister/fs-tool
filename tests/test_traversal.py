@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from fs_tool.core.errors import FsToolError
 from fs_tool.core.filesystem import normalize_path, resolve_path
 from fs_tool.core.models import EntryType
 from fs_tool.core.traversal import traverse
@@ -194,3 +195,75 @@ def test_traversal_mime_type(tmp_path: Path, name: str, expected: str | None) ->
         assert entry.mime_type is None or isinstance(entry.mime_type, str)
     else:
         assert entry.mime_type == expected
+
+
+def test_traversal_sort_by_size(tmp_path: Path) -> None:
+    (tmp_path / "small.txt").write_text("a")
+    (tmp_path / "medium.txt").write_text("abc")
+    (tmp_path / "large.txt").write_text("abcdef")
+    result = traverse(tmp_path, sort_by="size")
+    assert [entry.name for entry in result.entries] == [
+        "small.txt",
+        "medium.txt",
+        "large.txt",
+    ]
+
+
+def test_traversal_sort_by_modified(tmp_path: Path) -> None:
+    for name, timestamp in (
+        ("old.txt", 1_000_000),
+        ("mid.txt", 1_500_000),
+        ("new.txt", 2_000_000),
+    ):
+        path = tmp_path / name
+        path.write_text("x")
+        os.utime(path, (timestamp, timestamp))
+    result = traverse(tmp_path, sort_by="modified")
+    assert [entry.name for entry in result.entries] == ["old.txt", "mid.txt", "new.txt"]
+
+
+def test_traversal_sort_by_extension(tmp_path: Path) -> None:
+    for name in ("b.txt", "a.md", "c.log", "noext"):
+        (tmp_path / name).write_text("x")
+    result = traverse(tmp_path, sort_by="extension")
+    assert [entry.name for entry in result.entries] == ["noext", "c.log", "a.md", "b.txt"]
+
+
+def test_traversal_sort_ties_use_name(tmp_path: Path) -> None:
+    for name in ("b.txt", "a.txt", "c.txt"):
+        (tmp_path / name).write_text("xx")
+    result = traverse(tmp_path, sort_by="size")
+    assert [entry.name for entry in result.entries] == ["a.txt", "b.txt", "c.txt"]
+
+
+def test_traversal_rejects_unknown_sort_by(tmp_path: Path) -> None:
+    with pytest.raises(FsToolError):
+        traverse(tmp_path, sort_by="bogus")  # type: ignore[arg-type]
+
+
+def test_traversal_default_ignores_can_be_disabled(tmp_path: Path) -> None:
+    _make_tree(tmp_path)
+    default_names = [entry.name for entry in traverse(tmp_path).entries]
+    included_names = [entry.name for entry in traverse(tmp_path, use_default_ignores=False).entries]
+    assert ".git" not in default_names
+    assert ".git" in included_names
+
+
+def test_traversal_explicit_ignores_apply_without_defaults(tmp_path: Path) -> None:
+    _make_tree(tmp_path)
+    result = traverse(
+        tmp_path,
+        use_default_ignores=False,
+        ignore_dirs=frozenset({"beta"}),
+    )
+    names = [entry.name for entry in result.entries]
+    assert "beta" not in names
+    assert ".git" in names
+
+
+def test_traversal_sort_by_size_with_max_entries(tmp_path: Path) -> None:
+    (tmp_path / "large.txt").write_text("abcdef")
+    (tmp_path / "small.txt").write_text("a")
+    result = traverse(tmp_path, sort_by="size", max_entries=1)
+    assert [entry.name for entry in result.entries] == ["small.txt"]
+    assert result.complete is False

@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fs_tool.core.models import EntryType, FilesystemEntry
+from fs_tool.core.traversal import SortBy
 
 
 def matches_name(entry: FilesystemEntry, pattern: str) -> bool:
@@ -178,6 +179,8 @@ def find_entries(
     max_entries: int | None = None,
     ignore_dirs: frozenset[str] | None = None,
     ignore_patterns: tuple[str, ...] = (),
+    sort_by: SortBy = "name",
+    use_default_ignores: bool = True,
 ) -> tuple[list[FilesystemEntry], list[str], bool]:
     """Traverse ``root`` and return entries matching all filters.
 
@@ -195,6 +198,8 @@ def find_entries(
         dirs_only=False,
         ignore_dirs=ignore_dirs,
         ignore_patterns=ignore_patterns,
+        sort_by=sort_by,
+        use_default_ignores=use_default_ignores,
     )
 
     errors = [error.message for error in result.errors]

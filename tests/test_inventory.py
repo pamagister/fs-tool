@@ -14,6 +14,7 @@ import pytest
 from fs_tool.cli import (
     EXIT_ACCESS_DENIED,
     EXIT_INCOMPLETE,
+    EXIT_INVALID_ARGS,
     EXIT_SUCCESS,
     _compute_tree_hash,
     main,
@@ -385,3 +386,32 @@ def test_inventory_plain_compact_matches_json_profile(
             assert f"extension={entry['extension']}" in output
         if entry.get("sha256") is not None:
             assert f"sha256={entry['sha256']}" in output
+
+
+def test_inventory_sort_by_size_and_no_default_ignore(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    git_dir = root / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("c")
+    code, data = inventory_json(root, "--sort-by", "size", "--no-default-ignore")
+    assert code == EXIT_SUCCESS
+    rel_paths = [entry["rel_path"] for entry in data["result"]["entries"]]
+    assert ".git" in rel_paths
+    assert rel_paths.index("beta.txt") < rel_paths.index("alpha.txt")
+
+
+def test_inventory_invalid_sort_by(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "inspect",
+            "inventory",
+            str(root),
+            "--sort-by",
+            "bogus",
+        ]
+    )
+    assert code == EXIT_INVALID_ARGS
+    assert "Invalid --sort-by" in capsys.readouterr().err

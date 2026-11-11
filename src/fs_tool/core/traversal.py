@@ -38,7 +38,7 @@ DEFAULT_IGNORE_DIRS: frozenset[str] = frozenset(
     }
 )
 
-SortBy = Literal["name"]
+SortBy = Literal["name", "size", "modified", "extension"]
 
 
 @dataclass(frozen=True)
@@ -71,6 +71,18 @@ def _entry_type(stat_result: os.stat_result | None, is_symlink: bool) -> EntryTy
     if stat_result is not None and stat.S_ISREG(stat_result.st_mode):
         return EntryType.FILE
     return EntryType.OTHER
+
+
+def _entry_sort_key(entry: FilesystemEntry, sort_by: SortBy) -> tuple[object, ...]:
+    """Return a deterministic sort key with a name tie-breaker."""
+    name = entry.name
+    if sort_by == "size":
+        return (entry.size if entry.size is not None else -1, name)
+    if sort_by == "modified":
+        return (entry.modified or "", name)
+    if sort_by == "extension":
+        return (entry.extension or "", name)
+    return (name,)
 
 
 def build_entry(path: Path, root: Path, follow_symlinks: bool = False) -> FilesystemEntry:
@@ -146,22 +158,25 @@ def traverse(
     ignore_patterns: tuple[str, ...] = (),
     follow_symlinks: bool = False,
     sort_by: SortBy = "name",
+    use_default_ignores: bool = True,
 ) -> TraversalResult:
     """Recursively traverse ``root`` and return its entries.
 
     Symlinks are recorded but never followed unless ``follow_symlinks``
     is set (cycles are still avoided). Inaccessible entries are
     reported as errors and do not abort the scan. Entries are sorted
-    alphabetically by name within each directory.
+    within each directory by ``sort_by`` with a deterministic name
+    tie-breaker. ``use_default_ignores`` controls the built-in ignore
+    list; explicitly supplied ignore names and patterns always apply.
     """
-    if sort_by != "name":
+    if sort_by not in ("name", "size", "modified", "extension"):
         raise FsToolError(
-            f"Unsupported sort_by value {sort_by!r}; only 'name' is supported",
+            f"Unsupported sort_by value {sort_by!r}; use name, size, modified or extension",
             code=ErrorCode.INVALID_ARGUMENT,
         )
 
     root_path = normalize_path(root)
-    ignored = set(DEFAULT_IGNORE_DIRS)
+    ignored = set(DEFAULT_IGNORE_DIRS) if use_default_ignores else set()
     if ignore_dirs is not None:
         ignored |= set(ignore_dirs)
 
@@ -172,21 +187,39 @@ def traverse(
         result.errors.append(TraversalError(path=str(path), message=message))
         result.complete = False
 
-    def walk(directory: Path, depth: int) -> None:
-        """Walk ``directory``; ``depth`` is the level of its entries
-        relative to ``root`` (root's direct entries have depth 1)."""
-        if max_entries is not None and len(result.entries) >= max_entries:
-            result.complete = False
-            return
+    def _include_candidate(is_link: bool, is_dir: bool) -> bool:
+        if is_link and not follow_symlinks:
+            return not dirs_only
+        return not dirs_only or is_dir
+
+    def _prepare(path: Path, is_link: bool, is_dir: bool) -> FilesystemEntry | None:
+        if not _include_candidate(is_link, is_dir):
+            return None
+        if is_link and follow_symlinks:
+            try:
+                real = path.stat(follow_symlinks=True)
+            except OSError as exc:
+                record_error(path, f"Cannot follow symbolic link: {exc.strerror or exc}")
+                return None
+            key = (real.st_dev, real.st_ino)
+            if key in visited_dirs:
+                result.skipped += 1
+                return None
+            visited_dirs.add(key)
+        try:
+            return build_entry(path, root_path, follow_symlinks=follow_symlinks)
+        except FsToolError as exc:
+            record_error(path, exc.message)
+            return None
+
+    def _scan_children(directory: Path) -> list[tuple[Path, bool, bool]] | None:
         try:
             pending = sorted(os.scandir(directory), key=lambda entry: entry.name)
         except OSError as exc:
             record_error(directory, f"Cannot read directory: {exc.strerror or exc}")
-            return
+            return None
+        children: list[tuple[Path, bool, bool]] = []
         for entry in pending:
-            if max_entries is not None and len(result.entries) >= max_entries:
-                result.complete = False
-                return
             name = entry.name
             if name in ignored or any(fnmatch.fnmatch(name, p) for p in ignore_patterns):
                 result.skipped += 1
@@ -198,31 +231,48 @@ def traverse(
             except OSError as exc:
                 record_error(path, f"Cannot inspect entry: {exc.strerror or exc}")
                 continue
-            if is_link and not follow_symlinks:
-                if not dirs_only:
-                    _append_entry(path)
+            children.append((path, is_link, is_dir))
+        return children
+
+    def walk(directory: Path, depth: int) -> None:
+        """Walk ``directory``; ``depth`` is the level of its entries
+        relative to ``root`` (root's direct entries have depth 1)."""
+        if max_entries is not None and len(result.entries) >= max_entries:
+            result.complete = False
+            return
+        children = _scan_children(directory)
+        if children is None:
+            return
+
+        if sort_by == "name":
+            # ``children`` preserves name order. Stream entries so a low
+            # ``--max-entries`` does not require building every sibling.
+            for path, is_link, is_dir in children:
+                if max_entries is not None and len(result.entries) >= max_entries:
+                    result.complete = False
+                    return
+                built = _prepare(path, is_link, is_dir)
+                if built is None:
+                    continue
+                result.entries.append(built)
+                if is_dir and (max_depth is None or depth < max_depth):
+                    walk(path, depth + 1)
+            return
+
+        sortable: list[tuple[FilesystemEntry, Path, bool, bool]] = []
+        for path, is_link, is_dir in children:
+            built = _prepare(path, is_link, is_dir)
+            if built is None:
                 continue
-            if is_link and follow_symlinks:
-                try:
-                    real = entry.stat(follow_symlinks=True)
-                except OSError as exc:
-                    record_error(path, f"Cannot follow symbolic link: {exc.strerror or exc}")
-                    continue
-                key = (real.st_dev, real.st_ino)
-                if key in visited_dirs:
-                    result.skipped += 1
-                    continue
-                visited_dirs.add(key)
-            if not dirs_only or is_dir:
-                _append_entry(path)
+            sortable.append((built, path, is_link, is_dir))
+        sortable.sort(key=lambda item: _entry_sort_key(item[0], sort_by))
+        for built, path, _is_link, is_dir in sortable:
+            if max_entries is not None and len(result.entries) >= max_entries:
+                result.complete = False
+                return
+            result.entries.append(built)
             if is_dir and (max_depth is None or depth < max_depth):
                 walk(path, depth + 1)
-
-    def _append_entry(path: Path) -> None:
-        try:
-            result.entries.append(build_entry(path, root_path, follow_symlinks=follow_symlinks))
-        except FsToolError as exc:
-            record_error(path, exc.message)
 
     walk(root_path, 1)
     return result

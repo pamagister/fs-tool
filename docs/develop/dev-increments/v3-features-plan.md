@@ -208,12 +208,12 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 
 **Objective:** Add the traversal capabilities required by later inventory and CLI work.
 
-- [ ] T1-W01: Extend `SortBy` and `traverse()` with `size`, `modified` and `extension` sorting, including deterministic `name` tie-breaking.
-- [ ] T1-W02: Add `--sort-by` to `inspect tree`, `inspect inventory` and `find`.
-- [ ] T1-W03: Add tests for every sort key, tie-breaking and interaction with `--max-entries`.
-- [ ] T3-W01: Add `use_default_ignores` to `traverse()` so the default ignore list can be disabled.
-- [ ] T3-W02: Add `--no-default-ignore` to `inspect tree`, `inspect inventory`, `find`, `duplicates` and `compare`.
-- [ ] T3-W03: Add tests proving default ignores are active by default and disabled on request, while `--ignore-dir` and `--ignore-pattern` still apply.
+- [x] T1-W01: Extend `SortBy` and `traverse()` with `size`, `modified` and `extension` sorting, including deterministic `name` tie-breaking.
+- [x] T1-W02: Add `--sort-by` to `inspect tree`, `inspect inventory` and `find`.
+- [x] T1-W03: Add tests for every sort key, tie-breaking and interaction with `--max-entries`.
+- [x] T3-W01: Add `use_default_ignores` to `traverse()` so the default ignore list can be disabled.
+- [x] T3-W02: Add `--no-default-ignore` to `inspect tree`, `inspect inventory`, `find`, `duplicates` and `compare`.
+- [x] T3-W03: Add tests proving default ignores are active by default and disabled on request, while `--ignore-dir` and `--ignore-pattern` still apply.
 
 `T2` was rejected and removed: `--follow-symlinks` must never be implemented. The ID is not reused.
 

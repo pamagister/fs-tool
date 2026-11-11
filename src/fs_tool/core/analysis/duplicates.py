@@ -47,6 +47,7 @@ def find_duplicates(
     max_entries: int | None = None,
     ignore_dirs: frozenset[str] | None = None,
     ignore_patterns: tuple[str, ...] = (),
+    use_default_ignores: bool = True,
 ) -> DuplicateResult:
     """Find duplicate files under ``root``.
 
@@ -61,6 +62,7 @@ def find_duplicates(
         dirs_only=False,
         ignore_dirs=ignore_dirs,
         ignore_patterns=ignore_patterns,
+        use_default_ignores=use_default_ignores,
     )
 
     # Collect regular files, tracking hardlinks by (dev, inode).

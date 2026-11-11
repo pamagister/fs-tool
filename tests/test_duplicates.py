@@ -146,3 +146,14 @@ def test_duplicates_invalid_min_size(tmp_path: Path) -> None:
     assert code == EXIT_INVALID_ARGS
     assert data["success"] is False
     assert "Invalid --min-size value" in data["errors"][0]["message"]
+
+
+def test_duplicates_no_default_ignore(tmp_path: Path) -> None:
+    _write(tmp_path / "a.txt", "same content")
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    _write(git_dir / "b.txt", "same content")
+    _, default = duplicates_json(tmp_path)
+    assert default["result"]["duplicate_group_count"] == 0
+    _, included = duplicates_json(tmp_path, "--no-default-ignore")
+    assert included["result"]["duplicate_group_count"] == 1

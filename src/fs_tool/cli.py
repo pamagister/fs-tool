@@ -13,7 +13,7 @@ import sys
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import typer
 from click.exceptions import ClickException
@@ -27,7 +27,7 @@ from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
 from fs_tool.core.models import EntryType, FilesystemEntry
 from fs_tool.core.providers.inspection import analyze_file, inspect_metadata, read_file
-from fs_tool.core.traversal import TraversalError, build_entry, traverse
+from fs_tool.core.traversal import SortBy, TraversalError, build_entry, traverse
 from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
@@ -107,6 +107,19 @@ def _resolve_format(
     if format_value == "auto":
         return "plain" if is_tty else "json"
     return format_value
+
+
+SORT_BY_CHOICES = ("name", "size", "modified", "extension")
+
+
+def _validate_sort_by(value: str) -> SortBy:
+    """Validate a ``--sort-by`` value and return it unchanged."""
+    if value not in SORT_BY_CHOICES:
+        raise FsToolError(
+            f"Invalid --sort-by value {value!r}; use name, size, modified or extension.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+    return cast(SortBy, value)
 
 
 def merge_globals(
@@ -237,6 +250,16 @@ def inspect_tree(
         "--ignore-pattern",
         help="Ignore names matching a pattern (repeatable).",
     ),
+    sort_by: str = typer.Option(
+        "name",
+        "--sort-by",
+        help="Sort entries by name, size, modified or extension.",
+    ),
+    no_default_ignore: bool = typer.Option(
+        False,
+        "--no-default-ignore",
+        help="Include directories from the default ignore list.",
+    ),
 ) -> int:
     """Display a directory tree (JSON by default, plain with --plain).
 
@@ -251,6 +274,8 @@ def inspect_tree(
         dirs_only=dirs_only,
         ignore_dirs=frozenset(ignore_dir),
         ignore_patterns=tuple(ignore_pattern),
+        sort_by=_validate_sort_by(sort_by),
+        use_default_ignores=not no_default_ignore,
     )
 
     if ctx.obj.output_format == "plain":
@@ -587,6 +612,16 @@ def inspect_inventory(
         help="Ignore names matching a pattern (repeatable).",
     ),
     dirs_only: bool = typer.Option(False, "--dirs-only", help="Directory entries only."),
+    sort_by: str = typer.Option(
+        "name",
+        "--sort-by",
+        help="Sort entries by name, size, modified or extension.",
+    ),
+    no_default_ignore: bool = typer.Option(
+        False,
+        "--no-default-ignore",
+        help="Include directories from the default ignore list.",
+    ),
 ) -> int:
     """Create a deterministic inventory of a directory tree.
 
@@ -601,6 +636,8 @@ def inspect_inventory(
         dirs_only=dirs_only,
         ignore_dirs=frozenset(ignore_dir),
         ignore_patterns=tuple(ignore_pattern),
+        sort_by=_validate_sort_by(sort_by),
+        use_default_ignores=not no_default_ignore,
     )
 
     full_entry_dicts: list[dict[str, Any]] = []
@@ -966,6 +1003,16 @@ def find_cmd(
         "--ignore-pattern",
         help="Ignore names matching a pattern (repeatable).",
     ),
+    sort_by: str = typer.Option(
+        "name",
+        "--sort-by",
+        help="Sort matches by name, size, modified or extension.",
+    ),
+    no_default_ignore: bool = typer.Option(
+        False,
+        "--no-default-ignore",
+        help="Include directories from the default ignore list.",
+    ),
 ) -> int:
     """Find filesystem entries matching filters.
 
@@ -1084,6 +1131,8 @@ def find_cmd(
         max_entries=max_entries,
         ignore_dirs=frozenset(ignore_dir),
         ignore_patterns=tuple(ignore_pattern),
+        sort_by=_validate_sort_by(sort_by),
+        use_default_ignores=not no_default_ignore,
     )
 
     entry_dicts = [find_entry_dict(entry, verbose=ctx.obj.verbose) for entry in matching]
@@ -1143,6 +1192,11 @@ def duplicates_cmd(
         "--ignore-pattern",
         help="Ignore names matching a pattern (repeatable).",
     ),
+    no_default_ignore: bool = typer.Option(
+        False,
+        "--no-default-ignore",
+        help="Include directories from the default ignore list.",
+    ),
 ) -> int:
     """Find files with identical content.
 
@@ -1182,6 +1236,7 @@ def duplicates_cmd(
         max_entries=max_entries,
         ignore_dirs=frozenset(ignore_dir),
         ignore_patterns=tuple(ignore_pattern),
+        use_default_ignores=not no_default_ignore,
     )
 
     groups = [
@@ -1249,6 +1304,11 @@ def compare_cmd(
         "--ignore-pattern",
         help="Ignore names matching a pattern (repeatable).",
     ),
+    no_default_ignore: bool = typer.Option(
+        False,
+        "--no-default-ignore",
+        help="Include directories from the default ignore list.",
+    ),
 ) -> int:
     """Compare two directory trees.
 
@@ -1268,6 +1328,7 @@ def compare_cmd(
         max_entries=max_entries,
         ignore_dirs=frozenset(ignore_dir),
         ignore_patterns=tuple(ignore_pattern),
+        use_default_ignores=not no_default_ignore,
     )
 
     result: dict[str, Any] = {

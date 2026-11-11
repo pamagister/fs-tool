@@ -160,3 +160,19 @@ def test_compare_subdirectory(tmp_path: Path) -> None:
     assert code == EXIT_SUCCESS
     nested_path = str(Path("sub") / "nested.txt")
     assert nested_path in data["result"]["identical"]
+
+
+def test_compare_no_default_ignore(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    _write(source / "a.txt", "same")
+    _write(destination / "a.txt", "same")
+    git_dir = source / ".git"
+    git_dir.mkdir()
+    _write(git_dir / "config", "only-in-source")
+    _, default = compare_json(source, destination)
+    assert ".git/config" not in default["result"]["missing"]
+    _, included = compare_json(source, destination, "--no-default-ignore")
+    assert ".git/config" in included["result"]["missing"]

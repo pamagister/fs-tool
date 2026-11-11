@@ -206,3 +206,16 @@ def test_tree_symlink_recorded_not_followed(tmp_path: Path) -> None:
         recorded = recorded[4:]
     assert recorded == str(target)
     assert not any(Path(e["rel_path"]).name == target.name for e in data["result"]["entries"])
+
+
+def test_tree_sort_by_size_and_no_default_ignore(tmp_path: Path) -> None:
+    (tmp_path / "small.txt").write_text("a")
+    (tmp_path / "large.txt").write_text("abcdef")
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("c")
+    code, data = tree_json(tmp_path, "--sort-by", "size", "--no-default-ignore")
+    assert code == EXIT_SUCCESS
+    names = names_of(data)
+    assert ".git" in names
+    assert names.index("small.txt") < names.index("large.txt")

@@ -48,6 +48,7 @@ def compare_trees(
     max_entries: int | None = None,
     ignore_dirs: frozenset[str] | None = None,
     ignore_patterns: tuple[str, ...] = (),
+    use_default_ignores: bool = True,
 ) -> ComparisonResult:
     """Compare ``source`` and ``destination`` directory trees.
 
@@ -60,6 +61,7 @@ def compare_trees(
         dirs_only=False,
         ignore_dirs=ignore_dirs,
         ignore_patterns=ignore_patterns,
+        use_default_ignores=use_default_ignores,
     )
     dest_result = traverse(
         destination,
@@ -67,6 +69,7 @@ def compare_trees(
         dirs_only=False,
         ignore_dirs=ignore_dirs,
         ignore_patterns=ignore_patterns,
+        use_default_ignores=use_default_ignores,
     )
 
     result = ComparisonResult()

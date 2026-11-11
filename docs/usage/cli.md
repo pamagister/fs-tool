@@ -100,10 +100,12 @@ fs-tool inspect tree SOURCE [OPTIONS]
 | `--dirs-only` | Include directory entries only. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--sort-by MODE` | Sort entries by `name` (default), `size`, `modified` or `extension`. |
+| `--no-default-ignore` | Include directories from the default ignore list. |
 
 The default ignore set includes `.git`, `.venv`, `__pycache__`, `.pytest_cache`, `.ruff_cache`,
-`.mypy_cache`, `node_modules`, `build`, `dist`, `.idea` and `.vscode`. Symlinks are recorded but not
-followed.
+`.mypy_cache`, `node_modules`, `build`, `dist`, `.idea` and `.vscode`. Use `--no-default-ignore` to
+disable it. Symlinks are recorded but never followed.
 
 JSON result fields: `root`, `entries`, `count`. Each entry contains `rel_path` and `type` by
 default; `--verbose` returns all fields described in
@@ -192,6 +194,8 @@ fs-tool inspect inventory SOURCE [OPTIONS]
 | `--dirs-only` | Include directory entries only. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--sort-by MODE` | Sort entries by `name` (default), `size`, `modified` or `extension`. |
+| `--no-default-ignore` | Include directories from the default ignore list. |
 
 Inventory entries are addressed by `rel_path` relative to the declared root and omit the absolute
 `path`, so an inventory can be compared across machines. JSON result fields: `root`, `entries`,
@@ -385,6 +389,8 @@ fs-tool find SOURCE [OPTIONS]
 | `--max-entries N` | Maximum number of entries to scan. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--sort-by MODE` | Sort matches by `name` (default), `size`, `modified` or `extension`. |
+| `--no-default-ignore` | Include directories from the default ignore list. |
 
 All specified filters are combined with logical AND. Sizes use binary multipliers (`K` = 1024,
 `M` = 1024², `G` = 1024³, `T` = 1024⁴). Timestamps use the format accepted by
@@ -409,6 +415,7 @@ fs-tool duplicates SOURCE [OPTIONS]
 | `--max-entries N` | Maximum number of entries to scan. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--no-default-ignore` | Include directories from the default ignore list. |
 
 Detection first groups files by size and then compares SHA-256 hashes. Hardlinks are tracked by
 `(st_dev, st_ino)` and are not reported as duplicates.
@@ -436,6 +443,7 @@ fs-tool compare SOURCE DESTINATION [OPTIONS]
 | `--max-entries N` | Maximum number of entries to scan per tree. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--no-default-ignore` | Include directories from the default ignore list. |
 
 Regular files are compared by SHA-256. Directories must exist in both trees. Symlinks are compared by
 their recorded target.
