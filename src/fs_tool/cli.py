@@ -98,9 +98,9 @@ def _resolve_format(
         return "json"
     if plain_output:
         return "plain"
-    if format_value not in ("auto", "json", "plain"):
+    if format_value not in ("auto", "json", "plain", "csv", "tsv"):
         raise FsToolError(
-            f"Unknown --format value {format_value!r}; use auto, json or plain.",
+            f"Unknown --format value {format_value!r}; use auto, json, plain, csv or tsv.",
             code=ErrorCode.INVALID_ARGUMENT,
         )
     if format_value == "auto":
@@ -119,6 +119,15 @@ def _validate_sort_by(value: str) -> SortBy:
             code=ErrorCode.INVALID_ARGUMENT,
         )
     return cast(SortBy, value)
+
+
+def _reject_tabular(ctx: typer.Context) -> None:
+    """Reject CSV/TSV output for commands that do not support it."""
+    if ctx.obj.output_format in ("csv", "tsv"):
+        raise FsToolError(
+            f"{ctx.obj.output_format.upper()} output is only supported by inspect inventory.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
 
 
 def merge_globals(
@@ -182,7 +191,9 @@ def _root(
     ),
     config: str | None = typer.Option(None, "--config", help="Path to TOML configuration file."),
     format_value: str = typer.Option(
-        "auto", "--format", help="Output format: auto, json or plain."
+        "auto",
+        "--format",
+        help="Output format: auto, json, plain, csv or tsv (csv/tsv inventory only).",
     ),
     json_output: bool = typer.Option(False, "--json", help="Explicitly request JSON output."),
     plain_output: bool = typer.Option(
@@ -190,8 +201,12 @@ def _root(
     ),
     verbose: bool = typer.Option(
         False,
-        "--verbose",
-        help="Include all available entry fields instead of the compact default.",
+        "-v",
+        "--verbose/--no-verbose",
+        help=(
+            "Include all available entry fields for entry collections "
+            "(tree, inventory, find). Other commands are unchanged."
+        ),
     ),
     version: bool = typer.Option(False, "--version", help="Show application version and exit."),
 ) -> None:
@@ -265,6 +280,7 @@ def inspect_tree(
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect tree /tmp``.
     """
+    _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
     result = traverse(
         root,
@@ -345,6 +361,7 @@ def inspect_info(
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect info /tmp/notes.txt``.
     """
+    _reject_tabular(ctx)
     del metadata  # retained as a compatibility flag; extraction is automatic
     root = validate_path(source, tuple(ctx.obj.allow_root))
     try:
@@ -427,6 +444,7 @@ def inspect_analyze(
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect analyze /tmp/source.py``.
     """
+    _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
     try:
@@ -868,6 +886,22 @@ def inspect_inventory(
     if tree_hash_value is not None:
         inventory["tree_hash"] = tree_hash_value
 
+    if ctx.obj.output_format in ("csv", "tsv"):
+        from fs_tool.output.tabular import render_inventory_tabular
+
+        delimiter = "\t" if ctx.obj.output_format == "tsv" else ","
+        typer.echo(render_inventory_tabular(inventory, delimiter=delimiter), nl=False)
+        if not result.complete:
+            print("fs-tool: error: scan incomplete", file=sys.stderr)
+        for warning in warnings_list:
+            print(f"fs-tool: warning: {warning.message} ({warning.path})", file=sys.stderr)
+        for error in result.errors:
+            print(
+                f"fs-tool: error: {error.message} ({error.path})",
+                file=sys.stderr,
+            )
+        return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
+
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_inventory
 
@@ -912,6 +946,7 @@ def inspect_read(
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect read /tmp/notes.txt``.
     """
+    _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
     try:
@@ -1034,6 +1069,7 @@ def capabilities_cmd(ctx: typer.Context) -> int:
 
     Example: ``fs-tool capabilities --plain``.
     """
+    _reject_tabular(ctx)
     from fs_tool.core.capabilities.report import capabilities_report
 
     report = capabilities_report()
@@ -1104,6 +1140,7 @@ def setup_cmd(
 
     Example: ``fs-tool setup yolo --plain``.
     """
+    _reject_tabular(ctx)
     from fs_tool.setup.service import SETUP_TARGET_NAMES, setup_report
 
     if all_targets and capability is not None:
@@ -1204,6 +1241,7 @@ def find_cmd(
 
     Example: ``fs-tool find ~/Documents --name "*.pdf" --plain``.
     """
+    _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
     type_enum: EntryType | None = None
@@ -1391,6 +1429,7 @@ def duplicates_cmd(
 
     Example: ``fs-tool duplicates ~/Archive --plain``.
     """
+    _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
     try:
@@ -1503,6 +1542,7 @@ def compare_cmd(
 
     Example: ``fs-tool compare ~/Docs ~/Docs_Backup --plain``.
     """
+    _reject_tabular(ctx)
     source_root = validate_path(source, tuple(ctx.obj.allow_root))
     dest_root = validate_path(destination, tuple(ctx.obj.allow_root))
 
@@ -1583,6 +1623,7 @@ def verify_inventory_cmd(
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain verify inventory inventory.json ~/Documents``.
     """
+    _reject_tabular(ctx)
     target_root = validate_path(target, tuple(ctx.obj.allow_root))
 
     try:
@@ -1684,6 +1725,7 @@ def verify_tree_cmd(
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool verify tree ~/Documents ~/Documents_New``.
     """
+    _reject_tabular(ctx)
     source_root = validate_path(source, tuple(ctx.obj.allow_root))
     dest_root = validate_path(destination, tuple(ctx.obj.allow_root))
 
@@ -1803,6 +1845,7 @@ def write_mkdir(
     parents: bool = typer.Option(False, "--parents", help="Create missing parent directories."),
 ) -> int:
     """Create a directory without overwriting existing entries."""
+    _reject_tabular(ctx)
     try:
         report = make_directory(
             destination,
@@ -1830,6 +1873,7 @@ def write_copy(
     ),
 ) -> int:
     """Copy files or directory trees without following symlinks implicitly."""
+    _reject_tabular(ctx)
     try:
         report = copy_path(
             source,
@@ -1858,6 +1902,7 @@ def write_move(
     ),
 ) -> int:
     """Move a filesystem entry without overwriting an existing destination."""
+    _reject_tabular(ctx)
     try:
         report = move_path(
             source,
@@ -1872,7 +1917,7 @@ def write_move(
     return _emit_write_report(ctx, report)
 
 
-_GLOBAL_FLAGS = frozenset({"--json", "--plain", "--verbose", "--version"})
+_GLOBAL_FLAGS = frozenset({"-v", "--json", "--plain", "--verbose", "--no-verbose", "--version"})
 _GLOBAL_VALUE_OPTIONS = frozenset({"--allow-root", "--config", "--format"})
 
 

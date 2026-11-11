@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import io
 import json
@@ -569,3 +570,119 @@ def test_inventory_progress_writes_to_stderr_only(
     assert data["result"]["count"] == 5
     assert "fs-tool: scan finished" in captured.err
     assert "fs-tool:" not in captured.out
+
+
+def test_inventory_short_verbose_flag(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "-v")
+    assert code == EXIT_SUCCESS
+    assert "mode" in data["result"]["entries"][0]
+
+
+def test_inventory_no_verbose_flag_overrides_verbose(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--verbose", "--no-verbose")
+    assert code == EXIT_SUCCESS
+    for entry in data["result"]["entries"]:
+        assert set(entry) == {"rel_path", "type", "extension", "size", "modified"}
+
+
+def test_inventory_csv_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--format",
+            "csv",
+            "inspect",
+            "inventory",
+            str(root),
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    rows = list(csv.DictReader(io.StringIO(capsys.readouterr().out)))
+    assert len(rows) == 5
+    assert rows[0]["rel_path"] == "alpha.txt"
+    assert rows[0]["type"] == "file"
+    assert rows[0]["extension"] == ".txt"
+
+
+def test_inventory_tsv_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--format",
+            "tsv",
+            "inspect",
+            "inventory",
+            str(root),
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    rows = list(csv.DictReader(io.StringIO(capsys.readouterr().out), delimiter="\t"))
+    assert len(rows) == 5
+    assert rows[0]["rel_path"] == "alpha.txt"
+
+
+def test_inventory_csv_respects_fields(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--format",
+            "csv",
+            "inspect",
+            "inventory",
+            str(root),
+            "--fields",
+            "rel_path,size",
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    rows = list(csv.DictReader(io.StringIO(capsys.readouterr().out)))
+    assert list(rows[0]) == ["rel_path", "size"]
+
+
+def test_inventory_csv_quotes_commas_in_filenames(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "a,b.txt").write_text("x")
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--format",
+            "csv",
+            "inspect",
+            "inventory",
+            str(root),
+        ]
+    )
+    assert code == EXIT_SUCCESS
+    rows = list(csv.DictReader(io.StringIO(capsys.readouterr().out)))
+    assert rows[0]["rel_path"] == "a,b.txt"
+
+
+def test_inventory_csv_rejected_for_other_commands(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _make_tree(tmp_path)
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--format",
+            "csv",
+            "inspect",
+            "tree",
+            str(root),
+        ]
+    )
+    assert code == EXIT_INVALID_ARGS
+    assert "only supported by inspect inventory" in capsys.readouterr().err

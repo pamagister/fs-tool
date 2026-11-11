@@ -1,7 +1,7 @@
 # Output formats
 
-fs-tool supports a machine-readable JSON interface and a human-oriented plain-text interface. Both
-describe the same results; only the presentation differs.
+fs-tool supports a machine-readable JSON interface, a human-oriented plain-text interface, and
+inventory-only CSV/TSV exports. Both describe the same results; only the presentation differs.
 
 ## Selecting a format
 
@@ -11,6 +11,8 @@ describe the same results; only the presentation differs.
 | `--plain` | Plain-text output. |
 | `--format json` | JSON output. |
 | `--format plain` | Plain-text output. |
+| `--format csv` | CSV output for `inspect inventory` only. |
+| `--format tsv` | TSV output for `inspect inventory` only. |
 | `--format auto` | Plain when stdout is a terminal, JSON otherwise. |
 
 `auto` is the default. Pipes, redirection and captured process output therefore receive JSON,
@@ -23,6 +25,11 @@ command:
 fs-tool --json inspect tree ~/Documents
 fs-tool inspect tree ~/Documents --json
 ```
+
+CSV and TSV are inventory-only. They emit a header row and one row per entry using the selected
+entry profile (compact by default, all non-path fields with `--verbose`, or exactly the requested
+fields with `--fields`). Errors and warnings go to stderr; other commands reject these formats with
+`INVALID_ARGUMENT` and exit code `2`.
 
 `--help` and `--version` are exceptions: they always print plain text.
 

@@ -264,16 +264,16 @@ The first row is a header. Values are escaped with the standard `csv` module. Er
 
 **Objective:** Make the CLI easier to use and ensure `--verbose` is consistently documented.
 
-- [ ] O1-W01: Add `csv` and `tsv` format handling for `inspect inventory`, including header, escaping and profile-aware columns.
-- [ ] O1-W02: Reject `csv` and `tsv` for all other commands with `INVALID_ARGUMENT` and exit code `2`.
-- [ ] O1-W03: Add tests for CSV/TSV output, quoting, commas in filenames, profile selection and error handling.
-- [ ] O2-W01: Add `-v` as a short form and `--no-verbose` as a negation to the global verbose option.
-- [ ] O2-W02: Update global-option hoisting so `-v` and `--no-verbose` work before and after the command.
-- [ ] O2-W03: Add tests for `-v`, `--no-verbose`, precedence and option positions.
-- [ ] O3-W01: Audit `duplicates`, `compare`, `verify`, `inspect info`, `inspect analyze`, `inspect read`, `capabilities` and `setup` for verbose behavior.
-- [ ] O3-W02: Expose only already-collected data in verbose mode; do not add filesystem access.
-- [ ] O3-W03: Update the `--verbose` help text to describe its effect on entry collections and its no-op behavior elsewhere.
-- [ ] O3-W04: Add tests proving verbose does not change output or trigger additional filesystem access for non-entry commands.
+- [x] O1-W01: Add `csv` and `tsv` format handling for `inspect inventory`, including header, escaping and profile-aware columns.
+- [x] O1-W02: Reject `csv` and `tsv` for all other commands with `INVALID_ARGUMENT` and exit code `2`.
+- [x] O1-W03: Add tests for CSV/TSV output, quoting, commas in filenames, profile selection and error handling.
+- [x] O2-W01: Add `-v` as a short form and `--no-verbose` as a negation to the global verbose option.
+- [x] O2-W02: Update global-option hoisting so `-v` and `--no-verbose` work before and after the command.
+- [x] O2-W03: Add tests for `-v`, `--no-verbose`, precedence and option positions.
+- [x] O3-W01: Audit `duplicates`, `compare`, `verify`, `inspect info`, `inspect analyze`, `inspect read`, `capabilities` and `setup` for verbose behavior.
+- [x] O3-W02: Expose only already-collected data in verbose mode; do not add filesystem access.
+- [x] O3-W03: Update the `--verbose` help text to describe its effect on entry collections and its no-op behavior elsewhere.
+- [x] O3-W04: Add tests proving verbose does not change output or trigger additional filesystem access for non-entry commands.
 
 **Acceptance criteria**
 

@@ -48,10 +48,11 @@ fs-tool inspect tree ~/Documents --plain
 | `--version` | Show the application version and exit. |
 | `--allow-root PATH` | Set an allowed root. Repeatable. Supplied values replace the default home and CWD roots. |
 | `--config PATH` | Path to a TOML configuration file. |
-| `--format auto\|json\|plain` | Select the output format. Default: `auto`. |
+| `--format auto\|json\|plain\|csv\|tsv` | Select the output format. Default: `auto`. `csv` and `tsv` are supported by `inspect inventory` only. |
 | `--json` | Explicitly request JSON output. |
 | `--plain` | Human-readable output instead of JSON. |
-| `--verbose` | Return the complete existing entry fields instead of the compact default profile. |
+| `--verbose`, `-v` | Return the complete existing entry fields instead of the compact default profile. |
+| `--no-verbose` | Force the compact profile and override an earlier `--verbose` or `-v`. |
 | `--install-completion` | Install shell completion for the current shell. |
 | `--show-completion` | Print the completion script for the current shell. |
 
@@ -59,14 +60,20 @@ fs-tool inspect tree ~/Documents --plain
 stdout is a terminal and JSON otherwise (for pipes, redirection and agents).
 
 Commands that return filesystem entries default to a compact per-command profile. `--verbose`
-restores the complete entry fields. `--verbose` works independently of the output format and never
-triggers extra filesystem analysis, metadata extraction or hashing:
+(or `-v`) restores the complete entry fields. `--no-verbose` forces the compact profile. Both work
+independently of the output format and never trigger extra filesystem analysis, metadata extraction
+or hashing:
 
 ```bash
 fs-tool --verbose inspect inventory ~/Documents
+fs-tool -v inspect inventory ~/Documents
 fs-tool inspect inventory ~/Documents --verbose
+fs-tool inspect inventory ~/Documents --no-verbose
 fs-tool --plain --verbose find ~/Documents --extension pdf
 ```
+
+`--verbose` affects `inspect tree`, `inspect inventory` and `find`. Other commands keep their
+existing output because they do not expose additional entry fields without extra filesystem work.
 
 See [Output formats](output.md) for the JSON envelope and [Configuration](configuration.md) for the
 configuration file.

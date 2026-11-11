@@ -263,3 +263,32 @@ def test_incomplete_scans_keep_their_semantics(
         assert data["complete"] is False
         assert data["errors"]
         assert data["schema_version"] == 1
+
+
+def test_verbose_does_not_change_duplicates(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    _, plain = run_json(_argv(root, ["duplicates"]))
+    _, verbose = run_json(_argv(root, ["duplicates", "--verbose"]))
+    assert plain == verbose
+
+
+def test_verbose_does_not_change_compare(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "alpha.txt").write_text("alpha")
+    argv = ["--allow-root", str(tmp_path), "compare", str(root), str(other)]
+    _, plain = run_json(argv)
+    _, verbose = run_json([*argv, "--verbose"])
+    assert plain == verbose
+
+
+def test_verbose_does_not_change_verify_tree(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "alpha.txt").write_text("alpha")
+    argv = ["--allow-root", str(tmp_path), "verify", "tree", str(root), str(other)]
+    _, plain = run_json(argv)
+    _, verbose = run_json([*argv, "--verbose"])
+    assert plain == verbose
