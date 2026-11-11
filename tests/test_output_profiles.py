@@ -194,13 +194,30 @@ def test_compact_inventory_skips_symlink_target_comparison(tmp_path: Path) -> No
 def test_verbose_option_positions_match_for_json_and_plain(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
 
+    def normalize_json(text: str) -> dict:
+        data = json.loads(text)
+        for entry in data["result"]["entries"]:
+            # Access timestamps can change between two scans of the same tree.
+            entry.pop("accessed", None)
+            entry.pop("changed", None)
+        return data
+
+    def normalize_plain(text: str) -> str:
+        volatile = ("accessed:", "changed:")
+        return "\n".join(
+            line for line in text.splitlines() if not line.strip().startswith(volatile)
+        )
+
     def compare(command: list[str], *extra: str) -> None:
         before = ["--allow-root", str(root), "--verbose", *command, str(root), *extra]
         after = ["--allow-root", str(root), *command, str(root), *extra, "--verbose"]
         before_code, before_output = run_text(before)
         after_code, after_output = run_text(after)
         assert before_code == after_code == EXIT_SUCCESS
-        assert before_output == after_output
+        if "--json" in extra:
+            assert normalize_json(before_output) == normalize_json(after_output)
+        else:
+            assert normalize_plain(before_output) == normalize_plain(after_output)
 
     compare(["inspect", "tree"], "--json")
     compare(["inspect", "tree"], "--plain")
