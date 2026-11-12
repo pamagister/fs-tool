@@ -295,7 +295,7 @@ files by content, not only by filename and metadata.
 
 **Phase gate:** Content extraction is bounded and safe before it is used in the integration test.
 
-## Phase 5: Validation, Documentation and Quality Assurance [-]
+## Phase 5: Validation, Documentation and Quality Assurance [x]
 
 **Objective:** Close the remaining correctness/documentation gaps and prove the complete workflow.
 
@@ -417,3 +417,11 @@ a hidden delete fallback.
 - Commit: `9ffdff9`; pushed to `origin/main`.
 - CI run `43277241395` passed for the phase implementation.
 - Next: Phase 5, validation, documentation defect fixes, integration QA and quality gates.
+
+### 2026-11-12 - Phase 5 / Mission complete
+
+- Completed P5-W01 through P5-W06: non-negative bounds, documentation corrections, integration test, wheel/docs builds and stale packaging cleanup.
+- Commit: `faf84d1`; pushed to `origin/main`.
+- CI run `43278697055` passed for the phase implementation.
+- Local gates: `make lint`, `make test` (501 passed), `make precommit`, `make build`, and `make docs` all passed.
+- All five phases are implemented, committed, pushed and green on CI.
