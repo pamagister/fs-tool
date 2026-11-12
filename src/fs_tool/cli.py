@@ -796,8 +796,23 @@ def inspect_inventory(
         print(f"fs-tool: scan finished: {len(result.entries)} entries", file=sys.stderr)
 
     warnings_list: list[Warning] = []
+    selected_entries: list[FilesystemEntry] = []
+    filtered = 0
+    for entry in result.entries:
+        if _inventory_entry_matches(
+            entry,
+            extension=extension,
+            min_size=min_size_value,
+            max_size=max_size_value,
+        ):
+            selected_entries.append(entry)
+        else:
+            filtered += 1
+
+    # Filters define the inventory scope. Hashing and tree_hash therefore see
+    # only the selected entries; filtered files are never opened.
     digests: list[str | None] = []
-    for index, entry in enumerate(result.entries, start=1):
+    for index, entry in enumerate(selected_entries, start=1):
         digest: str | None = None
         if hash_files and entry.type is EntryType.FILE:
             if max_hash_bytes_value is not None and (entry.size or 0) > max_hash_bytes_value:
@@ -826,18 +841,7 @@ def inspect_inventory(
         if progress and index % 1000 == 0:
             print(f"fs-tool: hashed {index} files", file=sys.stderr)
 
-    selected: list[tuple[FilesystemEntry, str | None]] = []
-    filtered = 0
-    for entry, digest in zip(result.entries, digests):
-        if _inventory_entry_matches(
-            entry,
-            extension=extension,
-            min_size=min_size_value,
-            max_size=max_size_value,
-        ):
-            selected.append((entry, digest))
-        else:
-            filtered += 1
+    selected: list[tuple[FilesystemEntry, str | None]] = list(zip(selected_entries, digests))
 
     verbose = ctx.obj.verbose and requested_fields is None
     entry_dicts = [

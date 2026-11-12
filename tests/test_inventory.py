@@ -493,6 +493,41 @@ def test_inventory_max_size_filter(tmp_path: Path) -> None:
     assert data["result"]["filtered"] == 3
 
 
+def test_inventory_filters_run_before_hashing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _make_tree(tmp_path)
+    import fs_tool.cli as cli_module
+
+    hashed: list[str] = []
+
+    def tracking_hash(path: Path) -> str:
+        hashed.append(str(path))
+        return "0" * 64
+
+    monkeypatch.setattr(cli_module, "sha256_of_file", tracking_hash)
+    code, data = inventory_json(root, "--extension", "txt", "--hash")
+
+    assert code == EXIT_SUCCESS
+    assert not any(path.endswith("delta.log") for path in hashed)
+    assert all(Path(path).suffix == ".txt" for path in hashed)
+    assert data["result"]["filtered"] == 1
+
+
+def test_inventory_filters_define_tree_hash_scope(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--extension", "txt", "--tree-hash")
+
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["count"] == 4
+    assert result["filtered"] == 1
+    assert result["tree_hash"] == _compute_tree_hash(result["entries"])
+    assert result["tree_hash"] != _compute_tree_hash(
+        [entry for entry in result["entries"] if entry["rel_path"] != "alpha.txt"]
+    )
+
+
 def test_inventory_invalid_size_filter(tmp_path: Path) -> None:
     root = _make_tree(tmp_path)
     code, data = inventory_json(root, "--min-size", "bogus")
