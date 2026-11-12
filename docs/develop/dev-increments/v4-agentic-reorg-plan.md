@@ -193,7 +193,7 @@ content preservation across renames.
   files and symlink targets, including the additive result fields.
 - [x] P1-W04: Add tests for pure renames, changed content, missing/extra content, duplicate content,
   empty files, hardlinks, missing hashes and incomplete inventories.
-- [ ] P1-W05: Update `docs/usage/cli.md`, `docs/usage/output.md` and
+- [x] P1-W05: Update `docs/usage/cli.md`, `docs/usage/output.md` and
   `docs/usage/examples.md` for filter order and content-set verification.
 
 **Acceptance criteria**

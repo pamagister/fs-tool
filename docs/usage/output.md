@@ -243,13 +243,20 @@ with `analyses: []`.
 | `find` | `root`, `entries`, `count`, `complete` |
 | `duplicates` | `root`, `duplicate_groups`, `duplicate_group_count`, `duplicate_file_count`, `complete` |
 | `compare` | `source`, `destination`, `identical`, `missing`, `changed`, `unexpected`, `type_conflicts`, `unsupported`, `complete` |
-| `verify inventory` | `inventory_file`, `target`, `missing`, `unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete` |
+| `verify inventory` | `inventory_file`, `target`, `match_mode`, `missing`, `unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete`; content mode adds `missing_content`, `unexpected_content`, `content_count_mismatch` |
 | `verify tree` | `source`, `destination`, `missing`, `unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete` |
 | `write mkdir` | `operation`, `source`, `destination`, `dry_run`, `executed`, `affected`, `skipped`, `created`, `sha256`, `verified`, `complete` |
 | `write copy` | Operation report with `affected`, `skipped`, `sha256` and `verified` |
 | `write move` | Operation report with `affected` and `verified` |
 
 `duplicate_groups` contains objects with `sha256`, `size`, `count` and `files`.
+
+`verify inventory --match content` adds three fields: `missing_content`, `unexpected_content` and
+`content_count_mismatch`. Each content item is an object with `type`, `count` and `paths`. File items
+also include `size` and `sha256`; symlink items include `target`. The multiset uses file
+`(size, sha256)` pairs and symlink target strings, so relative paths can change freely while content
+must remain equal. `content_count_mismatch` is true when the total number of content items differs.
+Content items are only present in content mode; path-mode fields stay unchanged.
 
 ## Plain-text output
 

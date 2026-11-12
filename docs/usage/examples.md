@@ -108,6 +108,15 @@ Verify the directory later:
 fs-tool verify inventory inventory.json ~/Projects/fs-tool --plain
 ```
 
+Verify a reorganized tree by content so renames and moves do not look like data loss. The inventory
+must have been created with `--hash`; use `--verbose` as well when the tree contains symlinks:
+
+```bash
+fs-tool inspect inventory ~/Projects/before --hash --verbose > before.json
+# reorganize the tree
+fs-tool verify inventory before.json ~/Projects/after --match content --plain
+```
+
 A successful verification exits with code 0. Differences exit with code 1. An incomplete scan exits
 with code 5.
 

@@ -219,10 +219,11 @@ added only with `--hash`. `--verbose` returns every remaining entry field, still
 absolute `path`. Plain output uses the same compact fields on each entry line, so JSON and plain
 default output expose the same inventory information.
 
-Filters (`--extension`, `--min-size`, `--max-size`) are applied after traversal and before hashing
-and `tree_hash`. Directories and symlinks are always retained; extension and size filters apply to
-regular files. `filtered` is included when filters remove entries. `skipped` counts traversal-level
-ignores and `truncated` is true when `--max-entries` stopped the scan.
+Filters (`--extension`, `--min-size`, `--max-size`) are applied after traversal and before any file is
+opened for hashing or included in `tree_hash`. Directories and symlinks are always retained;
+extension and size filters apply to regular files. `filtered` is included when filters remove
+entries. `skipped` counts traversal-level ignores and `truncated` is true when `--max-entries` stopped
+the scan.
 
 `--fields` overrides both the compact and verbose profiles. It does not change `tree_hash`.
 `--max-hash-bytes` skips hashing for larger files, keeps `sha256: null`, and adds a `HASH_SKIPPED`
@@ -495,21 +496,39 @@ fs-tool verify inventory INVENTORY_FILE TARGET [OPTIONS]
 | `--max-entries N` | Maximum number of entries to scan. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--match MODE` | Compare by `path` (default) or by `content`. |
 
 The inventory may be either the full JSON envelope produced by `inspect inventory` or a bare
 inventory object. The `schema_version` must be `1`; the inventory must contain `rel_path` and `type`
 for every entry. Inventories produced from an incomplete scan make the verification incomplete.
 
-`size`, `target` and `sha256` are compared only when the inventory contains them. The compact
-default profile keeps `size`, so size mismatches are detected. It omits `target`, so symlink-target
-changes are skipped; generate the inventory with `--verbose` or `--hash` when target or content
-comparison is required.
+Path mode is the default and preserves the original behavior: entries are matched by relative path.
+`size`, `target` and `sha256` are compared only when the inventory contains them. The compact default
+profile keeps `size`, so size mismatches are detected. It omits `target`, so symlink-target changes
+are skipped; generate the inventory with `--verbose` or `--hash` when target or content comparison is
+required.
 
-JSON result fields: `inventory_file`, `target`, `missing`, `unexpected`, `changed`, `size_mismatch`,
-`hash_mismatch`, `complete`. Size and hash mismatches are also listed under `changed`.
+Content mode ignores relative paths and compares the content multiset of the inventory with the
+target. Regular files are represented by `(size, sha256)` pairs; symbolic links are represented by
+their target string. Directories and other entry types are ignored because their metadata is not
+content. Duplicate content is compared by multiplicity, so removing one of two identical files is
+reported. This mode succeeds for pure renames and moves when file content is unchanged.
+
+Content mode requires every inventory file entry to have a `sha256` value (generate the inventory
+with `--hash`) and every symlink entry to have a `target` value (generate it with `--verbose` or
+`--verbose --hash`). Otherwise the command exits with code 2. `content_count_mismatch` is true when
+the total number of content items differs between inventory and target; changed or missing content is
+reported in `missing_content` and `unexpected_content`.
+
+JSON result fields: `inventory_file`, `target`, `match_mode`, `missing`, `unexpected`, `changed`,
+`size_mismatch`, `hash_mismatch`, `complete`. Content mode adds `missing_content`,
+`unexpected_content` and `content_count_mismatch`. Size and hash mismatches are also listed under
+`changed` in path mode. Each content item contains `type`, `count` and `paths`; file items also
+contain `size` and `sha256`, and symlink items contain `target`.
 
 A verification succeeds only when it is complete and reports no missing, unexpected or changed
-entries. Otherwise it exits with code 1; an incomplete verification exits with code 5.
+entries (path mode) or no content differences (content mode). Otherwise it exits with code 1; an
+incomplete verification exits with code 5.
 
 ## `verify tree`
 
