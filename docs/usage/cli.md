@@ -26,6 +26,7 @@ fs-tool
 │   ├── inventory
 │   └── tree
 └── write
+    ├── apply
     ├── mkdir
     ├── copy
     ├── move
@@ -560,6 +561,62 @@ All write commands require exactly one of `--dry-run` or `--yes`:
 
 Every write operation validates all paths against the allowed roots, never overwrites an existing
 destination, and returns a structured operation report. Existing data is never deleted.
+
+### `write apply`
+
+Execute a declarative multi-step plan.
+
+```bash
+fs-tool write apply PLAN_FILE (--dry-run | --yes) [--on-error stop|continue]
+```
+
+| Option | Description |
+|---|---|
+| `--dry-run` | Simulate the complete plan without changing the filesystem. |
+| `--yes` | Authorize sequential execution. |
+| `--on-error MODE` | Execution failure policy: `stop` (default) or `continue`. |
+
+The plan file is JSON with `plan_version: 1` and a non-empty `operations` list. Relative paths are
+resolved against the current working directory. Unknown operations, unknown fields, invalid option
+types, unsupported plan versions and duplicate resolved destinations are rejected.
+
+```json
+{
+  "plan_version": 1,
+  "operations": [
+    {"op": "mkdir", "destination": "archive/2026", "parents": true},
+    {"op": "move", "source": "inbox/report.pdf", "destination": "archive/2026"},
+    {"op": "copy", "source": "notes.txt", "destination": "archive/2026", "symlinks": "skip"},
+    {"op": "rmdir", "destination": "inbox/empty", "parents": false}
+  ]
+}
+```
+
+| Operation | Fields |
+|---|---|
+| `mkdir` | `destination`, optional `parents` (default `false`). |
+| `move` | `source`, `destination`, optional `parents` (default `false`) and `allow_rename` (default `false`). |
+| `copy` | `source`, `destination`, optional `parents` (default `false`) and `symlinks` (`error`, `copy` or `skip`; default `error`). |
+| `rmdir` | `destination`, optional `parents` (default `false`). |
+
+Preflight simulates the entire plan in memory. Planned `mkdir` directories become visible to later
+operations, planned moves remove their source subtree, planned copies reserve their destination
+subtree, and planned `rmdir` operations remove only empty virtual directories. Conflicts, missing
+parents, existing destinations, cross-device moves, directory cycles and symlink escapes are detected
+before the first write.
+
+`write apply --yes` first runs the same preflight. If preflight fails, nothing is written. If it
+succeeds, operations run in plan order. The default `--on-error stop` stops at the first runtime
+failure and marks later operations `pending`. `--on-error continue` attempts later operations even
+after a failure; operations that depend on the failed result will normally fail as well. There is no
+automatic rollback: each operation reports its own status and affected paths so the caller can decide
+how to recover.
+
+JSON result fields: `plan_version`, `dry_run`, `executed`, `would_succeed`, `operations`,
+`completed`, `failed`, `pending`, `complete`. Each operation contains `index`, `status` (`planned`,
+`completed`, `failed` or `pending`), `op`, `source`, `destination`, `affected`,
+`created_directories`, `removed` and, for failures, an `error` object. A successful dry-run sets
+`would_succeed: true`; execution succeeds only when every operation completes.
 
 ### `write mkdir`
 

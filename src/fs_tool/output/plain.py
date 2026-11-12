@@ -313,6 +313,30 @@ def render_compare(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def render_apply(result: dict[str, Any]) -> str:
+    """Render a write-plan dry-run or execution report."""
+    mode = "planned" if result.get("dry_run") else "executed"
+    lines = [
+        f"apply: {mode}",
+        f"would_succeed: {str(bool(result.get('would_succeed'))).lower()}",
+        f"complete: {str(bool(result.get('complete'))).lower()}",
+    ]
+    for operation in result.get("operations", []):
+        status = operation.get("status", "unknown")
+        lines.append(
+            f"  {operation.get('index')}. [{status}] {operation.get('op')} "
+            f"{operation.get('destination')}"
+        )
+        if operation.get("source") is not None:
+            lines.append(f"     source: {operation['source']}")
+        for path in operation.get("affected", []):
+            lines.append(f"     {path}")
+        error = operation.get("error")
+        if error:
+            lines.append(f"     error: {error.get('code')}: {error.get('message')}")
+    return "\n".join(lines)
+
+
 def render_verify(result: dict[str, Any]) -> str:
     """Render verification results as plain-text lines."""
     lines: list[str] = []

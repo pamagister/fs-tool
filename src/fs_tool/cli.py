@@ -32,6 +32,7 @@ from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
+from fs_tool.operations.plan import PlanResult, apply_plan
 from fs_tool.operations.rmdir import remove_directory
 from fs_tool.output.entries import (
     INVENTORY_COMPACT_FIELDS,
@@ -1870,6 +1871,65 @@ def _emit_write_error(ctx: typer.Context, command: str, error: FsToolError) -> i
         )
         typer.echo(envelope.to_json())
     return error.exit_code
+
+
+def _emit_apply_report(ctx: typer.Context, result: PlanResult) -> int:
+    """Emit a plan dry-run or execution report."""
+    payload = result.to_dict()
+    if ctx.obj.output_format == "plain":
+        from fs_tool.output.plain import render_apply
+
+        typer.echo(render_apply(payload))
+    else:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=result.would_succeed and result.complete,
+            command="write.apply",
+            result=payload,
+            complete=result.complete,
+        )
+        typer.echo(envelope.to_json())
+
+    if any(item["status"] == "failed" for item in result.operations):
+        return EXIT_FAILURE
+    if not result.complete:
+        return EXIT_INCOMPLETE
+    if not result.would_succeed:
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
+
+
+@write_group.command(name="apply")
+def write_apply(
+    ctx: typer.Context,
+    plan_file: Path = typer.Argument(..., help="JSON write plan file."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate the complete plan only."),
+    yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
+    on_error: str = typer.Option(
+        "stop",
+        "--on-error",
+        help="Execution failure policy: stop or continue.",
+    ),
+) -> int:
+    """Apply a declarative multi-step write plan.
+
+    The plan must contain ``plan_version: 1`` and an ``operations`` list with
+    ``mkdir``, ``move``, ``copy`` and ``rmdir`` entries. Preflight simulates
+    the complete plan in memory before any filesystem change. Execution is
+    sequential and never overwrites an existing destination.
+    """
+    _reject_tabular(ctx)
+    try:
+        result = apply_plan(
+            plan_file,
+            allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            dry_run=dry_run,
+            yes=yes,
+            on_error=on_error,
+        )
+    except FsToolError as exc:
+        return _emit_write_error(ctx, "write.apply", exc)
+    return _emit_apply_report(ctx, result)
 
 
 @write_group.command(name="mkdir")

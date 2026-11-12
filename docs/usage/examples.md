@@ -147,6 +147,28 @@ fs-tool duplicates ~/Pictures --json \
 
 ## Safe write operations
 
+Apply a multi-step reorganization plan. Preflight first, then execute only after reviewing the
+planned operations:
+
+```bash
+cat > reorganize.json <<'JSON'
+{
+  "plan_version": 1,
+  "operations": [
+    {"op": "mkdir", "destination": "archive/2026", "parents": true},
+    {"op": "move", "source": "inbox/report.pdf", "destination": "archive/2026"},
+    {"op": "rmdir", "destination": "inbox/empty", "parents": true}
+  ]
+}
+JSON
+
+fs-tool write apply reorganize.json --dry-run --plain
+fs-tool write apply reorganize.json --yes --plain
+```
+
+A failed operation stops the plan by default. Use `--on-error continue` to attempt later
+operations; there is no automatic rollback.
+
 Preview a copy first:
 
 ```bash

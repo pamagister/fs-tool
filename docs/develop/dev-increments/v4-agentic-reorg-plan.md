@@ -237,21 +237,21 @@ copies, and add safe empty-directory cleanup.
 
 **Phase gate:** Individual write ergonomics are stable before the multi-step plan is added.
 
-## Phase 3: Multi-Step Write Plan Execution
+## Phase 3: Multi-Step Write Plan Execution [-]
 
 **Objective:** Add `write apply` with plan-level dry-run, preflight and sequential execution.
 
-- [ ] P3-W01: Define the `plan_version: 1` JSON schema and validation rules for `mkdir`, `move`,
+- [x] P3-W01: Define the `plan_version: 1` JSON schema and validation rules for `mkdir`, `move`,
   `copy` and `rmdir`.
-- [ ] P3-W02: Implement the in-memory preflight simulator, including planned directory creation,
+- [x] P3-W02: Implement the in-memory preflight simulator, including planned directory creation,
   destination reservation, conflict detection, cross-device detection and directory-cycle checks.
-- [ ] P3-W03: Implement `write apply --dry-run` with per-operation status, affected paths and an
+- [x] P3-W03: Implement `write apply --dry-run` with per-operation status, affected paths and an
   overall `would_succeed` result.
-- [ ] P3-W04: Implement `write apply --yes` with sequential execution, `--on-error stop|continue`,
+- [x] P3-W04: Implement `write apply --yes` with sequential execution, `--on-error stop|continue`,
   per-operation reporting and no automatic rollback.
-- [ ] P3-W05: Add tests for dry-run purity, planned-mkdir-then-move, conflict detection, execution
+- [x] P3-W05: Add tests for dry-run purity, planned-mkdir-then-move, conflict detection, execution
   order, failure handling, idempotent reruns, allowed roots and malformed plans.
-- [ ] P3-W06: Document the plan schema, dry-run behavior, execution semantics, failure behavior and
+- [x] P3-W06: Document the plan schema, dry-run behavior, execution semantics, failure behavior and
   limitations in `docs/usage/cli.md` and `docs/usage/examples.md`.
 
 **Acceptance criteria**

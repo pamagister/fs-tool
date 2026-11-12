@@ -46,7 +46,9 @@ src/fs_tool/
 │   ├── common.py          OperationReport and shared validation
 │   ├── copy.py            No-overwrite file and tree copying
 │   ├── mkdir.py           Directory creation
-│   └── move.py            No-overwrite moves and renames
+│   ├── move.py            No-overwrite moves and renames
+│   ├── plan.py            Declarative multi-step write plans
+│   └── rmdir.py           Empty-directory removal
 ├── output/
 │   ├── json.py            JSON envelope
 │   ├── entries.py         Per-command compact entry profiles
@@ -265,6 +267,11 @@ The `operations` package performs filesystem modifications. Every operation:
 3. preflights all conflicts before writing,
 4. never overwrites an existing destination and never deletes data,
 5. returns an `OperationReport`.
+
+`plan.py` adds declarative multi-step plans. It validates `plan_version: 1` operations, simulates
+the complete plan in memory, and then executes the validated operations sequentially through the
+same primitives. Plan execution has no automatic rollback; per-operation status and affected paths
+are reported instead.
 
 ### Output
 
