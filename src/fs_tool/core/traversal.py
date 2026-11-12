@@ -177,6 +177,16 @@ def traverse(
             f"Unsupported sort_by value {sort_by!r}; use name, size, modified or extension",
             code=ErrorCode.INVALID_ARGUMENT,
         )
+    if max_depth is not None and max_depth < 0:
+        raise FsToolError(
+            "--max-depth must be a non-negative integer.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+    if max_entries is not None and max_entries < 0:
+        raise FsToolError(
+            "--max-entries must be a non-negative integer.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
 
     root_path = normalize_path(root)
     ignored = set(DEFAULT_IGNORE_DIRS) if use_default_ignores else set()
@@ -244,6 +254,8 @@ def traverse(
     def walk(directory: Path, depth: int) -> None:
         """Walk ``directory``; ``depth`` is the level of its entries
         relative to ``root`` (root's direct entries have depth 1)."""
+        if max_depth is not None and max_depth < 1:
+            return
         if max_entries is not None and len(result.entries) >= max_entries:
             result.complete = False
             result.truncated = True

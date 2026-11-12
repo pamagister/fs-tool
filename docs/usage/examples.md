@@ -337,7 +337,7 @@ fs-tool --allow-root /mnt/nas inspect tree /mnt/nas --max-depth 2 --plain
 The same applies to write destinations:
 
 ```bash
-fs-tool --allow-root /mnt/nas write copy ~/Projects/site /mnt/nas/site --dry-run
+fs-tool --allow-root ~/Projects --allow-root /mnt/nas write copy ~/Projects/site /mnt/nas/site --dry-run
 ```
 
 See [Safety model](safety.md) for the full access rules.

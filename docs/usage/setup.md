@@ -89,7 +89,7 @@ Each capability result carries a stable `id`, a concise `message`, a `help` refe
           {
             "kind": "external_resource",
             "name": "yolo26n.onnx",
-            "expected_path": "~/.local/share/fs-tool/models/yolo26n.onnx",
+            "expected_path": "/home/user/.local/share/fs-tool/models/yolo26n.onnx",
             "available": false
           }
         ],
@@ -103,9 +103,9 @@ Each capability result carries a stable `id`, a concise `message`, a `help` refe
         }
       }
     ],
-    "count": 9,
-    "available_count": 5,
-    "model_directory": "~/.local/share/fs-tool/models/"
+    "count": 12,
+    "available_count": 11,
+    "model_directory": "/home/user/.local/share/fs-tool/models"
   },
   "errors": [],
   "warnings": [],

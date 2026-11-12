@@ -295,24 +295,24 @@ files by content, not only by filename and metadata.
 
 **Phase gate:** Content extraction is bounded and safe before it is used in the integration test.
 
-## Phase 5: Validation, Documentation and Quality Assurance
+## Phase 5: Validation, Documentation and Quality Assurance [-]
 
 **Objective:** Close the remaining correctness/documentation gaps and prove the complete workflow.
 
-- [ ] P5-W01: Validate `--max-depth` and `--max-entries` as non-negative integers; reject negative
+- [x] P5-W01: Validate `--max-depth` and `--max-entries` as non-negative integers; reject negative
   values with exit code 2. Define `--max-depth 0` and `--max-entries 0` behavior and test it.
-- [ ] P5-W02: Fix documentation defects: capability counts, `model_directory`, the `--allow-root`
+- [x] P5-W02: Fix documentation defects: capability counts, `model_directory`, the `--allow-root`
   write example, the safety atomicity wording, the architecture package layout and the output
   envelope wording.
-- [ ] P5-W03: Add CLI reference entries and examples for `write apply`, `write rmdir`,
+- [x] P5-W03: Add CLI reference entries and examples for `write apply`, `write rmdir`,
   `verify inventory --match content`, `--parents`, and ODF/OOXML text extraction.
-- [ ] P5-W04: Add an integration test that copies `res/example_filesystem_unstructured` to a
+- [x] P5-W04: Add an integration test that copies `res/example_filesystem_unstructured` to a
   temporary directory, applies a plan with `mkdir`, `move` and `rmdir`, runs
   `verify inventory --match content`, and asserts that the file hash multiset is unchanged and no
   unexpected content exists.
-- [ ] P5-W05: Run `make lint`, `make test`, `make precommit` and `make build`; verify the wheel and
+- [x] P5-W05: Run `make lint`, `make test`, `make precommit` and `make build`; verify the wheel and
   documentation build.
-- [ ] P5-W06: Remove the stale `docs/develop/initial-release` data-files entry from
+- [x] P5-W06: Remove the stale `docs/develop/initial-release` data-files entry from
   `pyproject.toml` and verify that the package data matches the current documentation layout.
 
 **Acceptance criteria**

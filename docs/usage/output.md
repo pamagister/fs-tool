@@ -68,7 +68,9 @@ analysis report, so neither command has a compact profile; their output is uncha
 
 ## JSON envelope
 
-Every command except `--help` and `--version` returns one JSON object on stdout:
+Every command returns one JSON object on stdout when the effective output format is JSON. Plain
+output, `--help`, `--version`, CSV/TSV exports and Click usage errors are exceptions to this
+envelope:
 
 ```json
 {

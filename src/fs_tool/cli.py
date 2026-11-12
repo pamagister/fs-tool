@@ -251,9 +251,11 @@ for group in (inspect_group, verify_group, write_group):
 def inspect_tree(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="Directory to traverse."),
-    max_depth: int | None = typer.Option(None, "--max-depth", help="Maximum recursion depth."),
+    max_depth: int | None = typer.Option(
+        None, "--max-depth", min=0, help="Maximum recursion depth."
+    ),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries."
+        None, "--max-entries", min=0, help="Maximum number of entries."
     ),
     dirs_only: bool = typer.Option(False, "--dirs-only", help="Directory entries only."),
     ignore_dir: list[str] = typer.Option(
@@ -666,9 +668,11 @@ def inspect_inventory(
         "--tree-hash",
         help="Calculate aggregate tree hash (complete scans only).",
     ),
-    max_depth: int | None = typer.Option(None, "--max-depth", help="Maximum recursion depth."),
+    max_depth: int | None = typer.Option(
+        None, "--max-depth", min=0, help="Maximum recursion depth."
+    ),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries."
+        None, "--max-entries", min=0, help="Maximum number of entries."
     ),
     ignore_dir: list[str] = typer.Option(
         [],
@@ -1218,9 +1222,11 @@ def find_cmd(
     modified_before: str | None = typer.Option(
         None, "--modified-before", help="Entries modified at or before this ISO-8601 timestamp."
     ),
-    max_depth: int | None = typer.Option(None, "--max-depth", help="Maximum recursion depth."),
+    max_depth: int | None = typer.Option(
+        None, "--max-depth", min=0, help="Maximum recursion depth."
+    ),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries to scan."
+        None, "--max-entries", min=0, help="Maximum number of entries to scan."
     ),
     ignore_dir: list[str] = typer.Option(
         [],
@@ -1410,7 +1416,7 @@ def duplicates_cmd(
         False, "--include-empty", help="Include empty files in duplicate detection."
     ),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries to scan."
+        None, "--max-entries", min=0, help="Maximum number of entries to scan."
     ),
     ignore_dir: list[str] = typer.Option(
         [],
@@ -1523,7 +1529,7 @@ def compare_cmd(
     source: Path = typer.Argument(..., help="Source directory to compare."),
     destination: Path = typer.Argument(..., help="Destination directory to compare."),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries to scan per tree."
+        None, "--max-entries", min=0, help="Maximum number of entries to scan per tree."
     ),
     ignore_dir: list[str] = typer.Option(
         [],
@@ -1608,7 +1614,7 @@ def verify_inventory_cmd(
     inventory_file: Path = typer.Argument(..., help="Path to inventory JSON file."),
     target: Path = typer.Argument(..., help="Target directory to verify."),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries to scan."
+        None, "--max-entries", min=0, help="Maximum number of entries to scan."
     ),
     ignore_dir: list[str] = typer.Option(
         [],
@@ -1735,7 +1741,7 @@ def verify_tree_cmd(
     source: Path = typer.Argument(..., help="Source directory to verify against."),
     destination: Path = typer.Argument(..., help="Destination directory to verify."),
     max_entries: int | None = typer.Option(
-        None, "--max-entries", help="Maximum number of entries to scan per tree."
+        None, "--max-entries", min=0, help="Maximum number of entries to scan per tree."
     ),
     ignore_dir: list[str] = typer.Option(
         [],

@@ -721,3 +721,28 @@ def test_inventory_csv_rejected_for_other_commands(
     )
     assert code == EXIT_INVALID_ARGS
     assert "only supported by inspect inventory" in capsys.readouterr().err
+
+
+def test_inventory_rejects_negative_bounds(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    for option in ("--max-depth", "--max-entries"):
+        code = main(argv_for(root, option, "-1"))
+        assert code == EXIT_INVALID_ARGS
+
+
+def test_inventory_max_depth_zero_returns_no_entries(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--max-depth", "0")
+    assert code == EXIT_SUCCESS
+    assert data["result"]["entries"] == []
+    assert data["result"]["count"] == 0
+    assert data["result"]["complete"] is True
+
+
+def test_inventory_max_entries_zero_is_incomplete(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--max-entries", "0")
+    assert code == EXIT_INCOMPLETE
+    assert data["result"]["entries"] == []
+    assert data["result"]["complete"] is False
+    assert data["result"]["truncated"] is True

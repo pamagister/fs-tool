@@ -336,7 +336,7 @@ Example JSON response for a capability whose prerequisites are missing:
           {
             "kind": "external_resource",
             "name": "yolo26n.onnx",
-            "expected_path": "~/.local/share/fs-tool/models/yolo26n.onnx",
+            "expected_path": "/home/user/.local/share/fs-tool/models/yolo26n.onnx",
             "available": false
           }
         ],
@@ -350,9 +350,9 @@ Example JSON response for a capability whose prerequisites are missing:
         }
       }
     ],
-    "count": 9,
-    "available_count": 5,
-    "model_directory": "~/.local/share/fs-tool/models/"
+    "count": 12,
+    "available_count": 11,
+    "model_directory": "/home/user/.local/share/fs-tool/models"
   },
   "errors": [],
   "warnings": [],
@@ -724,6 +724,8 @@ exits with code 2.
 
 ## Working with large trees
 
-Use `--max-depth` and `--max-entries` to bound scans. A truncated scan is never reported as complete:
-the JSON envelope has `success: false` and `complete: false`, the command exits with code 5, and
-plain output writes a diagnostic to stderr. Partial results are still returned.
+Use `--max-depth` and `--max-entries` to bound scans. `--max-depth 0` returns no entries and remains
+complete; `--max-entries 0` returns no entries and is marked incomplete/truncated because the limit
+stopped the scan. Negative values are rejected with exit code 2. A truncated scan is never reported
+as complete: the JSON envelope has `success: false` and `complete: false`, the command exits with
+code 5, and plain output writes a diagnostic to stderr. Partial results are still returned.

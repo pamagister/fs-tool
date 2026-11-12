@@ -384,3 +384,76 @@ def test_apply_mkdir_is_idempotent_when_executed_twice(tmp_path: Path) -> None:
     assert second_code == EXIT_SUCCESS
     assert second_data["result"]["operations"][0]["created"] is False
     assert destination.is_dir()
+
+
+def test_apply_example_reorganization_preserves_content(tmp_path: Path) -> None:
+    import shutil
+    from collections import Counter
+
+    example = Path(__file__).resolve().parent.parent / "res/example_filesystem_unstructured"
+    source = tmp_path / "source"
+    shutil.copytree(example, source)
+
+    before_code, before_data = run_json(
+        ["--allow-root", str(tmp_path), "inspect", "inventory", str(source), "--hash"]
+    )
+    assert before_code == EXIT_SUCCESS
+    before_hashes = Counter(
+        entry["sha256"] for entry in before_data["result"]["entries"] if entry["type"] == "file"
+    )
+    before_inventory = tmp_path / "before.json"
+    before_inventory.write_text(json.dumps(before_data), encoding="utf-8")
+
+    plan = write_plan(
+        tmp_path / "reorganize.json",
+        [
+            {"op": "mkdir", "destination": str(source / "Bewerbung")},
+            {"op": "mkdir", "destination": str(source / "Familie")},
+            {
+                "op": "move",
+                "source": str(source / "Beruf/Bewerbungen.txt"),
+                "destination": str(source / "Bewerbung/Bewerbungen.txt"),
+            },
+            {
+                "op": "move",
+                "source": str(source / "Tokensystem Zähneputzen.odt"),
+                "destination": str(source / "Familie/Tokensystem Zähneputzen.odt"),
+            },
+            {"op": "rmdir", "destination": str(source / "Beruf")},
+        ],
+    )
+
+    apply_code, apply_data = run_json(argv(plan, tmp_path, "--yes"))
+    assert apply_code == EXIT_SUCCESS
+    assert apply_data["result"]["failed"] == 0
+    assert not (source / "Beruf").exists()
+    assert (source / "Bewerbung/Bewerbungen.txt").is_file()
+    assert (source / "Familie/Tokensystem Zähneputzen.odt").is_file()
+
+    verify_code, verify_data = run_json(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "verify",
+            "inventory",
+            str(before_inventory),
+            str(source),
+            "--match",
+            "content",
+        ]
+    )
+    assert verify_code == EXIT_SUCCESS
+    assert verify_data["result"]["missing_content"] == []
+    assert verify_data["result"]["unexpected_content"] == []
+
+    after_code, after_data = run_json(
+        ["--allow-root", str(tmp_path), "inspect", "inventory", str(source), "--hash"]
+    )
+    assert after_code == EXIT_SUCCESS
+    after_hashes = Counter(
+        entry["sha256"] for entry in after_data["result"]["entries"] if entry["type"] == "file"
+    )
+    assert after_hashes == before_hashes
+    assert sum(after_hashes.values()) == sum(before_hashes.values())
+    assert all(isinstance(digest, str) for digest in after_hashes)
+    assert all(len(digest) == 64 for digest in after_hashes)

@@ -23,6 +23,7 @@ src/fs_tool/
 │   │   ├── __init__.py
 │   │   ├── models.py      CapabilityId, Capability, requirements, results
 │   │   ├── registry.py    Central capability registry
+│   │   ├── report.py      Capability report serialization
 │   │   └── availability.py Availability checks for requirements
 │   ├── providers/
 │   │   ├── __init__.py
@@ -33,8 +34,8 @@ src/fs_tool/
 │   │   ├── inspection.py  Metadata and analysis orchestration
 │   │   ├── image.py       Image metadata and ONNX object detection
 │   │   ├── markdown.py    Markdown structure analysis
-│   │   ├── odf.py         ODF metadata
-│   │   ├── ooxml.py       OOXML metadata
+│   │   ├── odf.py         ODF metadata and text extraction
+│   │   ├── ooxml.py       OOXML metadata and text extraction
 │   │   ├── pdf.py         PDF metadata and page structure
 │   │   ├── python.py      Python AST analysis
 │   │   └── text.py        Text structure analysis
@@ -55,11 +56,13 @@ src/fs_tool/
 │   ├── json.py            JSON envelope
 │   ├── entries.py         Per-command compact entry profiles
 │   ├── results.py         Capability result serialization
-│   └── plain.py           Human-readable renderers
+│   ├── plain.py           Human-readable renderers
+│   └── tabular.py         CSV/TSV inventory rendering
 ├── safety/
 │   └── validation.py      Allowed-root checks
 └── setup/
     ├── models.py          Model storage, validation and verified download
+    ├── service.py         Setup targets and reporting
     └── yolo.py            Explicit YOLO setup handler
 ```
 

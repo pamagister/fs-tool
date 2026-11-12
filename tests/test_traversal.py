@@ -267,3 +267,27 @@ def test_traversal_sort_by_size_with_max_entries(tmp_path: Path) -> None:
     result = traverse(tmp_path, sort_by="size", max_entries=1)
     assert [entry.name for entry in result.entries] == ["small.txt"]
     assert result.complete is False
+
+
+def test_traversal_rejects_negative_bounds(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    with pytest.raises(FsToolError):
+        traverse(root, max_depth=-1)
+    with pytest.raises(FsToolError):
+        traverse(root, max_entries=-1)
+
+
+def test_traversal_max_depth_zero_returns_no_entries(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    result = traverse(root, max_depth=0)
+    assert result.entries == []
+    assert result.complete is True
+    assert result.truncated is False
+
+
+def test_traversal_max_entries_zero_is_incomplete(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    result = traverse(root, max_entries=0)
+    assert result.entries == []
+    assert result.complete is False
+    assert result.truncated is True

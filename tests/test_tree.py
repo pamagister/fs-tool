@@ -219,3 +219,27 @@ def test_tree_sort_by_size_and_no_default_ignore(tmp_path: Path) -> None:
     names = names_of(data)
     assert ".git" in names
     assert names.index("small.txt") < names.index("large.txt")
+
+
+def test_tree_rejects_negative_max_depth(tmp_path: Path) -> None:
+    (tmp_path / "alpha.txt").write_text("a")
+    code = main(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "inspect",
+            "tree",
+            str(tmp_path),
+            "--max-depth",
+            "-1",
+        ]
+    )
+    assert code == 2
+
+
+def test_tree_max_depth_zero_returns_no_entries(tmp_path: Path) -> None:
+    (tmp_path / "alpha.txt").write_text("a")
+    code, data = tree_json(tmp_path, "--max-depth", "0")
+    assert code == EXIT_SUCCESS
+    assert data["result"]["entries"] == []
+    assert data["result"]["count"] == 0
