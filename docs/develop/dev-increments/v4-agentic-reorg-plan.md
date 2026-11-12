@@ -207,7 +207,7 @@ content preservation across renames.
 **Phase gate:** Inventory filtering and content verification are stable before write-plan execution
 depends on them.
 
-## Phase 2: Write Command Ergonomics [-]
+## Phase 2: Write Command Ergonomics [x]
 
 **Objective:** Make individual write commands match the way agents naturally describe moves and
 copies, and add safe empty-directory cleanup.
@@ -396,3 +396,10 @@ a hidden delete fallback.
 - Commits: `86412f5`, `1b83ed0`, `d70d4cb`; pushed to `origin/main`.
 - CI run `43273004488` passed for the phase implementation.
 - Next: Phase 2, starting with existing-directory destination semantics for `write move` and `write copy`.
+
+### 2026-11-12 - Phase 2
+
+- Completed P2-W01 through P2-W06: existing-directory move/copy destinations, `--parents`, safe `write rmdir`, improved reports, tests and documentation.
+- Commits: `bd885e9`, `5b29cdf`; pushed to `origin/main`.
+- CI run `43274301680` passed for the phase implementation.
+- Next: Phase 3, `write apply` plan execution with in-memory preflight and sequential execution.
