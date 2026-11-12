@@ -11,6 +11,8 @@ from pathlib import Path
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.operations.common import (
     OperationReport,
+    destination_for_existing_directory,
+    ensure_parent_directory,
     lstat_or_none,
     raise_operation_os_error,
     require_authorization,
@@ -82,6 +84,19 @@ def _rename_no_replace(source: Path, destination: Path) -> None:
             os.close(destination_parent_fd)
 
 
+def _nearest_existing_directory(path: Path) -> os.stat_result | None:
+    """Return stat information for the nearest existing non-symlink ancestor."""
+    current = path
+    while lstat_or_none(current) is None:
+        if current.parent == current:
+            return None
+        current = current.parent
+    info = lstat_or_none(current)
+    if info is not None and stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
+        return info
+    return None
+
+
 def move_path(
     source: Path,
     destination: Path,
@@ -90,6 +105,7 @@ def move_path(
     dry_run: bool,
     yes: bool,
     allow_rename: bool = False,
+    parents: bool = False,
 ) -> OperationReport:
     """Move a file, directory, or symlink without overwriting."""
     require_authorization(dry_run, yes)
@@ -99,12 +115,6 @@ def move_path(
     if source_path.parent == source_path:
         raise FsToolError(
             f"Refusing to move a filesystem root: {source_path}",
-            code=ErrorCode.INVALID_ARGUMENT,
-            path=str(source_path),
-        )
-    if source_path == destination_path:
-        raise FsToolError(
-            "Source and destination are the same path.",
             code=ErrorCode.INVALID_ARGUMENT,
             path=str(source_path),
         )
@@ -127,6 +137,15 @@ def move_path(
             path=str(source_path),
         )
 
+    destination_path = destination_for_existing_directory(source_path, destination_path)
+
+    if source_path == destination_path:
+        raise FsToolError(
+            "Source and destination are the same path.",
+            code=ErrorCode.INVALID_ARGUMENT,
+            path=str(source_path),
+        )
+
     if source_path.name != destination_path.name and not allow_rename:
         raise FsToolError(
             "Changing the filename requires --allow-rename.",
@@ -146,7 +165,27 @@ def move_path(
                 path=str(destination_path),
             )
 
-    destination_parent_info = require_directory(destination_path.parent)
+    planned_parents: tuple[str, ...] = ()
+    if parents:
+        planned_parents = ensure_parent_directory(
+            destination_path,
+            allowed_roots=allowed_roots,
+            dry_run=True,
+            yes=False,
+        )
+
+    destination_parent_info = (
+        _nearest_existing_directory(destination_path.parent) if parents else None
+    )
+    if not parents:
+        destination_parent_info = require_directory(destination_path.parent)
+    elif destination_parent_info is None:
+        raise FsToolError(
+            f"Parent directory does not exist: {destination_path.parent}",
+            code=ErrorCode.INVALID_ARGUMENT,
+            path=str(destination_path.parent),
+        )
+
     if lstat_or_none(destination_path) is not None:
         raise FsToolError(
             f"Destination already exists: {destination_path}",
@@ -168,7 +207,17 @@ def move_path(
             destination=str(destination_path),
             dry_run=True,
             executed=False,
-            affected=(str(destination_path),),
+            affected=planned_parents + (str(destination_path),),
+            created_directories=planned_parents,
+        )
+
+    created_parents: tuple[str, ...] = ()
+    if parents:
+        created_parents = ensure_parent_directory(
+            destination_path,
+            allowed_roots=allowed_roots,
+            dry_run=False,
+            yes=True,
         )
 
     try:
@@ -195,7 +244,7 @@ def move_path(
             f"Move completed but could not be fully verified: {destination_path}",
             code=ErrorCode.INCOMPLETE_VERIFICATION,
             path=str(destination_path),
-            details={"moved": True},
+            details={"moved": True, "created_directories": list(created_parents)},
         )
 
     return OperationReport(
@@ -204,6 +253,7 @@ def move_path(
         destination=str(destination_path),
         dry_run=False,
         executed=True,
-        affected=(str(destination_path),),
+        affected=created_parents + (str(destination_path),),
         verified=True,
+        created_directories=created_parents,
     )

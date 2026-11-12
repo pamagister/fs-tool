@@ -27,6 +27,8 @@ class OperationReport:
     sha256: str | None = None
     verified: bool | None = None
     complete: bool = True
+    created_directories: tuple[str, ...] = ()
+    removed: tuple[str, ...] = ()
 
 
 def require_authorization(dry_run: bool, yes: bool) -> None:
@@ -41,6 +43,45 @@ def require_authorization(dry_run: bool, yes: bool) -> None:
 def validate_operation_path(path: Path, allowed_roots: tuple[Path, ...]) -> Path:
     """Normalize and enforce allowed-root restrictions for an operation path."""
     return validate_path(path, allowed_roots)
+
+
+def destination_for_existing_directory(source: Path, destination: Path) -> Path:
+    """Append the source basename when the destination is an existing directory.
+
+    This is the natural agent operation: ``write move file existing-dir`` and
+    ``write copy tree existing-dir`` mean ``existing-dir/file`` and
+    ``existing-dir/tree``. A symbolic link to a directory is treated as an
+    existing entry, never as an implicit directory destination.
+    """
+    info = lstat_or_none(destination)
+    if info is not None and stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
+        return destination / source.name
+    return destination
+
+
+def ensure_parent_directory(
+    destination: Path,
+    *,
+    allowed_roots: tuple[Path, ...],
+    dry_run: bool,
+    yes: bool,
+) -> tuple[str, ...]:
+    """Create or plan the missing parent directories of ``destination``.
+
+    Returns the affected parent paths. The operation is delegated to
+    :func:`fs_tool.operations.mkdir.make_directory` so no-overwrite and
+    allowed-root checks stay identical.
+    """
+    from fs_tool.operations.mkdir import make_directory
+
+    report = make_directory(
+        destination.parent,
+        allowed_roots=allowed_roots,
+        dry_run=dry_run,
+        yes=yes,
+        parents=True,
+    )
+    return report.affected
 
 
 def lstat_or_none(path: Path) -> os.stat_result | None:

@@ -730,3 +730,337 @@ def test_write_move_refuses_filesystem_root(cli: Any, tmp_path: Path) -> None:
     assert code == EXIT_INVALID_ARGS
     assert data["success"] is False
     assert "root" in data["errors"][0]["message"].lower()
+
+
+def test_write_move_into_existing_directory_appends_basename(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "report.txt"
+    destination = tmp_path / "archive"
+    destination.mkdir()
+    source.write_text("report", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.exists()
+    assert (destination / "report.txt").read_text(encoding="utf-8") == "report"
+    assert data["result"]["destination"] == str(destination / "report.txt")
+
+
+def test_write_copy_tree_into_existing_directory_appends_basename(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "site"
+    destination = tmp_path / "backups"
+    (source / "assets").mkdir(parents=True)
+    (source / "index.html").write_text("index", encoding="utf-8")
+    (source / "assets" / "logo.txt").write_text("logo", encoding="utf-8")
+    destination.mkdir()
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "copy",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert (destination / "site" / "index.html").read_text(encoding="utf-8") == "index"
+    assert (destination / "site" / "assets" / "logo.txt").read_text(encoding="utf-8") == "logo"
+    assert data["result"]["destination"] == str(destination / "site")
+
+
+def test_write_copy_into_existing_directory_reports_conflict(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "report.txt"
+    destination = tmp_path / "archive"
+    destination.mkdir()
+    source.write_text("new", encoding="utf-8")
+    (destination / "report.txt").write_text("keep", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "copy",
+            str(source),
+            str(destination),
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_CONFLICT
+    assert data["errors"][0]["code"] == "TARGET_EXISTS"
+    assert (destination / "report.txt").read_text(encoding="utf-8") == "keep"
+
+
+def test_write_move_parents_dry_run_does_not_create_directories(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "report.txt"
+    destination = tmp_path / "new" / "nested" / "report.txt"
+    source.write_text("report", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--parents",
+            "--dry-run",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert data["result"]["dry_run"] is True
+    assert data["result"]["created_directories"] == [
+        str(tmp_path / "new"),
+        str(tmp_path / "new" / "nested"),
+    ]
+    assert str(destination) in data["result"]["affected"]
+    assert source.exists()
+    assert not destination.parent.exists()
+
+
+def test_write_move_parents_creates_directories(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "report.txt"
+    destination = tmp_path / "new" / "nested" / "report.txt"
+    source.write_text("report", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--parents",
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.exists()
+    assert destination.read_text(encoding="utf-8") == "report"
+    assert data["result"]["created_directories"] == [
+        str(tmp_path / "new"),
+        str(tmp_path / "new" / "nested"),
+    ]
+
+
+def test_write_copy_parents_creates_directories(cli: Any, tmp_path: Path) -> None:
+    source = tmp_path / "site"
+    destination = tmp_path / "new" / "backups" / "site"
+    source.mkdir()
+    (source / "index.html").write_text("index", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "copy",
+            str(source),
+            str(destination),
+            "--parents",
+            "--dry-run",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert data["result"]["created_directories"] == [
+        str(tmp_path / "new"),
+        str(tmp_path / "new" / "backups"),
+    ]
+    assert not destination.parent.exists()
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "copy",
+            str(source),
+            str(destination),
+            "--parents",
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert (destination / "index.html").read_text(encoding="utf-8") == "index"
+
+
+def test_write_rmdir_dry_run_does_not_remove_directory(cli: Any, tmp_path: Path) -> None:
+    destination = tmp_path / "empty"
+    destination.mkdir()
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "rmdir",
+            str(destination),
+            "--dry-run",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert data["result"]["dry_run"] is True
+    assert data["result"]["affected"] == [str(destination)]
+    assert destination.is_dir()
+
+
+def test_write_rmdir_removes_empty_directory(cli: Any, tmp_path: Path) -> None:
+    destination = tmp_path / "empty"
+    destination.mkdir()
+
+    code, data = run_json(
+        cli,
+        ["--allow-root", str(tmp_path), "write", "rmdir", str(destination), "--yes"],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not destination.exists()
+    assert data["result"]["removed"] == [str(destination)]
+
+
+def test_write_rmdir_refuses_non_empty_directory(cli: Any, tmp_path: Path) -> None:
+    destination = tmp_path / "full"
+    destination.mkdir()
+    (destination / "keep.txt").write_text("keep", encoding="utf-8")
+
+    code, data = run_json(
+        cli,
+        ["--allow-root", str(tmp_path), "write", "rmdir", str(destination), "--yes"],
+    )
+
+    assert code != EXIT_SUCCESS
+    assert destination.is_dir()
+    assert (destination / "keep.txt").exists()
+
+
+def test_write_rmdir_refuses_symlink_and_non_directory(cli: Any, tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(target)
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("file", encoding="utf-8")
+
+    for destination in (link, file_path):
+        code, data = run_json(
+            cli,
+            ["--allow-root", str(tmp_path), "write", "rmdir", str(destination), "--yes"],
+        )
+        assert code != EXIT_SUCCESS
+        assert destination.exists() or destination.is_symlink()
+
+    assert target.is_dir()
+    assert file_path.read_text(encoding="utf-8") == "file"
+
+
+def test_write_rmdir_parents_removes_empty_chain_only(cli: Any, tmp_path: Path) -> None:
+    target = tmp_path / "one" / "two" / "three"
+    target.mkdir(parents=True)
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "rmdir",
+            str(target),
+            "--parents",
+            "--dry-run",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert data["result"]["affected"] == [
+        str(target),
+        str(target.parent),
+        str(target.parent.parent),
+    ]
+    assert target.is_dir()
+
+    code, data = run_json(
+        cli,
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "rmdir",
+            str(target),
+            "--parents",
+            "--yes",
+        ],
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not target.exists()
+    assert not target.parent.exists()
+    assert not target.parent.parent.exists()
+    assert tmp_path.is_dir()
+
+
+def test_write_rmdir_missing_directory_is_invalid(cli: Any, tmp_path: Path) -> None:
+    destination = tmp_path / "missing"
+    code, data = run_json(
+        cli,
+        ["--allow-root", str(tmp_path), "write", "rmdir", str(destination), "--yes"],
+    )
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"
+
+
+def test_write_plain_report_includes_source_and_affected_paths(
+    cli: Any, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = tmp_path / "source.txt"
+    destination = tmp_path / "moved.txt"
+    source.write_text("move", encoding="utf-8")
+
+    code = cli(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "--plain",
+            "write",
+            "move",
+            str(source),
+            str(destination),
+            "--allow-rename",
+            "--yes",
+        ]
+    )
+
+    assert code == EXIT_SUCCESS
+    output = capsys.readouterr().out
+    assert f"source: {source}" in output
+    assert f"destination: {destination}" in output
+    assert f"  {destination}" in output

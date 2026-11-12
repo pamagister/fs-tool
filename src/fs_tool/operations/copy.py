@@ -13,6 +13,8 @@ from pathlib import Path
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.operations.common import (
     OperationReport,
+    destination_for_existing_directory,
+    ensure_parent_directory,
     lstat_or_none,
     raise_operation_os_error,
     require_authorization,
@@ -120,9 +122,12 @@ def _collect_tree(
     raise _copy_error(f"Cannot copy unsupported filesystem entry: {source}", source)
 
 
-def _preflight_destinations(destination: Path, items: list[_CopyItem]) -> None:
+def _preflight_destinations(
+    destination: Path, items: list[_CopyItem], *, require_parent: bool = True
+) -> None:
     """Ensure the destination parent exists and every planned path is unused."""
-    require_directory(destination.parent)
+    if require_parent:
+        require_directory(destination.parent)
     for item in items:
         if lstat_or_none(item.destination) is not None:
             raise FsToolError(
@@ -220,6 +225,7 @@ def copy_path(
     dry_run: bool,
     yes: bool,
     symlinks: str = "error",
+    parents: bool = False,
 ) -> OperationReport:
     """Copy a regular file or directory tree without overwriting."""
     require_authorization(dry_run, yes)
@@ -239,6 +245,8 @@ def copy_path(
             path=str(source_path),
         )
 
+    destination_path = destination_for_existing_directory(source_path, destination_path)
+
     if stat.S_ISDIR(source_info.st_mode) and not stat.S_ISLNK(source_info.st_mode):
         try:
             destination_path.relative_to(source_path)
@@ -250,6 +258,15 @@ def copy_path(
                 code=ErrorCode.INVALID_ARGUMENT,
                 path=str(destination_path),
             )
+
+    planned_parents: tuple[str, ...] = ()
+    if parents:
+        planned_parents = ensure_parent_directory(
+            destination_path,
+            allowed_roots=allowed_roots,
+            dry_run=True,
+            yes=False,
+        )
 
     items: list[_CopyItem] = []
     skipped: list[str] = []
@@ -263,7 +280,7 @@ def copy_path(
         skipped=skipped,
     )
     if items:
-        _preflight_destinations(destination_path, items)
+        _preflight_destinations(destination_path, items, require_parent=not parents)
 
     planned = tuple(str(item.destination) for item in items)
     if dry_run:
@@ -273,8 +290,18 @@ def copy_path(
             destination=str(destination_path),
             dry_run=True,
             executed=False,
-            affected=planned,
+            affected=planned_parents + planned,
             skipped=tuple(skipped),
+            created_directories=planned_parents,
+        )
+
+    created_parents: tuple[str, ...] = ()
+    if parents:
+        created_parents = ensure_parent_directory(
+            destination_path,
+            allowed_roots=allowed_roots,
+            dry_run=False,
+            yes=True,
         )
 
     created: list[str] = []
@@ -303,14 +330,26 @@ def copy_path(
             if item.kind == "directory":
                 shutil.copystat(item.source, item.destination, follow_symlinks=False)
     except FsToolError as exc:
-        exc.details.update({"affected": created, "skipped": skipped, "complete": False})
+        exc.details.update(
+            {
+                "affected": list(created_parents) + created,
+                "created_directories": list(created_parents),
+                "skipped": skipped,
+                "complete": False,
+            }
+        )
         raise
     except OSError as exc:
         try:
             raise_operation_os_error("copy entry to", item.destination, exc)
         except FsToolError as operation_error:
             operation_error.details.update(
-                {"affected": created, "skipped": skipped, "complete": False}
+                {
+                    "affected": list(created_parents) + created,
+                    "created_directories": list(created_parents),
+                    "skipped": skipped,
+                    "complete": False,
+                }
             )
             raise
 
@@ -320,8 +359,9 @@ def copy_path(
         destination=str(destination_path),
         dry_run=False,
         executed=True,
-        affected=tuple(created),
+        affected=created_parents + tuple(created),
         skipped=tuple(skipped),
         sha256=file_hashes[0] if len(file_hashes) == 1 else None,
         verified=True,
+        created_directories=created_parents,
     )

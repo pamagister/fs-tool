@@ -207,24 +207,24 @@ content preservation across renames.
 **Phase gate:** Inventory filtering and content verification are stable before write-plan execution
 depends on them.
 
-## Phase 2: Write Command Ergonomics
+## Phase 2: Write Command Ergonomics [-]
 
 **Objective:** Make individual write commands match the way agents naturally describe moves and
 copies, and add safe empty-directory cleanup.
 
-- [ ] P2-W01: Support existing-directory destinations for `write move` and `write copy`: when the
+- [x] P2-W01: Support existing-directory destinations for `write move` and `write copy`: when the
   destination is an existing directory, append the source basename; report a conflict if the
   resulting path exists.
-- [ ] P2-W02: Add `--parents` to `write copy` and `write move` so missing destination parent
+- [x] P2-W02: Add `--parents` to `write copy` and `write move` so missing destination parent
   directories are created after preflight.
-- [ ] P2-W03: Add `write rmdir` for empty directories only, with `--parents` to remove an empty
+- [x] P2-W03: Add `write rmdir` for empty directories only, with `--parents` to remove an empty
   parent chain, `--dry-run`/`--yes`, and refusal for non-empty directories, symlinks and
   non-directories.
-- [ ] P2-W04: Improve write reports: plain output includes the source and affected paths; JSON keeps
+- [x] P2-W04: Improve write reports: plain output includes the source and affected paths; JSON keeps
   the existing `OperationReport` fields and adds only additive detail where useful.
-- [ ] P2-W05: Add tests for existing-directory destinations, `--parents`, `rmdir` edge cases, and
+- [x] P2-W05: Add tests for existing-directory destinations, `--parents`, `rmdir` edge cases, and
   report contents.
-- [ ] P2-W06: Update `docs/usage/cli.md`, `docs/usage/safety.md` and `docs/usage/examples.md`.
+- [-] P2-W06: Update `docs/usage/cli.md`, `docs/usage/safety.md` and `docs/usage/examples.md`.
 
 **Acceptance criteria**
 

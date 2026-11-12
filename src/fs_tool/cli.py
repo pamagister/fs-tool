@@ -32,6 +32,7 @@ from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
+from fs_tool.operations.rmdir import remove_directory
 from fs_tool.output.entries import (
     INVENTORY_COMPACT_FIELDS,
     find_entry_dict,
@@ -1822,9 +1823,15 @@ def _emit_write_report(ctx: typer.Context, report: OperationReport) -> int:
     """Emit a structured or concise human-readable write-operation report."""
     command = f"write.{report.operation}"
     result = asdict(report)
+    if not report.created_directories:
+        result.pop("created_directories", None)
+    if not report.removed:
+        result.pop("removed", None)
     if ctx.obj.output_format == "plain":
         status = "planned" if report.dry_run else "completed"
         typer.echo(f"{report.operation}: {status}")
+        if report.source is not None:
+            typer.echo(f"source: {report.source}")
         typer.echo(f"destination: {report.destination}")
         for path in report.affected:
             typer.echo(f"  {path}")
@@ -1892,7 +1899,7 @@ def write_mkdir(
 def write_copy(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="File or directory to copy."),
-    destination: Path = typer.Argument(..., help="New destination path."),
+    destination: Path = typer.Argument(..., help="New destination path or existing directory."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the planned operation only."),
     yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
     symlinks: str = typer.Option(
@@ -1900,8 +1907,16 @@ def write_copy(
         "--symlinks",
         help="Symbolic-link policy: error, copy or skip (default: error).",
     ),
+    parents: bool = typer.Option(
+        False, "--parents", help="Create missing destination parent directories."
+    ),
 ) -> int:
-    """Copy files or directory trees without following symlinks implicitly."""
+    """Copy files or directory trees without following symlinks implicitly.
+
+    When the destination is an existing directory, the source basename is
+    appended. With ``--parents``, missing destination parent directories are
+    created after preflight.
+    """
     _reject_tabular(ctx)
     try:
         report = copy_path(
@@ -1911,6 +1926,7 @@ def write_copy(
             dry_run=dry_run,
             yes=yes,
             symlinks=symlinks,
+            parents=parents,
         )
     except FsToolError as exc:
         return _emit_write_error(ctx, "write.copy", exc)
@@ -1921,7 +1937,7 @@ def write_copy(
 def write_move(
     ctx: typer.Context,
     source: Path = typer.Argument(..., help="File, directory or symlink to move."),
-    destination: Path = typer.Argument(..., help="New destination path."),
+    destination: Path = typer.Argument(..., help="New destination path or existing directory."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the planned operation only."),
     yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
     allow_rename: bool = typer.Option(
@@ -1929,8 +1945,16 @@ def write_move(
         "--allow-rename",
         help="Authorize changing the source filename.",
     ),
+    parents: bool = typer.Option(
+        False, "--parents", help="Create missing destination parent directories."
+    ),
 ) -> int:
-    """Move a filesystem entry without overwriting an existing destination."""
+    """Move an entry without overwriting an existing destination.
+
+    When the destination is an existing directory, the source basename is
+    appended. With ``--parents``, missing destination parent directories are
+    created after preflight.
+    """
     _reject_tabular(ctx)
     try:
         report = move_path(
@@ -1940,9 +1964,37 @@ def write_move(
             dry_run=dry_run,
             yes=yes,
             allow_rename=allow_rename,
+            parents=parents,
         )
     except FsToolError as exc:
         return _emit_write_error(ctx, "write.move", exc)
+    return _emit_write_report(ctx, report)
+
+
+@write_group.command(name="rmdir")
+def write_rmdir(
+    ctx: typer.Context,
+    destination: Path = typer.Argument(..., help="Empty directory to remove."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the planned operation only."),
+    yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
+    parents: bool = typer.Option(
+        False,
+        "--parents",
+        help="Also remove empty parent directories up to an allowed root.",
+    ),
+) -> int:
+    """Remove an empty directory without deleting files."""
+    _reject_tabular(ctx)
+    try:
+        report = remove_directory(
+            destination,
+            allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            dry_run=dry_run,
+            yes=yes,
+            parents=parents,
+        )
+    except FsToolError as exc:
+        return _emit_write_error(ctx, "write.rmdir", exc)
     return _emit_write_report(ctx, report)
 
 
