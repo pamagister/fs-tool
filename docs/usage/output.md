@@ -246,8 +246,9 @@ with `analyses: []`.
 | `verify inventory` | `inventory_file`, `target`, `match_mode`, `missing`, `unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete`; content mode adds `missing_content`, `unexpected_content`, `content_count_mismatch` |
 | `verify tree` | `source`, `destination`, `missing`, `unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete` |
 | `write mkdir` | `operation`, `source`, `destination`, `dry_run`, `executed`, `affected`, `skipped`, `created`, `sha256`, `verified`, `complete` |
-| `write copy` | Operation report with `affected`, `skipped`, `sha256` and `verified` |
-| `write move` | Operation report with `affected` and `verified` |
+| `write copy` | Operation report with `affected`, `skipped`, `sha256`, `verified`; `--parents` adds `created_directories` |
+| `write move` | Operation report with `affected` and `verified`; `--parents` adds `created_directories` |
+| `write rmdir` | Operation report with `affected`, `removed` and `created` |
 
 `duplicate_groups` contains objects with `sha256`, `size`, `count` and `files`.
 
@@ -273,7 +274,7 @@ Plain output is intended for humans. It is not a stable machine interface.
 | `duplicates` | Duplicate groups with hash, size, count and file paths. |
 | `compare` | Categories with entries, followed by `complete`. |
 | `verify` | Discrepancy categories, followed by `complete`. |
-| `write` | Operation status, destination and affected paths. |
+| `write` | Operation status, source (when present), destination and affected paths. |
 
 Diagnostics and warnings are written to stderr. Result content is written to stdout, so plain
 output can be redirected without mixing in error messages.

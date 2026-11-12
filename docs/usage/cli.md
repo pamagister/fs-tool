@@ -28,7 +28,8 @@ fs-tool
 └── write
     ├── mkdir
     ├── copy
-    └── move
+    ├── move
+    └── rmdir
 ```
 
 The command hierarchy separates read-only inspection and analysis from filesystem modifications.
@@ -583,39 +584,66 @@ Without `--parents`, a missing parent directory is an error.
 Copy a file or directory tree without overwriting.
 
 ```bash
-fs-tool write copy SOURCE DESTINATION (--dry-run | --yes) [--symlinks POLICY]
+fs-tool write copy SOURCE DESTINATION (--dry-run | --yes) [--symlinks POLICY] [--parents]
 ```
 
 | Option | Description |
 |---|---|
 | `--symlinks POLICY` | Symlink policy: `error` (default), `copy` or `skip`. |
+| `--parents` | Create missing destination parent directories after preflight. |
 | `--dry-run` | Show the planned operation only. |
 | `--yes` | Authorize execution. |
 
-The destination must not exist, and its parent directory must exist. Copying a directory into itself
-or one of its descendants is rejected. Regular files are written to a temporary file, verified by
-SHA-256 and published without overwriting. File mode and timestamps are preserved where supported.
-The `--symlinks` policy applies to symbolic links inside a copied tree; symlinks are never followed
-implicitly. With `skip`, skipped entries are listed in the report.
+The destination must not exist. If it is an existing directory, the source basename is appended, so
+`write copy site backups` copies the tree to `backups/site`. With `--parents`, missing parent
+directories are created; the dry-run lists them in `created_directories` and `affected` without
+touching the filesystem. Copying a directory into itself or one of its descendants is rejected.
+Regular files are written to a temporary file, verified by SHA-256 and published without
+overwriting. File mode and timestamps are preserved where supported. The `--symlinks` policy applies
+to symbolic links inside a copied tree; symlinks are never followed implicitly. With `skip`, skipped
+entries are listed in the report.
 
 ### `write move`
 
 Move a file, directory or symlink without overwriting.
 
 ```bash
-fs-tool write move SOURCE DESTINATION (--dry-run | --yes) [--allow-rename]
+fs-tool write move SOURCE DESTINATION (--dry-run | --yes) [--allow-rename] [--parents]
 ```
 
 | Option | Description |
 |---|---|
 | `--allow-rename` | Authorize changing the source filename. |
+| `--parents` | Create missing destination parent directories after preflight. |
 | `--dry-run` | Show the planned operation only. |
 | `--yes` | Authorize execution. |
 
-The destination must not exist, and its parent directory must exist. Moving a filesystem root,
+The destination must not exist. If it is an existing directory, the source basename is appended, so
+`write move report.pdf archive` moves the file to `archive/report.pdf` without `--allow-rename`.
+With `--parents`, missing parent directories are created; the dry-run lists them in
+`created_directories` and `affected` without touching the filesystem. Moving a filesystem root,
 moving a directory into itself, and cross-device moves are rejected. A move that changes the
 filename requires both `--allow-rename` and `--yes`. The command verifies that the entry exists at
 the destination and no longer exists at the source.
+
+### `write rmdir`
+
+Remove an empty directory without deleting files.
+
+```bash
+fs-tool write rmdir DESTINATION (--dry-run | --yes) [--parents]
+```
+
+| Option | Description |
+|---|---|
+| `--parents` | Also remove empty parent directories up to an allowed root. |
+| `--dry-run` | Show the planned operation only. |
+| `--yes` | Authorize execution. |
+
+Only empty, non-symlink directories are removed. A non-empty directory, a symlink and a non-directory
+entry are refused. `--parents` removes the requested directory and then empty parent directories,
+stopping at the filesystem root, an allowed root, or the first non-empty parent. The operation never
+deletes files and never recurses into a non-empty directory.
 
 ---
 

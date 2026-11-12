@@ -224,7 +224,7 @@ copies, and add safe empty-directory cleanup.
   the existing `OperationReport` fields and adds only additive detail where useful.
 - [x] P2-W05: Add tests for existing-directory destinations, `--parents`, `rmdir` edge cases, and
   report contents.
-- [-] P2-W06: Update `docs/usage/cli.md`, `docs/usage/safety.md` and `docs/usage/examples.md`.
+- [x] P2-W06: Update `docs/usage/cli.md`, `docs/usage/safety.md` and `docs/usage/examples.md`.
 
 **Acceptance criteria**
 

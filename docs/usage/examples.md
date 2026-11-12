@@ -166,11 +166,40 @@ fs-tool write mkdir ~/Projects/new-project/src --parents --dry-run
 fs-tool write mkdir ~/Projects/new-project/src --parents --yes
 ```
 
+Move a file into an existing directory without changing its name:
+
+```bash
+fs-tool write move ~/Downloads/report.pdf ~/Documents/archive --dry-run
+fs-tool write move ~/Downloads/report.pdf ~/Documents/archive --yes
+```
+
+Copy a tree into an existing directory:
+
+```bash
+fs-tool write copy ~/Projects/site ~/Backups --dry-run
+fs-tool write copy ~/Projects/site ~/Backups --yes
+```
+
+Create missing destination parents for a move or copy:
+
+```bash
+fs-tool write move ~/Downloads/report.pdf ~/Documents/2026/reports --parents --dry-run
+fs-tool write move ~/Downloads/report.pdf ~/Documents/2026/reports --parents --yes
+```
+
 Rename a file (requires `--allow-rename` because the filename changes):
 
 ```bash
 fs-tool write move ~/Downloads/report.pdf ~/Downloads/report-2026.pdf --allow-rename --dry-run
 fs-tool write move ~/Downloads/report.pdf ~/Downloads/report-2026.pdf --allow-rename --yes
+```
+
+Remove an empty directory, optionally with empty parents:
+
+```bash
+fs-tool write rmdir ~/Documents/empty --dry-run
+fs-tool write rmdir ~/Documents/empty --yes
+fs-tool write rmdir ~/Documents/old/nested --parents --yes
 ```
 
 Copy a tree that contains symlinks, skipping the links:

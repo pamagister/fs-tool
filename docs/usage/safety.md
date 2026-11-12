@@ -62,8 +62,8 @@ Additional safeguards:
 - Source and destination are validated against the allowed roots.
 - Existing destinations are never overwritten.
 - Data is never deleted.
-- All conflicts are checked before the first write; the operation either applies as a whole or
-  aborts.
+- All preflight conflicts are checked before the first write. A copy can still be partially applied
+  if a runtime I/O error occurs; affected paths are reported.
 - Symlinks are never followed, and no option can enable following them.
 - The command verifies the result and returns a structured operation report.
 
@@ -77,7 +77,8 @@ Additional safeguards:
 
 ### `write copy`
 
-- The destination must not exist and its parent must exist.
+- The destination must not exist. If it is an existing directory, the source basename is appended.
+- With `--parents`, missing destination parent directories are created after preflight.
 - Copying a directory into itself or a descendant is rejected.
 - Regular files are written to a temporary file, verified by SHA-256, and published with an
   exclusive hard link so an existing destination is never overwritten.
@@ -87,15 +88,23 @@ Additional safeguards:
 
 ### `write move`
 
-- The destination must not exist and its parent must exist.
+- The destination must not exist. If it is an existing directory, the source basename is appended.
+- With `--parents`, missing destination parent directories are created after preflight.
 - Moving a filesystem root is rejected.
 - Moving a directory into itself or a descendant is rejected.
-- Cross-device moves are rejected; use `write copy` followed by manual verification instead.
+- Cross-device moves are rejected; use `write copy` followed by content-set verification instead.
 - A move that changes the filename requires `--allow-rename` in addition to `--yes`.
 - Renames use a no-replace primitive where available, so a destination appearing at the last moment
   is not overwritten.
 - The command verifies that the entry exists at the destination and no longer exists at the
   source.
+
+### `write rmdir`
+
+- Only an empty, non-symlink directory can be removed.
+- A non-empty directory, a symlink and a non-directory entry are refused.
+- `--parents` removes empty parent directories up to the filesystem root or an allowed root.
+- The command never deletes files and never recurses into a non-empty directory.
 
 ## Failure behavior
 
