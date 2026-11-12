@@ -180,7 +180,7 @@ computing `tree_hash`. `filtered`, `count`, `skipped` and `truncated` keep their
 
 ## Implementation Phases
 
-## Phase 1: Inventory Correctness and Content-Set Verification [-]
+## Phase 1: Inventory Correctness and Content-Set Verification [x]
 
 **Objective:** Make inventory filtering match its documented order and add verification that proves
 content preservation across renames.
@@ -388,3 +388,11 @@ a hidden delete fallback.
   `report_cli_comparison.md`.
 - Use one coherent commit per work package, including the plan checkbox update in that commit.
 - Run the relevant focused tests before each commit and the full quality gates at the phase boundary.
+## Progress / Handoff
+
+### 2026-11-12 - Phase 1
+
+- Completed P1-W01 through P1-W05: filters run before hashing and tree hashing; content-set verification and documentation are implemented.
+- Commits: `86412f5`, `1b83ed0`, `d70d4cb`; pushed to `origin/main`.
+- CI run `43273004488` passed for the phase implementation.
+- Next: Phase 2, starting with existing-directory destination semantics for `write move` and `write copy`.
