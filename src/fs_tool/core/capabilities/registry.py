@@ -58,6 +58,18 @@ def _default_capabilities() -> tuple[Capability, ...]:
             provider="ooxml",
         ),
         Capability(
+            id=CapabilityId.ODF_TEXT,
+            label="ODF text extraction",
+            description="Extract textual content from ODF documents.",
+            provider="odf",
+        ),
+        Capability(
+            id=CapabilityId.OOXML_TEXT,
+            label="OOXML text extraction",
+            description="Extract textual content from Word, Excel and PowerPoint documents.",
+            provider="ooxml",
+        ),
+        Capability(
             id=CapabilityId.IMAGE_METADATA,
             label="Image metadata",
             description="Extract format, dimensions, color mode and EXIF data from images.",

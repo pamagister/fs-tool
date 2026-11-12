@@ -253,6 +253,10 @@ with `analyses: []`.
 
 `duplicate_groups` contains objects with `sha256`, `size`, `count` and `files`.
 
+`inspect read` uses `format: "text"` with `representation: "utf-8_text"` for plain text,
+`format: "pdf"` with `representation: "extracted_text"` for PDF text, and `format: "odf"` or
+`format: "ooxml"` with `representation: "extracted_text"` for ODF and OOXML text extraction.
+
 `verify inventory --match content` adds three fields: `missing_content`, `unexpected_content` and
 `content_count_mismatch`. Each content item is an object with `type`, `count` and `paths`. File items
 also include `size` and `sha256`; symlink items include `target`. The multiset uses file
@@ -270,7 +274,7 @@ Plain output is intended for humans. It is not a stable machine interface.
 | `inspect info` | `key: value` lines, including extracted metadata and any metadata status. |
 | `inspect analyze` | One block per analysis with capability, status and structured result. |
 | `inspect inventory` | One line per entry with type, size, modification time, extension and optional hash; `--verbose` adds detail lines. |
-| `inspect read` | File content (UTF-8 text or extracted PDF text). A truncation warning goes to stderr. |
+| `inspect read` | File content (UTF-8 text, extracted PDF text, or extracted ODF/OOXML text). A truncation warning goes to stderr. |
 | `find` | One line per match with type and size; `--verbose` adds detail lines. |
 | `duplicates` | Duplicate groups with hash, size, count and file paths. |
 | `compare` | Categories with entries, followed by `complete`. |

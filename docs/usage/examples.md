@@ -52,6 +52,14 @@ Extract text from a PDF:
 fs-tool inspect read ~/Documents/report.pdf --plain
 ```
 
+Extract text from ODF or OOXML documents:
+
+```bash
+fs-tool inspect read ~/Documents/notes.odt --plain
+fs-tool inspect read ~/Documents/report.docx --plain
+fs-tool inspect read ~/Documents/budget.xlsx --plain
+```
+
 ## Find files
 
 Find large log files:

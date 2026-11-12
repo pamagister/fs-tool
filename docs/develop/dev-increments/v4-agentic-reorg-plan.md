@@ -268,21 +268,21 @@ copies, and add safe empty-directory cleanup.
 
 **Phase gate:** The plan format and execution semantics are stable before documentation and QA.
 
-## Phase 4: ODF and OOXML Text Extraction
+## Phase 4: ODF and OOXML Text Extraction [x]
 
 **Objective:** Let agents read textual content from ODF and OOXML documents so they can classify
 files by content, not only by filename and metadata.
 
-- [ ] P4-W01: Add the `odf_text` capability and `OdfProvider.read_content()` for `.odt`, `.ods`,
+- [x] P4-W01: Add the `odf_text` capability and `OdfProvider.read_content()` for `.odt`, `.ods`,
   `.odp` and `.odg`, using `content.xml` and the standard library.
-- [ ] P4-W02: Add the `ooxml_text` capability and `OoxmlProvider.read_content()` for `.docx`,
+- [x] P4-W02: Add the `ooxml_text` capability and `OoxmlProvider.read_content()` for `.docx`,
   `.xlsx` and `.pptx`, using the relevant XML parts and the standard library.
-- [ ] P4-W03: Integrate both capabilities with `inspect read`, including truncation,
+- [x] P4-W03: Integrate both capabilities with `inspect read`, including truncation,
   `representation: "extracted_text"`, format identifiers and structured failures for malformed,
   encrypted or oversized containers.
-- [ ] P4-W04: Register both capabilities in the central registry and update `fs-tool capabilities`.
-- [ ] P4-W05: Add tests using the example files plus malformed, empty and oversized containers.
-- [ ] P4-W06: Update `docs/usage/cli.md`, `docs/usage/setup.md`,
+- [x] P4-W04: Register both capabilities in the central registry and update `fs-tool capabilities`.
+- [x] P4-W05: Add tests using the example files plus malformed, empty and oversized containers.
+- [x] P4-W06: Update `docs/usage/cli.md`, `docs/usage/setup.md`,
   `docs/develop/architecture.md` and `docs/usage/examples.md`.
 
 **Acceptance criteria**

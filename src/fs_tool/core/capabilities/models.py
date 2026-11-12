@@ -37,6 +37,8 @@ class CapabilityId(str, Enum):
 
     # Content reading (belongs to ``inspect read``).
     PDF_TEXT = "pdf_text"
+    ODF_TEXT = "odf_text"
+    OOXML_TEXT = "ooxml_text"
 
 
 class RequirementKind(str, Enum):

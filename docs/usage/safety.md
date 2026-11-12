@@ -33,7 +33,8 @@ Inspection and analysis commands do not modify the filesystem:
 - `inspect read` rejects symlinks and non-regular files, rejects non-UTF-8 binary content, and
   truncates at `--max-bytes` (default 64 KiB). PDF text extraction requires the optional
   `metadata` extra, rejects PDF source files larger than 100 MiB, and never returns binary PDF
-  bytes.
+  bytes. ODF and OOXML text extraction uses bounded standard-library ZIP/XML reads, never executes
+  macros or embedded objects, and rejects malformed, encrypted or oversized containers.
 - Hashing opens files read-only and uses `O_NOFOLLOW` where the platform supports it.
 - `inspect info` extracts format metadata automatically and never executes file content. PDF
   metadata requires the optional `metadata` extra; files larger than 100 MiB are not inspected for

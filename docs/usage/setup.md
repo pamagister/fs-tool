@@ -31,6 +31,9 @@ Missing optional dependencies never make fs-tool fail outright. Instead, the aff
 reported as `unavailable` by `fs-tool capabilities`, `inspect info` and `inspect analyze`, with an
 exact installation command as a next step.
 
+ODF and OOXML text extraction (`odf_text` and `ooxml_text`) uses only the Python standard library;
+it requires no extra and is available in a normal installation.
+
 ## `fs-tool capabilities`
 
 List every supported capability and its current availability:

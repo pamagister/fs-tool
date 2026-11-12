@@ -1,8 +1,8 @@
-"""OOXML metadata provider (``.docx``, ``.xlsx``, ``.pptx``).
+"""OOXML metadata and text provider (``.docx``, ``.xlsx``, ``.pptx``).
 
 Extraction uses the standard library only (``zipfile`` and ``ElementTree``),
 is read-only and never executes embedded content or macros. Format metadata
-belongs to ``inspect info`` (plan.md decision D2).
+belongs to ``inspect info``; textual content belongs to ``inspect read``.
 """
 
 from __future__ import annotations
@@ -16,6 +16,8 @@ from fs_tool.core.capabilities.models import Capability, CapabilityId
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.metadata import read_zip_member
 from fs_tool.core.providers.base import Provider, capabilities_from_registry
+from fs_tool.core.providers.content import ContentRead
+from fs_tool.core.providers.document_text import extract_ooxml_text
 
 _OOXML_EXTENSIONS = (".docx", ".xlsx", ".pptx")
 
@@ -30,19 +32,27 @@ _OOXML_NS = {
 class OoxmlProvider(Provider):
     """Provider for Office Open XML files."""
 
+    _CAPABILITY_IDS = (CapabilityId.OOXML_METADATA, CapabilityId.OOXML_TEXT)
+
     @property
     def id(self) -> str:
         return "ooxml"
 
     @property
     def capabilities(self) -> tuple[Capability, ...]:
-        return capabilities_from_registry(self.id, (CapabilityId.OOXML_METADATA,))
+        return capabilities_from_registry(self.id, self._CAPABILITY_IDS)
 
     def supported_extensions(self) -> tuple[str, ...]:
         return _OOXML_EXTENSIONS
 
     def metadata_capability(self) -> CapabilityId:
         return CapabilityId.OOXML_METADATA
+
+    def content_capability(self) -> CapabilityId:
+        return CapabilityId.OOXML_TEXT
+
+    def read_content(self, path: Path, *, max_bytes: int) -> ContentRead:
+        return extract_ooxml_text(path, max_bytes=max_bytes)
 
     def extract_metadata(self, path: Path) -> dict[str, Any] | None:
         try:

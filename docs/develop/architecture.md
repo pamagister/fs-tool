@@ -27,6 +27,8 @@ src/fs_tool/
 │   ├── providers/
 │   │   ├── __init__.py
 │   │   ├── base.py        Provider interface
+│   │   ├── content.py     Bounded text reader and content models
+│   │   ├── document_text.py ODF/OOXML ZIP/XML text extraction
 │   │   ├── registry.py    Explicit provider registry
 │   │   ├── inspection.py  Metadata and analysis orchestration
 │   │   ├── image.py       Image metadata and ONNX object detection
@@ -130,8 +132,8 @@ The built-in providers are registered explicitly in
 |----------|------------|----------|----------|---------|
 | `image` | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tif`, `.tiff`, `.webp` | `image_metadata` | `image_object_detection` | — |
 | `markdown` | `.md`, `.markdown` | — | `markdown_structure` | — |
-| `odf` | `.odt`, `.ods`, `.odp`, `.odg` | `odf_metadata` | — | — |
-| `ooxml` | `.docx`, `.xlsx`, `.pptx` | `ooxml_metadata` | — | — |
+| `odf` | `.odt`, `.ods`, `.odp`, `.odg` | `odf_metadata` | — | `odf_text` |
+| `ooxml` | `.docx`, `.xlsx`, `.pptx` | `ooxml_metadata` | — | `ooxml_text` |
 | `pdf` | `.pdf` | `pdf_metadata` | `pdf_pages` | `pdf_text` |
 | `python` | `.py` | — | `python_ast` | — |
 | `text` | `.txt`, `.text`, `.log` | — | `text_structure` | — |
@@ -244,9 +246,15 @@ explicitly identified textual representation, never analysis results.
 
 Every result identifies its source `format` and its `representation`. Plain text uses
 `format: "text"` and `representation: "utf-8_text"`. PDF text extraction uses `format: "pdf"` and
+`representation: "extracted_text"`. ODF and OOXML use `format: "odf"` or `format: "ooxml"` with
 `representation: "extracted_text"`. PDF results additionally carry `page_count` and a `pages` list,
 so page boundaries are preserved even though `content` is a single bounded string. Pages are joined
 with a blank line in `content`.
+
+ODF text extraction reads `content.xml`; OOXML extraction reads the relevant `word/document.xml`,
+`xl/sharedStrings.xml`, worksheet, or `ppt/slides/slide*.xml` parts. Both use only the standard
+library, honor the shared 10 MiB ZIP-member limit, never execute macros or embedded objects, and
+reject encrypted containers. A separate 100 MiB source-size limit bounds the archive itself.
 
 Bounded reading applies to every format: `--max-bytes` limits the UTF-8 encoded output, truncation
 never splits a character, and PDF source files above the reading size limit are rejected. Binary

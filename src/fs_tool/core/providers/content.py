@@ -19,8 +19,10 @@ from fs_tool.core.errors import ErrorCode, FsToolError
 
 #: Representation identifier for bounded UTF-8 text.
 TEXT_REPRESENTATION = "utf-8_text"
-#: Representation identifier for text extracted from a PDF document.
-PDF_TEXT_REPRESENTATION = "extracted_text"
+#: Representation identifier for text extracted from a document.
+EXTRACTED_TEXT_REPRESENTATION = "extracted_text"
+#: Backward-compatible alias used by the PDF provider.
+PDF_TEXT_REPRESENTATION = EXTRACTED_TEXT_REPRESENTATION
 #: Separator inserted between extracted PDF pages in the concatenated content.
 PAGE_SEPARATOR = "\n\n"
 

@@ -254,22 +254,26 @@ fs-tool inspect read SOURCE [OPTIONS]
 
 Plain text files are read as UTF-8. PDF text extraction is available through the optional
 `metadata` extra (`pypdf`); it returns extracted text, never PDF metadata or page-structure
-analysis. PDF source files larger than 100 MiB are rejected. Text files and PDFs are otherwise
-bounded by `--max-bytes`; truncation never splits a UTF-8 character.
+analysis. ODF documents (`.odt`, `.ods`, `.odp`, `.odg`) and OOXML documents (`.docx`, `.xlsx`,
+`.pptx`) are read through bounded standard-library ZIP/XML extraction. Text is extracted from
+paragraphs, headings and document text nodes; macros and embedded objects are never executed. ODF and
+OOXML source files larger than 100 MiB and individual XML members above 10 MiB are rejected. Text
+output is bounded by `--max-bytes`; truncation never splits a UTF-8 character.
 
 Symlinks and non-regular files are rejected. Binary content that is not valid UTF-8 is rejected
-unless the format has a dedicated textual representation such as PDF. If the content exceeds
-`--max-bytes`, it is truncated and `truncated` is set to `true`.
+unless the format has a dedicated textual representation such as PDF, ODF or OOXML. If the content
+exceeds `--max-bytes`, it is truncated and `truncated` is set to `true`.
 
 JSON result fields: `path`, `name`, `size`, `content`, `truncated`, `encoding`, `format`,
-`representation`. PDF results additionally include `page_count` and `pages`. `format` is `text` or
-`pdf`; `representation` is `utf-8_text` or `extracted_text`. Each PDF page object contains `index`
-and `content`, so page boundaries remain available even though `content` is a single string joined
-with blank lines.
+`representation`. PDF results additionally include `page_count` and `pages`. `format` is `text`,
+`pdf`, `odf` or `ooxml`; `representation` is `utf-8_text` or `extracted_text`. Each PDF page object
+contains `index` and `content`, so page boundaries remain available even though `content` is a
+single string joined with blank lines.
 
-If the optional dependency is missing, the command fails with the structured error code
-`CAPABILITY_UNAVAILABLE` and points to `fs-tool capabilities` for setup instructions. Plain output
-prints the content and writes a truncation warning to stderr.
+If an optional dependency is missing, the command fails with the structured error code
+`CAPABILITY_UNAVAILABLE` and points to `fs-tool capabilities` for setup instructions. Malformed,
+encrypted or oversized ODF/OOXML containers fail with `CAPABILITY_FAILED`. Plain output prints the
+content and writes a truncation warning to stderr.
 
 ## `capabilities`
 
