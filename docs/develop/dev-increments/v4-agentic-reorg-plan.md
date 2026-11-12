@@ -410,3 +410,10 @@ a hidden delete fallback.
 - Commit: `47ba6c4`; pushed to `origin/main`.
 - CI run `43275861843` passed for the phase implementation.
 - Next: Phase 4, bounded ODF/OOXML text extraction through `inspect read`.
+
+### 2026-11-12 - Phase 4
+
+- Completed P4-W01 through P4-W06: `odf_text` and `ooxml_text` capabilities, bounded ZIP/XML extraction, `inspect read` integration, tests and documentation.
+- Commit: `9ffdff9`; pushed to `origin/main`.
+- CI run `43277241395` passed for the phase implementation.
+- Next: Phase 5, validation, documentation defect fixes, integration QA and quality gates.
