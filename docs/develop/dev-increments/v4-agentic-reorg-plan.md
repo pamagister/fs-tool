@@ -189,9 +189,9 @@ content preservation across renames.
   `tree_hash` calculation in `inspect_inventory`.
 - [x] P1-W02: Add tests proving that files removed by filters are not hashed and that `filtered`,
   `count` and `tree_hash` keep their documented semantics.
-- [ ] P1-W03: Add `verify inventory --match path|content` with content-mode comparison of regular
+- [x] P1-W03: Add `verify inventory --match path|content` with content-mode comparison of regular
   files and symlink targets, including the additive result fields.
-- [ ] P1-W04: Add tests for pure renames, changed content, missing/extra content, duplicate content,
+- [x] P1-W04: Add tests for pure renames, changed content, missing/extra content, duplicate content,
   empty files, hardlinks, missing hashes and incomplete inventories.
 - [ ] P1-W05: Update `docs/usage/cli.md`, `docs/usage/output.md` and
   `docs/usage/examples.md` for filter order and content-set verification.

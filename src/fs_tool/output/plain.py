@@ -322,6 +322,19 @@ def render_verify(result: dict[str, Any]) -> str:
             lines.append(f"{category} ({len(items)}):")
             for item in items:
                 lines.append(f"  {item}")
+    for category in ("missing_content", "unexpected_content"):
+        items = result.get(category, [])
+        if items:
+            lines.append(f"{category} ({len(items)}):")
+            for item in items:
+                if item.get("type") == "file":
+                    detail = f"size={item.get('size')} sha256={item.get('sha256')}"
+                else:
+                    detail = f"target={item.get('target')}"
+                paths = ", ".join(item.get("paths", []))
+                lines.append(f"  {detail} count={item.get('count')} paths={paths}")
+    if result.get("match_mode") == "content" and result.get("content_count_mismatch"):
+        lines.append("content_count_mismatch: true")
     lines.append(f"complete: {result.get('complete', False)}")
     return "\n".join(lines)
 

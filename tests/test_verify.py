@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -407,6 +408,181 @@ def test_verify_inventory_detects_changed_symlink_target(tmp_path: Path) -> None
     assert code == EXIT_FAILURE
     assert "link" in data["result"]["changed"]
     assert data["result"]["size_mismatch"] == []
+
+
+def test_verify_inventory_content_ignores_renames(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "alpha")
+    _write(root / "b.txt", "beta")
+
+    inventory_file = _make_inventory(tmp_path, root)
+
+    (root / "a.txt").rename(root / "renamed.txt")
+    nested = root / "nested"
+    nested.mkdir()
+    (root / "b.txt").rename(nested / "b.txt")
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["match_mode"] == "content"
+    assert result["missing_content"] == []
+    assert result["unexpected_content"] == []
+    assert result["content_count_mismatch"] is False
+
+
+def test_verify_inventory_content_detects_changed_file(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "old content")
+
+    inventory_file = _make_inventory(tmp_path, root)
+
+    _write(root / "a.txt", "new content")
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_FAILURE
+    result = data["result"]
+    assert len(result["missing_content"]) == 1
+    assert len(result["unexpected_content"]) == 1
+    assert result["missing_content"][0]["paths"] == ["a.txt"]
+    assert result["unexpected_content"][0]["paths"] == ["a.txt"]
+
+
+def test_verify_inventory_content_detects_missing_and_unexpected_files(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "alpha")
+    _write(root / "b.txt", "beta")
+
+    inventory_file = _make_inventory(tmp_path, root)
+
+    (root / "b.txt").unlink()
+    _write(root / "c.txt", "gamma")
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_FAILURE
+    result = data["result"]
+    assert result["missing_content"][0]["paths"] == ["b.txt"]
+    assert result["unexpected_content"][0]["paths"] == ["c.txt"]
+    assert result["content_count_mismatch"] is False
+
+
+def test_verify_inventory_content_uses_multiset_counts(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "same")
+    _write(root / "b.txt", "same")
+
+    inventory_file = _make_inventory(tmp_path, root)
+
+    (root / "b.txt").unlink()
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_FAILURE
+    result = data["result"]
+    assert result["missing_content"] == [
+        {
+            "type": "file",
+            "size": 4,
+            "sha256": result["missing_content"][0]["sha256"],
+            "count": 1,
+            "paths": ["a.txt", "b.txt"],
+        }
+    ]
+    assert result["unexpected_content"] == []
+    assert result["content_count_mismatch"] is True
+
+
+def test_verify_inventory_content_handles_empty_files_and_hardlinks(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "empty-a").write_bytes(b"")
+    (root / "empty-b").write_bytes(b"")
+    (root / "linked-a").write_text("linked", encoding="utf-8")
+    os.link(root / "linked-a", root / "linked-b")
+
+    inventory_file = _make_inventory(tmp_path, root)
+
+    (root / "empty-a").rename(root / "empty-renamed")
+    (root / "linked-b").unlink()
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_FAILURE
+    result = data["result"]
+    assert result["missing_content"] == [
+        {
+            "type": "file",
+            "size": 6,
+            "sha256": result["missing_content"][0]["sha256"],
+            "count": 1,
+            "paths": ["linked-a", "linked-b"],
+        }
+    ]
+    assert result["content_count_mismatch"] is True
+
+
+def test_verify_inventory_content_requires_hashes(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "alpha")
+
+    code, data = run_json(["--allow-root", str(root), "inspect", "inventory", str(root)])
+    assert code == EXIT_SUCCESS
+    inventory_file = tmp_path / "inventory.json"
+    inventory_file.write_text(json.dumps(data), encoding="utf-8")
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_INVALID_ARGS
+    assert "sha256" in data["errors"][0]["message"]
+
+
+def test_verify_inventory_content_incomplete_inventory(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "alpha")
+    _write(root / "b.txt", "beta")
+
+    code, data = run_json(
+        [
+            "--allow-root",
+            str(root),
+            "inspect",
+            "inventory",
+            str(root),
+            "--hash",
+            "--max-entries",
+            "1",
+        ]
+    )
+    assert code == EXIT_INCOMPLETE
+    inventory_file = tmp_path / "inventory.json"
+    inventory_file.write_text(json.dumps(data), encoding="utf-8")
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_INCOMPLETE
+    assert data["complete"] is False
+    assert any("incomplete scan" in error["message"] for error in data["errors"])
+
+
+def test_verify_inventory_content_compares_symlink_targets(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "target.txt", "target")
+    link = root / "link"
+    link.symlink_to("target.txt")
+
+    inventory_file = _make_inventory(tmp_path, root, "--verbose")
+
+    link.unlink()
+    link.symlink_to("missing-target")
+
+    code, data = run_json(argv_inventory(inventory_file, root, "--match", "content"))
+    assert code == EXIT_FAILURE
+    result = data["result"]
+    assert result["missing_content"][0]["target"] == "target.txt"
+    assert result["unexpected_content"][0]["target"] == "missing-target"
 
 
 def test_verify_tree_detects_changed_symlink_target(tmp_path: Path) -> None:

@@ -9,9 +9,10 @@ verifies file sizes and hashes, and reports incomplete verification.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from fs_tool.core.errors import ErrorCode, FsToolError
 from fs_tool.core.hashing import sha256_of_file
@@ -30,6 +31,10 @@ class VerificationResult:
     hash_mismatch: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     complete: bool = True
+    match_mode: str = "path"
+    missing_content: list[dict[str, Any]] = field(default_factory=list)
+    unexpected_content: list[dict[str, Any]] = field(default_factory=list)
+    content_count_mismatch: bool = False
 
 
 def _invalid_inventory(path: Path, message: str) -> FsToolError:
@@ -118,6 +123,114 @@ def _build_entry_map(entries: list[FilesystemEntry]) -> dict[str, FilesystemEntr
     return entry_map
 
 
+ContentKey = tuple[str, Any, Any]
+
+
+def _record_content(
+    counter: Counter[ContentKey],
+    paths: dict[ContentKey, list[str]],
+    key: ContentKey,
+    path: str,
+) -> None:
+    """Add one content item to a multiset and its path index."""
+    counter[key] += 1
+    paths.setdefault(key, []).append(path)
+
+
+def _inventory_content_counts(
+    entries: list[object], inventory_path: Path
+) -> tuple[Counter[ContentKey], dict[ContentKey, list[str]]]:
+    """Build the content multiset described by an inventory."""
+    counter: Counter[ContentKey] = Counter()
+    paths: dict[ContentKey, list[str]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        rel_path = entry.get("rel_path")
+        if not isinstance(rel_path, str):
+            continue
+        entry_type = entry.get("type")
+        if entry_type == EntryType.FILE.value:
+            sha256 = entry.get("sha256")
+            size = entry.get("size")
+            if not isinstance(sha256, str) or not sha256:
+                raise _invalid_inventory(
+                    inventory_path,
+                    f"Inventory entry {rel_path!r} must contain a sha256 hash for content "
+                    "verification; regenerate it with --hash.",
+                )
+            if not isinstance(size, int):
+                raise _invalid_inventory(
+                    inventory_path,
+                    f"Inventory entry {rel_path!r} must contain an integer size for content "
+                    "verification.",
+                )
+            _record_content(counter, paths, ("file", size, sha256), rel_path)
+        elif entry_type == EntryType.SYMLINK.value:
+            target = entry.get("target")
+            if not isinstance(target, str):
+                raise _invalid_inventory(
+                    inventory_path,
+                    f"Inventory entry {rel_path!r} must contain a symlink target for content "
+                    "verification; regenerate it with --verbose.",
+                )
+            _record_content(counter, paths, ("symlink", target, None), rel_path)
+    return counter, paths
+
+
+def _target_content_counts(
+    entries: list[FilesystemEntry],
+) -> tuple[Counter[ContentKey], dict[ContentKey, list[str]], list[str]]:
+    """Build the content multiset of a traversed target tree."""
+    counter: Counter[ContentKey] = Counter()
+    paths: dict[ContentKey, list[str]] = {}
+    errors: list[str] = []
+    for entry in entries:
+        rel_path = entry.rel_path or entry.name
+        if entry.type is EntryType.FILE:
+            digest = sha256_of_file(entry.path)
+            if digest is None:
+                errors.append(f"Cannot hash {rel_path}; content verification is incomplete.")
+                continue
+            _record_content(counter, paths, ("file", entry.size, digest), rel_path)
+        elif entry.type is EntryType.SYMLINK:
+            _record_content(counter, paths, ("symlink", entry.target, None), rel_path)
+    return counter, paths, errors
+
+
+def _content_item_to_dict(key: ContentKey, count: int, paths: list[str]) -> dict[str, Any]:
+    """Serialize one content multiset difference."""
+    item: dict[str, Any] = {"type": key[0]}
+    if key[0] == EntryType.FILE.value:
+        item["size"] = key[1]
+        item["sha256"] = key[2]
+    else:
+        item["target"] = key[1]
+    item["count"] = count
+    item["paths"] = sorted(paths)
+    return item
+
+
+def _content_differences(
+    inventory_counter: Counter[ContentKey],
+    inventory_paths: dict[ContentKey, list[str]],
+    target_counter: Counter[ContentKey],
+    target_paths: dict[ContentKey, list[str]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return missing and unexpected content items with their paths."""
+    missing_counter = inventory_counter - target_counter
+    unexpected_counter = target_counter - inventory_counter
+    missing = [
+        _content_item_to_dict(key, count, inventory_paths[key])
+        for key, count in sorted(missing_counter.items(), key=lambda item: repr(item[0]))
+    ]
+    unexpected = [
+        _content_item_to_dict(key, count, target_paths[key])
+        for key, count in sorted(unexpected_counter.items(), key=lambda item: repr(item[0]))
+    ]
+    return missing, unexpected
+
+
 def verify_inventory(
     inventory_path: Path,
     target: Path,
@@ -125,15 +238,23 @@ def verify_inventory(
     max_entries: int | None = None,
     ignore_dirs: frozenset[str] | None = None,
     ignore_patterns: tuple[str, ...] = (),
+    match_mode: str = "path",
 ) -> VerificationResult:
     """Verify ``target`` against an inventory file.
 
     Loads the inventory, traverses ``target``, and compares entries.
-    Reports missing entries (in inventory but not in target),
-    unexpected entries (in target but not in inventory), size
-    mismatches, and hash mismatches where inventory hashes are
-    available.
+    Path mode reports missing entries (in inventory but not in target),
+    unexpected entries (in target but not in inventory), size mismatches,
+    and hash mismatches where inventory hashes are available. Content mode
+    ignores paths and compares the multiset of file ``(size, sha256)`` pairs
+    and symlink targets, which makes pure renames verifiable.
     """
+    if match_mode not in {"path", "content"}:
+        raise _invalid_inventory(
+            inventory_path,
+            f"Unsupported inventory match mode {match_mode!r}; use path or content.",
+        )
+
     data = _load_inventory(inventory_path)
 
     inventory_entries = cast(list[object], data["entries"])
@@ -153,7 +274,7 @@ def verify_inventory(
         ignore_patterns=ignore_patterns,
     )
 
-    result = VerificationResult()
+    result = VerificationResult(match_mode=match_mode)
     result.errors = [error.message for error in target_result.errors]
     result.complete = target_result.complete
     if not bool(data.get("complete", True)):
@@ -162,21 +283,37 @@ def verify_inventory(
             "Inventory was generated from an incomplete scan; verification is incomplete."
         )
 
+    if match_mode == "content":
+        inventory_counter, inventory_paths = _inventory_content_counts(
+            inventory_entries, inventory_path
+        )
+        target_counter, target_paths, hash_errors = _target_content_counts(target_result.entries)
+        result.errors.extend(hash_errors)
+        if hash_errors:
+            result.complete = False
+        result.missing_content, result.unexpected_content = _content_differences(
+            inventory_counter, inventory_paths, target_counter, target_paths
+        )
+        result.content_count_mismatch = sum(inventory_counter.values()) != sum(
+            target_counter.values()
+        )
+        return result
+
     target_map = _build_entry_map(target_result.entries)
 
-    inventory_paths = set(inventory_map.keys())
-    target_paths = set(target_map.keys())
+    inventory_paths_set = set(inventory_map.keys())
+    target_paths_set = set(target_map.keys())
 
     # Missing: in inventory but not in target
-    for rel_path in sorted(inventory_paths - target_paths):
+    for rel_path in sorted(inventory_paths_set - target_paths_set):
         result.missing.append(rel_path)
 
     # Unexpected: in target but not in inventory
-    for rel_path in sorted(target_paths - inventory_paths):
+    for rel_path in sorted(target_paths_set - inventory_paths_set):
         result.unexpected.append(rel_path)
 
     # Common paths: verify sizes and hashes
-    for rel_path in sorted(inventory_paths & target_paths):
+    for rel_path in sorted(inventory_paths_set & target_paths_set):
         inv_entry = inventory_map[rel_path]
         tgt_entry = target_map[rel_path]
 

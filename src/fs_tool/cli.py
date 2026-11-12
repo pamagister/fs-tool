@@ -1618,11 +1618,18 @@ def verify_inventory_cmd(
         "--ignore-pattern",
         help="Ignore names matching a pattern (repeatable).",
     ),
+    match_mode: str = typer.Option(
+        "path",
+        "--match",
+        help="Comparison mode: path (default) or content.",
+    ),
 ) -> int:
     """Verify a directory against an inventory file.
 
-    Checks schema_version, then compares entries. Reports missing,
-    unexpected, size mismatch, and hash mismatch entries.
+    Checks schema_version, then compares entries. Path mode reports missing,
+    unexpected, size mismatch, and hash mismatch entries. Content mode ignores
+    paths and compares file (size, sha256) pairs and symlink targets as a
+    multiset, which verifies reorganizations that rename or move files.
 
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain verify inventory inventory.json ~/Documents``.
@@ -1639,6 +1646,7 @@ def verify_inventory_cmd(
             max_entries=max_entries,
             ignore_dirs=frozenset(ignore_dir),
             ignore_patterns=tuple(ignore_pattern),
+            match_mode=match_mode,
         )
     except FsToolError as exc:
         envelope = Envelope(
@@ -1655,6 +1663,7 @@ def verify_inventory_cmd(
     result_dict: dict[str, Any] = {
         "inventory_file": str(inventory_file),
         "target": str(target_root),
+        "match_mode": result.match_mode,
         "missing": result.missing,
         "unexpected": result.unexpected,
         "changed": result.changed,
@@ -1662,15 +1671,31 @@ def verify_inventory_cmd(
         "hash_mismatch": result.hash_mismatch,
         "complete": result.complete,
     }
+    if result.match_mode == "content":
+        result_dict.update(
+            {
+                "missing_content": result.missing_content,
+                "unexpected_content": result.unexpected_content,
+                "content_count_mismatch": result.content_count_mismatch,
+            }
+        )
 
     error_tuples = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=message, path=str(target_root))
         for message in result.errors
     )
 
-    success = (
-        result.complete and not result.missing and not result.unexpected and not result.changed
-    )
+    if result.match_mode == "content":
+        success = (
+            result.complete
+            and not result.missing_content
+            and not result.unexpected_content
+            and not result.content_count_mismatch
+        )
+    else:
+        success = (
+            result.complete and not result.missing and not result.unexpected and not result.changed
+        )
 
     if ctx.obj.output_format == "plain":
         from fs_tool.output.plain import render_verify
