@@ -237,7 +237,7 @@ copies, and add safe empty-directory cleanup.
 
 **Phase gate:** Individual write ergonomics are stable before the multi-step plan is added.
 
-## Phase 3: Multi-Step Write Plan Execution [-]
+## Phase 3: Multi-Step Write Plan Execution [x]
 
 **Objective:** Add `write apply` with plan-level dry-run, preflight and sequential execution.
 
@@ -403,3 +403,10 @@ a hidden delete fallback.
 - Commits: `bd885e9`, `5b29cdf`; pushed to `origin/main`.
 - CI run `43274301680` passed for the phase implementation.
 - Next: Phase 3, `write apply` plan execution with in-memory preflight and sequential execution.
+
+### 2026-11-12 - Phase 3
+
+- Completed P3-W01 through P3-W06: plan schema, in-memory preflight, dry-run, sequential execution, failure policies, tests and documentation.
+- Commit: `47ba6c4`; pushed to `origin/main`.
+- CI run `43275861843` passed for the phase implementation.
+- Next: Phase 4, bounded ODF/OOXML text extraction through `inspect read`.
