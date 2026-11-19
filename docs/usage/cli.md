@@ -48,8 +48,9 @@ fs-tool inspect tree ~/Documents --plain
 |---|---|
 | `-h`, `--help` | Show help and exit. |
 | `--version` | Show the application version and exit. |
-| `--allow-root PATH` | Set an allowed root. Repeatable. Supplied values replace the default home and CWD roots. |
+| `--allow-root PATH` | Set a read root. Repeatable. Supplied values replace the default home/CWD roots and any configured roots. |
 | `--config PATH` | Path to a TOML configuration file. |
+| `--show-config` | Print the resolved configuration and exit. |
 | `--format auto\|json\|plain\|csv\|tsv` | Select the output format. Default: `auto`. `csv` and `tsv` are supported by `inspect inventory` only. |
 | `--json` | Explicitly request JSON output. |
 | `--plain` | Human-readable output instead of JSON. |
@@ -83,14 +84,10 @@ configuration file.
 ## Global path restrictions
 
 By default, fs-tool only accesses the current user's home directory and the current working
-directory. When `--allow-root` is supplied, those values replace the default roots:
-
-```bash
-fs-tool --allow-root /mnt/nas inspect inventory /mnt/nas
-```
-
-All source and destination paths must lie within an allowed root. A configuration file may restrict
-the effective roots further, but it can never expand them. See [Safety model](safety.md).
+directory. When `--allow-root` is supplied, those values replace the default roots. Without
+`--allow-root`, the configuration file may define the read roots. Write destinations are
+additionally restricted to the configured `write_roots`. See
+[Configuration](configuration.md).
 
 ---
 
@@ -111,6 +108,7 @@ fs-tool inspect tree SOURCE [OPTIONS]
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
 | `--sort-by MODE` | Sort entries by `name` (default), `size`, `modified` or `extension`. |
 | `--no-default-ignore` | Include directories from the default ignore list. |
+| `--fields FIELDS` | Comma-separated entry fields to return. Overrides the compact profile; mutually exclusive with `--verbose`. |
 
 The default ignore set includes `.git`, `.venv`, `__pycache__`, `.pytest_cache`, `.ruff_cache`,
 `.mypy_cache`, `node_modules`, `build`, `dist`, `.idea` and `.vscode`. Use `--no-default-ignore` to
@@ -118,8 +116,8 @@ disable it. Symlinks are recorded but never followed.
 
 JSON result fields: `root`, `entries`, `count`. Each entry contains `rel_path` and `type` by
 default; `--verbose` returns all fields described in
-[JSON response schemas](output.md#filesystem-entry). Plain output renders a tree, and `--verbose`
-adds a detail block below each entry.
+[JSON response schemas](output.md#filesystem-entry). `--fields` projects exactly the requested
+columns. Plain output renders a tree, and `--verbose` adds a detail block below each entry.
 
 If the scan is truncated or contains unreadable entries, the command reports `complete: false` and
 exits with code 5.
@@ -211,6 +209,8 @@ fs-tool inspect inventory SOURCE [OPTIONS]
 | `--fields FIELDS` | Comma-separated entry fields to return. Overrides compact and verbose profiles. |
 | `--max-hash-bytes SIZE` | Skip hashing files larger than SIZE and emit a `HASH_SKIPPED` warning. |
 | `--progress` | Write progress information to stderr only. |
+| `--count-only` | Return counts and tree hash without the entries list. |
+| `--group-by MODE` | Add a `groups` summary by `extension`, `type` or `size`. |
 
 Inventory entries are addressed by `rel_path` relative to the declared root and omit the absolute
 `path`, so an inventory can be compared across machines. JSON result fields: `root`, `entries`,
@@ -420,6 +420,7 @@ fs-tool find SOURCE [OPTIONS]
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
 | `--sort-by MODE` | Sort matches by `name` (default), `size`, `modified` or `extension`. |
 | `--no-default-ignore` | Include directories from the default ignore list. |
+| `--fields FIELDS` | Comma-separated entry fields to return. Overrides the compact profile; mutually exclusive with `--verbose`. |
 
 All specified filters are combined with logical AND. Sizes use binary multipliers (`K` = 1024,
 `M` = 1024², `G` = 1024³, `T` = 1024⁴). Timestamps use the format accepted by
@@ -427,7 +428,8 @@ All specified filters are combined with logical AND. Sizes use binary multiplier
 
 JSON result fields: `root`, `entries`, `count`, `complete`. Each entry contains `rel_path`, `type`
 and `size` by default; `--verbose` returns the complete entry fields described in
-[JSON response schemas](output.md#filesystem-entry).
+[JSON response schemas](output.md#filesystem-entry). `--fields` projects exactly the requested
+columns.
 
 ## `duplicates`
 
@@ -503,6 +505,7 @@ fs-tool verify inventory INVENTORY_FILE TARGET [OPTIONS]
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
 | `--match MODE` | Compare by `path` (default) or by `content`. |
+| `--max-list N` | Maximum number of list entries returned per category. |
 
 The inventory may be either the full JSON envelope produced by `inspect inventory` or a bare
 inventory object. The `schema_version` must be `1`; the inventory must contain `rel_path` and `type`
@@ -549,10 +552,12 @@ fs-tool verify tree SOURCE DESTINATION [OPTIONS]
 | `--max-entries N` | Maximum number of entries to scan per tree. |
 | `--ignore-dir NAME` | Ignore a directory by name. Repeatable. |
 | `--ignore-pattern PATTERN` | Ignore names matching a glob pattern. Repeatable. |
+| `--max-list N` | Maximum number of list entries returned per category. |
 
 Both trees are traversed and compared by relative path. Regular files are checked by size and
 SHA-256; symlinks are checked by target. JSON result fields: `source`, `destination`, `missing`,
-`unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete`.
+`unexpected`, `changed`, `size_mismatch`, `hash_mismatch`, `complete`, plus `*_count` and
+`*_truncated` fields for each category.
 
 ---
 
@@ -563,15 +568,17 @@ All write commands require exactly one of `--dry-run` or `--yes`:
 - `--dry-run` validates the operation and reports what would happen without changing the filesystem.
 - `--yes` authorizes execution.
 
-Every write operation validates all paths against the allowed roots, never overwrites an existing
-destination, and returns a structured operation report. Existing data is never deleted.
+Every write operation validates read paths against the allowed roots and write destinations
+against the configured `write_roots`, never overwrites an existing destination, and returns a
+structured operation report. Destructive operations outside `write_roots` are refused unless
+`allow_manipulate_originals = true` is configured. See [Safety model](safety.md).
 
 ### `write apply`
 
-Execute a declarative multi-step plan.
+Execute a declarative multi-step plan or a CSV mapping file.
 
 ```bash
-fs-tool write apply PLAN_FILE (--dry-run | --yes) [--on-error stop|continue]
+fs-tool write apply [PLAN_FILE] (--dry-run | --yes) [--map-file CSV] [--map-op copy|move] [--on-error stop|continue]
 ```
 
 | Option | Description |
@@ -579,6 +586,13 @@ fs-tool write apply PLAN_FILE (--dry-run | --yes) [--on-error stop|continue]
 | `--dry-run` | Simulate the complete plan without changing the filesystem. |
 | `--yes` | Authorize sequential execution. |
 | `--on-error MODE` | Execution failure policy: `stop` (default) or `continue`. |
+| `--map-file PATH` | Read a CSV file with `source,destination[,op]` rows instead of a JSON plan. |
+| `--map-op copy\|move` | Default operation for `--map-file` rows. Default: `copy`. |
+
+A CSV map file is a compact alternative to a JSON plan. It must contain `source` and
+`destination` columns and may contain an `op` column with `copy` or `move`. Every generated
+operation uses `parents = true`; generated `move` operations also set `allow_rename = true`.
+`--map-file` and a positional plan file are mutually exclusive.
 
 The plan file is JSON with `plan_version: 1` and a non-empty `operations` list. Relative paths are
 resolved against the current working directory. Unknown operations, unknown fields, invalid option

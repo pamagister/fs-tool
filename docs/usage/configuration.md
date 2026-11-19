@@ -1,23 +1,27 @@
 # Configuration
 
-fs-tool reads configuration from a single TOML file. The configuration can restrict which
-filesystem roots are accessible; it cannot grant access that the command line does not allow.
+fs-tool reads configuration from a single TOML file. Without command-line roots, the
+configuration is authoritative for read access and may include roots outside the home and CWD
+directories. Command-line roots take precedence and replace the configured roots.
 
 ## Configuration file location
 
-By default, fs-tool reads:
+By default, fs-tool reads a platform-specific file:
 
-```text
-$XDG_CONFIG_HOME/fs-tool/config.toml
-```
-
-When `XDG_CONFIG_HOME` is unset, the path is `~/.config/fs-tool/config.toml`.
+| Platform | Default path |
+|---|---|
+| Linux | `$XDG_CONFIG_HOME/fs-tool/config.toml` or `~/.config/fs-tool/config.toml` |
+| macOS | `~/Library/Application Support/fs-tool/config.toml` |
+| Windows | `%APPDATA%\fs-tool\config.toml` |
 
 Pass `--config PATH` to use a different file:
 
 ```bash
 fs-tool --config ./fs-tool.toml inspect tree ~/Documents
 ```
+
+Run `fs-tool --show-config` to print the resolved configuration, including the file that was
+loaded and the effective read/write roots.
 
 A missing configuration file is not an error: the built-in defaults apply. Project-local
 configuration files are never loaded automatically.
@@ -29,47 +33,46 @@ The file uses a single `[fs-tool]` table:
 ```toml
 [fs-tool]
 allowed_roots = ["/home/user/projects", "/mnt/nas/documents"]
+write_roots = ["/home/user/sorted"]
+allow_manipulate_originals = false
 ```
 
 | Key | Type | Description |
 |---|---|---|
-| `allowed_roots` | array of strings | Filesystem roots that fs-tool may access. |
+| `allowed_roots` | array of strings | Filesystem roots that fs-tool may read. |
+| `write_roots` | array of strings | Roots that may receive new writes. Must be within `allowed_roots`. Defaults to `allowed_roots`. |
+| `allow_manipulate_originals` | boolean | Allow destructive operations outside `write_roots`. Default: `false`. |
+
+Unknown keys in the `[fs-tool]` table are rejected with an invalid-argument error.
 
 ## Allowed roots and precedence
 
-The effective allowed roots are resolved in this order:
+The effective read roots are resolved in this order:
 
-1. `--allow-root` values, if supplied; otherwise the default roots (home directory and current
-   working directory).
-2. `allowed_roots` from the configuration file, intersected with the roots from step 1.
-3. The defaults from step 1 when the configuration file does not set `allowed_roots`.
+1. `--allow-root` values, if supplied. They replace the configured roots.
+2. `allowed_roots` from the configuration file, when no `--allow-root` is given.
+3. The default roots (home directory and current working directory) otherwise.
 
-The configuration can therefore only narrow access. A configured root that lies outside the
-command-line roots is ignored, so editing a configuration file cannot escalate access beyond
-`--allow-root`.
+`write_roots` defaults to the effective `allowed_roots` and must be a subset of them. A
+configuration that names a write root outside the allowed roots is rejected.
 
-When no command-line roots are given, the configuration is intersected with the default
-home-plus-CWD roots. This means a configuration cannot add a root such as `/mnt/nas` on its own:
+## Originals protection
 
-```toml
-# Ignored unless /mnt/nas is also authorized via --allow-root.
-[fs-tool]
-allowed_roots = ["/mnt/nas", "/home/user/projects"]
-```
-
-Access `/mnt/nas` explicitly instead:
-
-```bash
-fs-tool --allow-root /mnt/nas inspect tree /mnt/nas
-```
+Destructive operations (`write move`, `write rmdir`, and `write apply` with `move` or `rmdir`)
+outside `write_roots` are refused with exit code 3 unless
+`allow_manipulate_originals = true` is set in the configuration file. `--yes` does not override
+this policy. Non-destructive writes such as `write copy` and `write mkdir` may target
+`write_roots` without the flag. See [Safety model](safety.md).
 
 ## Examples
 
-Limit access to a project directory:
+Limit access to a project directory and protect originals outside the sorted output:
 
 ```toml
 [fs-tool]
 allowed_roots = ["/home/user/projects/fs-tool"]
+write_roots = ["/home/user/projects/fs-tool/sorted"]
+allow_manipulate_originals = false
 ```
 
 Use a dedicated configuration file in a script:
@@ -78,10 +81,16 @@ Use a dedicated configuration file in a script:
 fs-tool --config /etc/fs-tool/ci.toml inspect inventory "$PWD" --hash
 ```
 
-Combine CLI roots with a restricting configuration:
+Override configured roots explicitly for one invocation:
 
 ```bash
 fs-tool --allow-root /mnt/nas --config ./fs-tool.toml inspect tree /mnt/nas
+```
+
+Inspect the effective configuration:
+
+```bash
+fs-tool --show-config
 ```
 
 ## Validation and errors

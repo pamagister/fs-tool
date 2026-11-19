@@ -17,8 +17,8 @@ fs-tool --allow-root /mnt/nas inspect tree /mnt/nas
 ```
 
 `--allow-root` is repeatable. When supplied, the values replace the default home and CWD roots
-instead of extending them. A configuration file can restrict the effective roots further, but it
-cannot add new ones. See [Configuration](configuration.md).
+instead of extending them. Without `--allow-root`, the configuration file may define the read
+roots, including roots outside home and CWD. See [Configuration](configuration.md).
 
 Validation checks both the normalized path and the symlink-resolved path. A symlink cannot be used
 to escape an allowed root. Violations fail with exit code 3.
@@ -60,13 +60,24 @@ Supplying neither, or both, is an invalid-argument error (exit code 2).
 
 Additional safeguards:
 
-- Source and destination are validated against the allowed roots.
+- Read paths are validated against the allowed roots; write destinations are validated against
+  the write roots.
 - Existing destinations are never overwritten.
-- Data is never deleted.
+- Destructive operations outside the write roots require
+  `allow_manipulate_originals = true` in the configuration file.
 - All preflight conflicts are checked before the first write. A copy can still be partially applied
   if a runtime I/O error occurs; affected paths are reported.
 - Symlinks are never followed, and no option can enable following them.
 - The command verifies the result and returns a structured operation report.
+
+## Originals protection
+
+`write move`, `write rmdir` and `write apply` with `move` or `rmdir` remove entries. By default
+these operations are allowed only inside the configured `write_roots`. Removing an original
+outside `write_roots` fails with `ORIGINAL_PROTECTED` (exit code 3). Set
+`allow_manipulate_originals = true` in the configuration file to allow it. `--yes` only
+authorizes execution; it never overrides this policy. Non-destructive `write copy` and
+`write mkdir` remain available for building a new tree inside `write_roots`.
 
 ## Operation-specific rules
 
@@ -115,6 +126,7 @@ Additional safeguards:
 | Verification found discrepancies or an operation failed | 1 |
 | Invalid arguments, bad configuration, unsupported request | 2 |
 | Path outside an allowed root or permission denied | 3 |
+| Original modification outside write roots without authorization | 3 |
 | Destination already exists or type conflict | 4 |
 | Incomplete scan or verification | 5 |
 
