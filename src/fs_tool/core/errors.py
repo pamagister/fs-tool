@@ -31,6 +31,7 @@ class ErrorCode(str, Enum):
     # 3 - Access denied or safety restriction.
     ACCESS_DENIED = "ACCESS_DENIED"
     ROOT_NOT_ALLOWED = "ROOT_NOT_ALLOWED"
+    ORIGINAL_PROTECTED = "ORIGINAL_PROTECTED"
 
     # 4 - Operation conflict.
     TARGET_EXISTS = "TARGET_EXISTS"
@@ -58,6 +59,7 @@ EXIT_CODES: dict[ErrorCode, int] = {
     ErrorCode.INCOMPLETE_ANALYSIS: 2,
     ErrorCode.ACCESS_DENIED: 3,
     ErrorCode.ROOT_NOT_ALLOWED: 3,
+    ErrorCode.ORIGINAL_PROTECTED: 3,
     ErrorCode.TARGET_EXISTS: 4,
     ErrorCode.TYPE_CONFLICT: 4,
     ErrorCode.INCOMPLETE_SCAN: 5,

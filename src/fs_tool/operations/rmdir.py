@@ -18,8 +18,8 @@ from fs_tool.operations.common import (
     lstat_or_none,
     raise_operation_os_error,
     require_authorization,
-    validate_operation_path,
 )
+from fs_tool.safety.validation import validate_destructive_path
 
 
 def _is_empty_or_only_planned(path: Path, planned: set[Path]) -> bool:
@@ -34,7 +34,7 @@ def _is_empty_or_only_planned(path: Path, planned: set[Path]) -> bool:
         raise_operation_os_error("inspect directory", path, exc)
 
 
-def _planned_removals(target: Path, allowed_roots: tuple[Path, ...]) -> list[Path]:
+def _planned_removals(target: Path, stop_roots: tuple[Path, ...]) -> list[Path]:
     """Return the directory and removable empty parents in bottom-up order."""
     if not _is_empty_or_only_planned(target, set()):
         raise FsToolError(
@@ -45,7 +45,7 @@ def _planned_removals(target: Path, allowed_roots: tuple[Path, ...]) -> list[Pat
 
     planned = [target]
     planned_set = {target}
-    allowed = {root.resolve(strict=False) for root in allowed_roots}
+    allowed = {root.resolve(strict=False) for root in stop_roots}
     current = target.parent
     while current != current.parent and current.resolve(strict=False) not in allowed:
         if not _is_empty_or_only_planned(current, planned_set):
@@ -63,10 +63,18 @@ def remove_directory(
     dry_run: bool,
     yes: bool,
     parents: bool = False,
+    write_roots: tuple[Path, ...] | None = None,
+    allow_manipulate_originals: bool = False,
 ) -> OperationReport:
     """Remove one empty directory, optionally with empty parent directories."""
     require_authorization(dry_run, yes)
-    target = validate_operation_path(destination, allowed_roots)
+    effective_write_roots = write_roots if write_roots is not None else allowed_roots
+    target = validate_destructive_path(
+        destination,
+        allowed_roots,
+        effective_write_roots,
+        allow_manipulate_originals,
+    )
 
     info = lstat_or_none(target)
     if info is None:
@@ -88,7 +96,8 @@ def remove_directory(
             path=str(target),
         )
 
-    planned = _planned_removals(target, allowed_roots)
+    stop_roots = allowed_roots if allow_manipulate_originals else effective_write_roots
+    planned = _planned_removals(target, stop_roots)
     if not parents:
         planned = planned[:1]
     planned_paths = tuple(str(path) for path in planned)

@@ -32,12 +32,13 @@ from fs_tool.operations.common import OperationReport
 from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
-from fs_tool.operations.plan import PlanResult, apply_plan
+from fs_tool.operations.plan import PlanResult, apply_operations, apply_plan, load_map_file
 from fs_tool.operations.rmdir import remove_directory
 from fs_tool.output.entries import (
     INVENTORY_COMPACT_FIELDS,
     find_entry_dict,
     inventory_entry_dict,
+    project_entry_dict,
     tree_entry_dict,
 )
 from fs_tool.output.json import SCHEMA_VERSION, Envelope, Error, Warning
@@ -52,11 +53,27 @@ EXIT_ACCESS_DENIED = 3
 EXIT_CONFLICT = 4
 EXIT_INCOMPLETE = 5
 
+
+def _config_epilog() -> str:
+    """Return a short config/safety summary for the root help output."""
+    try:
+        config = load_config()
+    except FsToolError as exc:
+        return f"Config: <error: {exc.message}>"
+    return (
+        f"Config file: {config.config_path}\n"
+        f"Allowed roots: {', '.join(str(root) for root in config.allowed_roots)}\n"
+        f"Write roots: {', '.join(str(root) for root in config.write_roots)}\n"
+        f"Originals protected: {not config.allow_manipulate_originals}"
+    )
+
+
 app = typer.Typer(
     name="fs-tool",
     help="Inspect, analyze, compare and organize local filesystems.",
     no_args_is_help=True,
     context_settings={"help_option_names": ["-h", "--help"]},
+    epilog=_config_epilog(),
 )
 
 
@@ -71,6 +88,9 @@ class CliContext:
         json_output: bool,
         plain_output: bool,
         verbose: bool = False,
+        write_root: list[str] | None = None,
+        allow_manipulate_originals: bool = False,
+        config_path: str | None = None,
     ) -> None:
         self.allow_root = allow_root
         self.config = config
@@ -78,6 +98,9 @@ class CliContext:
         self.json_output = json_output
         self.plain_output = plain_output
         self.verbose = verbose
+        self.write_root = write_root or []
+        self.allow_manipulate_originals = allow_manipulate_originals
+        self.config_path = config_path
 
 
 def _resolve_format(
@@ -132,6 +155,89 @@ def _reject_tabular(ctx: typer.Context) -> None:
         )
 
 
+ENTRY_FIELDS = tuple(FilesystemEntry.__dataclass_fields__)
+
+
+def _parse_entry_fields(value: str) -> tuple[str, ...]:
+    """Parse and validate a comma-separated ``--fields`` value."""
+    fields = tuple(part.strip() for part in value.split(",") if part.strip())
+    if not fields:
+        raise FsToolError(
+            "--fields must list at least one field.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+    unknown = [name for name in fields if name not in ENTRY_FIELDS]
+    if unknown:
+        raise FsToolError(
+            f"Invalid --fields value(s): {', '.join(unknown)}. "
+            f"Allowed fields: {', '.join(ENTRY_FIELDS)}.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+    return fields
+
+
+def _emit_invalid_argument(ctx: typer.Context, command: str, message: str) -> int:
+    """Emit an invalid-argument error in the selected output format."""
+    if ctx.obj.output_format == "plain":
+        print(f"fs-tool: error: {message}", file=sys.stderr)
+    else:
+        envelope = Envelope(
+            schema_version=SCHEMA_VERSION,
+            success=False,
+            command=command,
+            result=None,
+            errors=(Error(code=ErrorCode.INVALID_ARGUMENT, message=message),),
+            complete=False,
+        )
+        typer.echo(envelope.to_json())
+    return EXIT_INVALID_ARGS
+
+
+def _cap_list(items: list[Any], max_list: int | None) -> tuple[list[Any], bool]:
+    """Cap a result list and report whether it was truncated."""
+    if max_list is None or len(items) <= max_list:
+        return items, False
+    return items[:max_list], True
+
+
+def _size_bucket(size: int) -> str:
+    """Return a human-readable size bucket."""
+    if size < 1024:
+        return "<1K"
+    if size < 10 * 1024:
+        return "1K-10K"
+    if size < 100 * 1024:
+        return "10K-100K"
+    if size < 1024 * 1024:
+        return "100K-1M"
+    return ">1M"
+
+
+def _group_entries(entry_dicts: list[dict[str, Any]], group_by: str) -> list[dict[str, Any]]:
+    """Group entries by extension, type or size and return count/size summaries."""
+    groups: dict[str, dict[str, Any]] = {}
+    for entry in entry_dicts:
+        if group_by == "type":
+            entry_type = entry.get("type")
+            key = (
+                entry_type.value
+                if isinstance(entry_type, EntryType)
+                else str(entry_type or "unknown")
+            )
+        elif group_by == "extension":
+            extension = entry.get("extension")
+            key = extension if isinstance(extension, str) and extension else "<none>"
+        else:
+            size = entry.get("size")
+            key = _size_bucket(size) if isinstance(size, int) else "unknown"
+        bucket = groups.setdefault(key, {"key": key, "count": 0, "total_size": 0})
+        bucket["count"] += 1
+        size = entry.get("size")
+        if isinstance(size, int):
+            bucket["total_size"] += size
+    return sorted(groups.values(), key=lambda item: (-item["count"], item["key"]))
+
+
 def merge_globals(
     ctx: typer.Context,
     *,
@@ -161,6 +267,9 @@ def merge_globals(
             config_path=ctx.obj.config, cli_roots=tuple(Path(root) for root in allow_root)
         )
         ctx.obj.allow_root = [str(root) for root in config_obj.allowed_roots]
+        ctx.obj.write_root = [str(root) for root in config_obj.write_roots]
+        ctx.obj.allow_manipulate_originals = config_obj.allow_manipulate_originals
+        ctx.obj.config_path = str(config_obj.config_path)
     if format_value is not None:
         ctx.obj.output_format = format_value
     if json_output is not None:
@@ -211,11 +320,16 @@ def _root(
         ),
     ),
     version: bool = typer.Option(False, "--version", help="Show application version and exit."),
+    show_config: bool = typer.Option(
+        False,
+        "--show-config",
+        help="Show the resolved configuration and exit.",
+    ),
 ) -> None:
     """Root callback: global options and version information.
 
-    ``--help``/``--version`` are documented exceptions to the JSON
-    envelope (plan.md section 4.3).
+    ``--help``/``--version``/``--show-config`` are documented exceptions to
+    the JSON envelope (plan.md section 4.3).
     """
     ctx.obj = CliContext(
         allow_root=[],
@@ -235,6 +349,20 @@ def _root(
         verbose=verbose,
         version=version,
     )
+
+    if show_config:
+        typer.echo(
+            json.dumps(
+                {
+                    "config_path": ctx.obj.config_path,
+                    "allowed_roots": ctx.obj.allow_root,
+                    "write_roots": ctx.obj.write_root,
+                    "allow_manipulate_originals": ctx.obj.allow_manipulate_originals,
+                },
+                indent=2,
+            )
+        )
+        raise typer.Exit(EXIT_SUCCESS)
 
 
 # Command groups are registered without commands in Phase 0; commands
@@ -278,12 +406,27 @@ def inspect_tree(
         "--no-default-ignore",
         help="Include directories from the default ignore list.",
     ),
+    fields: str | None = typer.Option(
+        None,
+        "--fields",
+        help="Comma-separated entry fields to return.",
+    ),
 ) -> int:
     """Display a directory tree (JSON by default, plain with --plain).
 
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect tree /tmp``.
     """
+    if fields is not None and ctx.obj.verbose:
+        return _emit_invalid_argument(
+            ctx,
+            "inspect.tree",
+            "--fields and --verbose are mutually exclusive.",
+        )
+    try:
+        requested_fields = _parse_entry_fields(fields) if fields is not None else None
+    except FsToolError as exc:
+        return _emit_invalid_argument(ctx, "inspect.tree", exc.message)
     _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
     result = traverse(
@@ -310,7 +453,12 @@ def inspect_tree(
             )
         return EXIT_INCOMPLETE if not result.complete else EXIT_SUCCESS
 
-    entry_dicts = [tree_entry_dict(entry, verbose=ctx.obj.verbose) for entry in result.entries]
+    if requested_fields is not None:
+        entry_dicts = [
+            project_entry_dict(asdict(entry), requested_fields) for entry in result.entries
+        ]
+    else:
+        entry_dicts = [tree_entry_dict(entry, verbose=ctx.obj.verbose) for entry in result.entries]
     errors = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=error.message, path=error.path)
         for error in result.errors
@@ -725,12 +873,28 @@ def inspect_inventory(
         "--progress",
         help="Write progress information to stderr.",
     ),
+    count_only: bool = typer.Option(
+        False,
+        "--count-only",
+        help="Return counts and tree hash without the entries list.",
+    ),
+    group_by: str | None = typer.Option(
+        None,
+        "--group-by",
+        help="Group entries by extension, type or size.",
+    ),
 ) -> int:
     """Create a deterministic inventory of a directory tree.
 
     Global options such as ``--plain`` and ``--allow-root`` precede
     the command, e.g. ``fs-tool --plain inspect inventory /tmp``.
     """
+    if group_by is not None and group_by not in {"extension", "type", "size"}:
+        return _emit_invalid_argument(
+            ctx,
+            "inspect.inventory",
+            "Invalid --group-by value; use extension, type or size.",
+        )
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
     def invalid(message: str) -> int:
@@ -884,7 +1048,7 @@ def inspect_inventory(
 
     inventory: dict[str, Any] = {
         "root": str(root),
-        "entries": entry_dicts,
+        "entries": [] if count_only else entry_dicts,
         "count": len(entry_dicts),
         "generated_at": datetime.now(tz=UTC).isoformat(),
         "complete": result.complete,
@@ -895,6 +1059,8 @@ def inspect_inventory(
         inventory["filtered"] = filtered
     if tree_hash_value is not None:
         inventory["tree_hash"] = tree_hash_value
+    if group_by is not None:
+        inventory["groups"] = _group_entries(entry_dicts, group_by)
 
     if ctx.obj.output_format in ("csv", "tsv"):
         from fs_tool.output.tabular import render_inventory_tabular
@@ -1248,11 +1414,26 @@ def find_cmd(
         "--no-default-ignore",
         help="Include directories from the default ignore list.",
     ),
+    fields: str | None = typer.Option(
+        None,
+        "--fields",
+        help="Comma-separated entry fields to return.",
+    ),
 ) -> int:
     """Find filesystem entries matching filters.
 
     Example: ``fs-tool find ~/Documents --name "*.pdf" --plain``.
     """
+    if fields is not None and ctx.obj.verbose:
+        return _emit_invalid_argument(
+            ctx,
+            "find",
+            "--fields and --verbose are mutually exclusive.",
+        )
+    try:
+        requested_fields = _parse_entry_fields(fields) if fields is not None else None
+    except FsToolError as exc:
+        return _emit_invalid_argument(ctx, "find", exc.message)
     _reject_tabular(ctx)
     root = validate_path(source, tuple(ctx.obj.allow_root))
 
@@ -1371,7 +1552,10 @@ def find_cmd(
         use_default_ignores=not no_default_ignore,
     )
 
-    entry_dicts = [find_entry_dict(entry, verbose=ctx.obj.verbose) for entry in matching]
+    if requested_fields is not None:
+        entry_dicts = [project_entry_dict(asdict(entry), requested_fields) for entry in matching]
+    else:
+        entry_dicts = [find_entry_dict(entry, verbose=ctx.obj.verbose) for entry in matching]
     error_tuples = tuple(
         Error(code="INACCESSIBLE_ENTRY", message=message, path=str(root)) for message in errors
     )
@@ -1631,6 +1815,12 @@ def verify_inventory_cmd(
         "--match",
         help="Comparison mode: path (default) or content.",
     ),
+    max_list: int | None = typer.Option(
+        None,
+        "--max-list",
+        min=0,
+        help="Maximum number of list entries to return per category.",
+    ),
 ) -> int:
     """Verify a directory against an inventory file.
 
@@ -1668,22 +1858,50 @@ def verify_inventory_cmd(
         typer.echo(envelope.to_json())
         return exc.exit_code
 
+    missing, missing_truncated = _cap_list(result.missing, max_list)
+    unexpected, unexpected_truncated = _cap_list(result.unexpected, max_list)
+    changed, changed_truncated = _cap_list(result.changed, max_list)
+    size_mismatch, size_mismatch_truncated = _cap_list(result.size_mismatch, max_list)
+    hash_mismatch, hash_mismatch_truncated = _cap_list(result.hash_mismatch, max_list)
+
     result_dict: dict[str, Any] = {
         "inventory_file": str(inventory_file),
         "target": str(target_root),
         "match_mode": result.match_mode,
-        "missing": result.missing,
-        "unexpected": result.unexpected,
-        "changed": result.changed,
-        "size_mismatch": result.size_mismatch,
-        "hash_mismatch": result.hash_mismatch,
+        "missing_count": len(result.missing),
+        "unexpected_count": len(result.unexpected),
+        "changed_count": len(result.changed),
+        "size_mismatch_count": len(result.size_mismatch),
+        "hash_mismatch_count": len(result.hash_mismatch),
+        "missing": missing,
+        "unexpected": unexpected,
+        "changed": changed,
+        "size_mismatch": size_mismatch,
+        "hash_mismatch": hash_mismatch,
+        "missing_truncated": missing_truncated,
+        "unexpected_truncated": unexpected_truncated,
+        "changed_truncated": changed_truncated,
+        "size_mismatch_truncated": size_mismatch_truncated,
+        "hash_mismatch_truncated": hash_mismatch_truncated,
         "complete": result.complete,
     }
     if result.match_mode == "content":
+        missing_content, missing_content_truncated = _cap_list(
+            result.missing_content,
+            max_list,
+        )
+        unexpected_content, unexpected_content_truncated = _cap_list(
+            result.unexpected_content,
+            max_list,
+        )
         result_dict.update(
             {
-                "missing_content": result.missing_content,
-                "unexpected_content": result.unexpected_content,
+                "missing_content_count": len(result.missing_content),
+                "unexpected_content_count": len(result.unexpected_content),
+                "missing_content": missing_content,
+                "unexpected_content": unexpected_content,
+                "missing_content_truncated": missing_content_truncated,
+                "unexpected_content_truncated": unexpected_content_truncated,
                 "content_count_mismatch": result.content_count_mismatch,
             }
         )
@@ -1753,6 +1971,12 @@ def verify_tree_cmd(
         "--ignore-pattern",
         help="Ignore names matching a pattern (repeatable).",
     ),
+    max_list: int | None = typer.Option(
+        None,
+        "--max-list",
+        min=0,
+        help="Maximum number of list entries to return per category.",
+    ),
 ) -> int:
     """Verify a destination directory against a source directory.
 
@@ -1776,14 +2000,30 @@ def verify_tree_cmd(
         ignore_patterns=tuple(ignore_pattern),
     )
 
+    missing, missing_truncated = _cap_list(result.missing, max_list)
+    unexpected, unexpected_truncated = _cap_list(result.unexpected, max_list)
+    changed, changed_truncated = _cap_list(result.changed, max_list)
+    size_mismatch, size_mismatch_truncated = _cap_list(result.size_mismatch, max_list)
+    hash_mismatch, hash_mismatch_truncated = _cap_list(result.hash_mismatch, max_list)
+
     result_dict: dict[str, Any] = {
         "source": str(source_root),
         "destination": str(dest_root),
-        "missing": result.missing,
-        "unexpected": result.unexpected,
-        "changed": result.changed,
-        "size_mismatch": result.size_mismatch,
-        "hash_mismatch": result.hash_mismatch,
+        "missing_count": len(result.missing),
+        "unexpected_count": len(result.unexpected),
+        "changed_count": len(result.changed),
+        "size_mismatch_count": len(result.size_mismatch),
+        "hash_mismatch_count": len(result.hash_mismatch),
+        "missing": missing,
+        "unexpected": unexpected,
+        "changed": changed,
+        "size_mismatch": size_mismatch,
+        "hash_mismatch": hash_mismatch,
+        "missing_truncated": missing_truncated,
+        "unexpected_truncated": unexpected_truncated,
+        "changed_truncated": changed_truncated,
+        "size_mismatch_truncated": size_mismatch_truncated,
+        "hash_mismatch_truncated": hash_mismatch_truncated,
         "complete": result.complete,
     }
 
@@ -1908,7 +2148,7 @@ def _emit_apply_report(ctx: typer.Context, result: PlanResult) -> int:
 @write_group.command(name="apply")
 def write_apply(
     ctx: typer.Context,
-    plan_file: Path = typer.Argument(..., help="JSON write plan file."),
+    plan_file: Path | None = typer.Argument(None, help="JSON write plan file."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate the complete plan only."),
     yes: bool = typer.Option(False, "--yes", help="Authorize execution."),
     on_error: str = typer.Option(
@@ -1916,23 +2156,65 @@ def write_apply(
         "--on-error",
         help="Execution failure policy: stop or continue.",
     ),
+    map_file: Path | None = typer.Option(
+        None,
+        "--map-file",
+        help="CSV file with source,destination[,op] rows.",
+    ),
+    map_op: str = typer.Option(
+        "copy",
+        "--map-op",
+        help="Default operation for --map-file: copy or move.",
+    ),
 ) -> int:
-    """Apply a declarative multi-step write plan.
+    """Apply a declarative multi-step write plan or a CSV mapping file.
 
-    The plan must contain ``plan_version: 1`` and an ``operations`` list with
-    ``mkdir``, ``move``, ``copy`` and ``rmdir`` entries. Preflight simulates
-    the complete plan in memory before any filesystem change. Execution is
-    sequential and never overwrites an existing destination.
+    A JSON plan must contain ``plan_version: 1`` and an ``operations`` list
+    with ``mkdir``, ``move``, ``copy`` and ``rmdir`` entries. A CSV map file
+    uses ``source,destination[,op]`` rows and defaults to ``copy``. Preflight
+    simulates the complete plan in memory before any filesystem change.
+    Execution is sequential and never overwrites an existing destination.
     """
     _reject_tabular(ctx)
-    try:
-        result = apply_plan(
-            plan_file,
-            allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
-            dry_run=dry_run,
-            yes=yes,
-            on_error=on_error,
+    if map_file is not None and plan_file is not None:
+        return _emit_invalid_argument(
+            ctx,
+            "write.apply",
+            "Specify either a JSON plan file or --map-file, not both.",
         )
+    if map_file is None and plan_file is None:
+        return _emit_invalid_argument(
+            ctx,
+            "write.apply",
+            "Specify a JSON plan file or --map-file.",
+        )
+
+    allowed_roots = tuple(Path(root) for root in ctx.obj.allow_root)
+    write_roots = tuple(Path(root) for root in ctx.obj.write_root)
+
+    try:
+        if map_file is not None:
+            operations = load_map_file(map_file, default_op=map_op)
+            result = apply_operations(
+                operations,
+                allowed_roots=allowed_roots,
+                write_roots=write_roots,
+                allow_manipulate_originals=ctx.obj.allow_manipulate_originals,
+                dry_run=dry_run,
+                yes=yes,
+                on_error=on_error,
+            )
+        else:
+            assert plan_file is not None
+            result = apply_plan(
+                plan_file,
+                allowed_roots=allowed_roots,
+                write_roots=write_roots,
+                allow_manipulate_originals=ctx.obj.allow_manipulate_originals,
+                dry_run=dry_run,
+                yes=yes,
+                on_error=on_error,
+            )
     except FsToolError as exc:
         return _emit_write_error(ctx, "write.apply", exc)
     return _emit_apply_report(ctx, result)
@@ -1952,6 +2234,7 @@ def write_mkdir(
         report = make_directory(
             destination,
             allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            write_roots=tuple(Path(root) for root in ctx.obj.write_root),
             dry_run=dry_run,
             yes=yes,
             parents=parents,
@@ -1989,6 +2272,7 @@ def write_copy(
             source,
             destination,
             allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            write_roots=tuple(Path(root) for root in ctx.obj.write_root),
             dry_run=dry_run,
             yes=yes,
             symlinks=symlinks,
@@ -2027,6 +2311,8 @@ def write_move(
             source,
             destination,
             allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            write_roots=tuple(Path(root) for root in ctx.obj.write_root),
+            allow_manipulate_originals=ctx.obj.allow_manipulate_originals,
             dry_run=dry_run,
             yes=yes,
             allow_rename=allow_rename,
@@ -2055,6 +2341,8 @@ def write_rmdir(
         report = remove_directory(
             destination,
             allowed_roots=tuple(Path(root) for root in ctx.obj.allow_root),
+            write_roots=tuple(Path(root) for root in ctx.obj.write_root),
+            allow_manipulate_originals=ctx.obj.allow_manipulate_originals,
             dry_run=dry_run,
             yes=yes,
             parents=parents,
@@ -2064,7 +2352,17 @@ def write_rmdir(
     return _emit_write_report(ctx, report)
 
 
-_GLOBAL_FLAGS = frozenset({"-v", "--json", "--plain", "--verbose", "--no-verbose", "--version"})
+_GLOBAL_FLAGS = frozenset(
+    {
+        "-v",
+        "--json",
+        "--plain",
+        "--verbose",
+        "--no-verbose",
+        "--show-config",
+        "--version",
+    }
+)
 _GLOBAL_VALUE_OPTIONS = frozenset({"--allow-root", "--config", "--format"})
 
 
@@ -2114,6 +2412,54 @@ def _hoist_global_options(args: list[str]) -> list[str]:
     return global_args + remaining
 
 
+def _show_config_from_args(args: list[str]) -> int:
+    """Resolve and print the configuration for ``--show-config``."""
+    config_path: str | None = None
+    roots: list[str] = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--config" and index + 1 < len(args):
+            config_path = args[index + 1]
+            index += 2
+            continue
+        if arg.startswith("--config="):
+            config_path = arg.split("=", 1)[1]
+            index += 1
+            continue
+        if arg == "--allow-root" and index + 1 < len(args):
+            roots.append(args[index + 1])
+            index += 2
+            continue
+        if arg.startswith("--allow-root="):
+            roots.append(arg.split("=", 1)[1])
+            index += 1
+            continue
+        index += 1
+
+    try:
+        config = load_config(
+            config_path=config_path,
+            cli_roots=tuple(Path(root) for root in roots) if roots else None,
+        )
+    except FsToolError as exc:
+        print(f"Error: {exc.message}", file=sys.stderr)
+        return exc.exit_code
+
+    typer.echo(
+        json.dumps(
+            {
+                "config_path": str(config.config_path),
+                "allowed_roots": [str(root) for root in config.allowed_roots],
+                "write_roots": [str(root) for root in config.write_roots],
+                "allow_manipulate_originals": config.allow_manipulate_originals,
+            },
+            indent=2,
+        )
+    )
+    return EXIT_SUCCESS
+
+
 def main(argv: list[str] | None = None) -> int:
     """Application entry point.
 
@@ -2127,6 +2473,11 @@ def main(argv: list[str] | None = None) -> int:
     * 5 - incomplete scan or verification
     """
     args = _hoist_global_options(list(sys.argv[1:] if argv is None else argv))
+
+    # ``--show-config`` is handled up front so it works without a
+    # subcommand (the root callback only runs when a command is selected).
+    if "--show-config" in args:
+        return _show_config_from_args(args)
 
     # ``--version`` is handled up front: typer only invokes the root
     # callback when a subcommand is selected

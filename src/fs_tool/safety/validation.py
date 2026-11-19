@@ -79,3 +79,53 @@ def symlink_components(path: str | Path) -> list[Path]:
         current = current.parent
     links.reverse()
     return links
+
+
+def is_within_any(path: Path, roots: tuple[Path, ...]) -> bool:
+    """True if ``path`` lies within at least one of ``roots``."""
+    return any(is_within_root(path, root) for root in roots)
+
+
+def validate_write_path(
+    path: str | Path,
+    allowed_roots: tuple[Path, ...],
+    write_roots: tuple[Path, ...],
+) -> Path:
+    """Validate a destination for non-destructive writes.
+
+    The path must be within the read roots and within at least one write
+    root.
+    """
+    normalized = validate_path(path, allowed_roots)
+    if not is_within_any(normalized, write_roots):
+        raise FsToolError(
+            f"Write not allowed outside write roots: {normalized}",
+            code=ErrorCode.ROOT_NOT_ALLOWED,
+            path=str(normalized),
+            details={"write_roots": [str(root) for root in write_roots]},
+        )
+    return normalized
+
+
+def validate_destructive_path(
+    path: str | Path,
+    allowed_roots: tuple[Path, ...],
+    write_roots: tuple[Path, ...],
+    allow_manipulate_originals: bool,
+) -> Path:
+    """Validate a path that will be moved or removed.
+
+    Destructive operations outside the write roots require explicit
+    ``allow_manipulate_originals`` authorization in the config file.
+    """
+    normalized = validate_path(path, allowed_roots)
+    if allow_manipulate_originals or is_within_any(normalized, write_roots):
+        return normalized
+    raise FsToolError(
+        "Refusing to modify an original outside write roots: "
+        f"{normalized}. Set allow_manipulate_originals = true in the "
+        "fs-tool config file to enable this operation.",
+        code=ErrorCode.ORIGINAL_PROTECTED,
+        path=str(normalized),
+        details={"write_roots": [str(root) for root in write_roots]},
+    )

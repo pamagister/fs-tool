@@ -746,3 +746,36 @@ def test_inventory_max_entries_zero_is_incomplete(tmp_path: Path) -> None:
     assert data["result"]["entries"] == []
     assert data["result"]["complete"] is False
     assert data["result"]["truncated"] is True
+
+
+def test_inventory_count_only_omits_entries(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--count-only")
+    assert code == EXIT_SUCCESS
+    assert data["result"]["count"] == 5
+    assert data["result"]["entries"] == []
+
+
+def test_inventory_group_by_extension(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--group-by", "extension")
+    assert code == EXIT_SUCCESS
+    groups = {item["key"]: item for item in data["result"]["groups"]}
+    assert set(groups) == {".txt", ".log", "<none>"}
+    assert sum(item["count"] for item in groups.values()) == 5
+
+
+def test_inventory_group_by_type(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--group-by", "type")
+    assert code == EXIT_SUCCESS
+    keys = {item["key"] for item in data["result"]["groups"]}
+    assert "file" in keys
+    assert "directory" in keys
+
+
+def test_inventory_group_by_rejects_invalid_value(tmp_path: Path) -> None:
+    root = _make_tree(tmp_path)
+    code, data = inventory_json(root, "--group-by", "nope")
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"

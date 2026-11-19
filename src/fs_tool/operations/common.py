@@ -63,6 +63,7 @@ def ensure_parent_directory(
     destination: Path,
     *,
     allowed_roots: tuple[Path, ...],
+    write_roots: tuple[Path, ...] | None = None,
     dry_run: bool,
     yes: bool,
 ) -> tuple[str, ...]:
@@ -77,6 +78,7 @@ def ensure_parent_directory(
     report = make_directory(
         destination.parent,
         allowed_roots=allowed_roots,
+        write_roots=write_roots,
         dry_run=dry_run,
         yes=yes,
         parents=True,

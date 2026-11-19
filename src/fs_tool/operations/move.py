@@ -17,8 +17,8 @@ from fs_tool.operations.common import (
     raise_operation_os_error,
     require_authorization,
     require_directory,
-    validate_operation_path,
 )
+from fs_tool.safety.validation import validate_destructive_path, validate_write_path
 
 
 def _rename_no_replace(source: Path, destination: Path) -> None:
@@ -106,11 +106,19 @@ def move_path(
     yes: bool,
     allow_rename: bool = False,
     parents: bool = False,
+    write_roots: tuple[Path, ...] | None = None,
+    allow_manipulate_originals: bool = False,
 ) -> OperationReport:
     """Move a file, directory, or symlink without overwriting."""
     require_authorization(dry_run, yes)
-    source_path = validate_operation_path(source, allowed_roots)
-    destination_path = validate_operation_path(destination, allowed_roots)
+    effective_write_roots = write_roots if write_roots is not None else allowed_roots
+    source_path = validate_destructive_path(
+        source,
+        allowed_roots,
+        effective_write_roots,
+        allow_manipulate_originals,
+    )
+    destination_path = validate_write_path(destination, allowed_roots, effective_write_roots)
 
     if source_path.parent == source_path:
         raise FsToolError(
@@ -170,6 +178,7 @@ def move_path(
         planned_parents = ensure_parent_directory(
             destination_path,
             allowed_roots=allowed_roots,
+            write_roots=effective_write_roots,
             dry_run=True,
             yes=False,
         )
@@ -216,6 +225,7 @@ def move_path(
         created_parents = ensure_parent_directory(
             destination_path,
             allowed_roots=allowed_roots,
+            write_roots=effective_write_roots,
             dry_run=False,
             yes=True,
         )

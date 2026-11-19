@@ -8,6 +8,7 @@ rollback.
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import stat
@@ -22,7 +23,7 @@ from fs_tool.operations.copy import copy_path
 from fs_tool.operations.mkdir import make_directory
 from fs_tool.operations.move import move_path
 from fs_tool.operations.rmdir import remove_directory
-from fs_tool.safety.validation import validate_path
+from fs_tool.safety.validation import validate_destructive_path, validate_path, validate_write_path
 
 PLAN_VERSION = 1
 _PLAN_OPERATIONS = {"mkdir", "move", "copy", "rmdir"}
@@ -86,6 +87,68 @@ def _reject_unknown(raw: dict[str, Any], allowed: set[str], index: int) -> None:
             f"Operation {index} has unknown field(s): {', '.join(unknown)}; "
             f"allowed fields: {', '.join(sorted(allowed))}."
         )
+
+
+def load_map_file(
+    path: Path,
+    *,
+    default_op: str = "copy",
+) -> list[dict[str, Any]]:
+    """Load a simple CSV mapping file into plan operations.
+
+    Expected header: ``source,destination`` with an optional ``op`` column.
+    Relative paths are resolved against the current working directory.
+    """
+    if default_op not in {"copy", "move"}:
+        raise _plan_error(f"Unsupported map operation {default_op!r}; use copy or move.")
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            if reader.fieldnames is None:
+                raise _plan_error(f"Map file {path} has no header.")
+            fieldnames = [name.strip() for name in reader.fieldnames]
+            unknown = [name for name in fieldnames if name not in {"source", "destination", "op"}]
+            if unknown:
+                raise _plan_error(
+                    f"Invalid map file column(s): {', '.join(unknown)}; "
+                    "allowed: source, destination, op.",
+                    path,
+                )
+            if "source" not in fieldnames or "destination" not in fieldnames:
+                raise _plan_error(
+                    f"Map file {path} must contain 'source' and 'destination' columns.",
+                    path,
+                )
+            operations: list[dict[str, Any]] = []
+            for index, row in enumerate(reader, start=2):
+                source = (row.get("source") or "").strip()
+                destination = (row.get("destination") or "").strip()
+                if not source or not destination:
+                    raise _plan_error(
+                        f"Map file row {index} requires non-empty source and destination.",
+                        path,
+                    )
+                op = (row.get("op") or default_op).strip() or default_op
+                if op not in {"copy", "move"}:
+                    raise _plan_error(
+                        f"Map file row {index} has unsupported op {op!r}; use copy or move.",
+                        path,
+                    )
+                operation: dict[str, Any] = {
+                    "op": op,
+                    "source": str(Path(source)),
+                    "destination": str(Path(destination)),
+                    "parents": True,
+                    "symlinks": "skip",
+                }
+                if op == "move":
+                    operation["allow_rename"] = True
+                operations.append(operation)
+            if not operations:
+                raise _plan_error(f"Map file {path} contains no operations.", path)
+            return operations
+    except OSError as exc:
+        raise _plan_error(f"Cannot load map file {path}: {exc}", path) from exc
 
 
 def load_plan(path: Path) -> list[dict[str, Any]]:
@@ -177,8 +240,15 @@ def load_plan(path: Path) -> list[dict[str, Any]]:
 class _PlanState:
     """In-memory overlay used by plan preflight."""
 
-    def __init__(self, allowed_roots: tuple[Path, ...]) -> None:
+    def __init__(
+        self,
+        allowed_roots: tuple[Path, ...],
+        write_roots: tuple[Path, ...],
+        allow_manipulate_originals: bool,
+    ) -> None:
         self.allowed_roots = allowed_roots
+        self.write_roots = write_roots
+        self.allow_manipulate_originals = allow_manipulate_originals
         self.virtual: dict[Path, str] = {}
         self.removed_paths: set[Path] = set()
         self.removed_subtrees: set[Path] = set()
@@ -340,7 +410,11 @@ def _simulate_operation(state: _PlanState, operation: dict[str, Any]) -> dict[st
     """Simulate one operation against the virtual state."""
     op = operation["op"]
     if op == "mkdir":
-        destination = validate_path(operation["destination"], state.allowed_roots)
+        destination = validate_write_path(
+            operation["destination"],
+            state.allowed_roots,
+            state.write_roots,
+        )
         existing = state.kind(destination)
         if existing == "directory":
             return _report("mkdir", None, destination, affected=())
@@ -360,7 +434,12 @@ def _simulate_operation(state: _PlanState, operation: dict[str, Any]) -> dict[st
         )
 
     if op == "rmdir":
-        destination = validate_path(operation["destination"], state.allowed_roots)
+        destination = validate_destructive_path(
+            operation["destination"],
+            state.allowed_roots,
+            state.write_roots,
+            state.allow_manipulate_originals,
+        )
         kind = state.kind(destination)
         if kind is None:
             raise FsToolError(
@@ -404,8 +483,20 @@ def _simulate_operation(state: _PlanState, operation: dict[str, Any]) -> dict[st
             removed=(),
         )
 
-    source = validate_path(operation["source"], state.allowed_roots)
-    raw_destination = validate_path(operation["destination"], state.allowed_roots)
+    if op == "move":
+        source = validate_destructive_path(
+            operation["source"],
+            state.allowed_roots,
+            state.write_roots,
+            state.allow_manipulate_originals,
+        )
+    else:
+        source = validate_path(operation["source"], state.allowed_roots)
+    raw_destination = validate_write_path(
+        operation["destination"],
+        state.allowed_roots,
+        state.write_roots,
+    )
     source_kind = state.kind(source)
     if source_kind is None:
         raise FsToolError(
@@ -514,9 +605,14 @@ def _pending_operation(operation: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _preflight(operations: list[dict[str, Any]], allowed_roots: tuple[Path, ...]) -> PlanResult:
+def _preflight(
+    operations: list[dict[str, Any]],
+    allowed_roots: tuple[Path, ...],
+    write_roots: tuple[Path, ...],
+    allow_manipulate_originals: bool,
+) -> PlanResult:
     """Simulate the complete plan without changing the filesystem."""
-    state = _PlanState(allowed_roots)
+    state = _PlanState(allowed_roots, write_roots, allow_manipulate_originals)
     planned: list[dict[str, Any]] = []
     seen_destinations: set[Path] = set()
     for index, operation in enumerate(operations, start=1):
@@ -554,7 +650,10 @@ def _preflight(operations: list[dict[str, Any]], allowed_roots: tuple[Path, ...]
 
 
 def _execute_operation(
-    operation: dict[str, Any], allowed_roots: tuple[Path, ...]
+    operation: dict[str, Any],
+    allowed_roots: tuple[Path, ...],
+    write_roots: tuple[Path, ...],
+    allow_manipulate_originals: bool,
 ) -> dict[str, Any]:
     """Execute one operation with the existing safe write primitives."""
     from dataclasses import asdict
@@ -564,6 +663,7 @@ def _execute_operation(
         report = make_directory(
             operation["destination"],
             allowed_roots=allowed_roots,
+            write_roots=write_roots,
             dry_run=False,
             yes=True,
             parents=operation["parents"],
@@ -572,6 +672,8 @@ def _execute_operation(
         report = remove_directory(
             operation["destination"],
             allowed_roots=allowed_roots,
+            write_roots=write_roots,
+            allow_manipulate_originals=allow_manipulate_originals,
             dry_run=False,
             yes=True,
             parents=operation["parents"],
@@ -581,6 +683,8 @@ def _execute_operation(
             operation["source"],
             operation["destination"],
             allowed_roots=allowed_roots,
+            write_roots=write_roots,
+            allow_manipulate_originals=allow_manipulate_originals,
             dry_run=False,
             yes=True,
             allow_rename=operation["allow_rename"],
@@ -591,6 +695,7 @@ def _execute_operation(
             operation["source"],
             operation["destination"],
             allowed_roots=allowed_roots,
+            write_roots=write_roots,
             dry_run=False,
             yes=True,
             symlinks=operation["symlinks"],
@@ -613,6 +718,8 @@ def apply_plan(
     dry_run: bool,
     yes: bool,
     on_error: str = "stop",
+    write_roots: tuple[Path, ...] | None = None,
+    allow_manipulate_originals: bool = False,
 ) -> PlanResult:
     """Preflight and optionally execute a multi-step write plan."""
     if dry_run == yes:
@@ -627,7 +734,46 @@ def apply_plan(
         )
 
     operations = load_plan(plan_path)
-    preflight = _preflight(operations, allowed_roots)
+    return apply_operations(
+        operations,
+        allowed_roots=allowed_roots,
+        dry_run=dry_run,
+        yes=yes,
+        on_error=on_error,
+        write_roots=write_roots,
+        allow_manipulate_originals=allow_manipulate_originals,
+    )
+
+
+def apply_operations(
+    operations: list[dict[str, Any]],
+    *,
+    allowed_roots: tuple[Path, ...],
+    dry_run: bool,
+    yes: bool,
+    on_error: str = "stop",
+    write_roots: tuple[Path, ...] | None = None,
+    allow_manipulate_originals: bool = False,
+) -> PlanResult:
+    """Preflight and optionally execute already-loaded operations."""
+    if dry_run == yes:
+        raise FsToolError(
+            "Specify exactly one of --dry-run or --yes.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+    if on_error not in {"stop", "continue"}:
+        raise FsToolError(
+            "Invalid --on-error value; use stop or continue.",
+            code=ErrorCode.INVALID_ARGUMENT,
+        )
+
+    effective_write_roots = write_roots if write_roots is not None else allowed_roots
+    preflight = _preflight(
+        operations,
+        allowed_roots,
+        effective_write_roots,
+        allow_manipulate_originals,
+    )
     if dry_run:
         return preflight
     if not preflight.would_succeed:
@@ -648,7 +794,12 @@ def apply_plan(
             executed.append(item)
             continue
         try:
-            result = _execute_operation(operation, allowed_roots)
+            result = _execute_operation(
+                operation,
+                allowed_roots,
+                effective_write_roots,
+                allow_manipulate_originals,
+            )
         except FsToolError as exc:
             item = _failed_operation(operation, exc)
             item["index"] = index

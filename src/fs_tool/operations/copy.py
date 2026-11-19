@@ -21,6 +21,7 @@ from fs_tool.operations.common import (
     require_directory,
     validate_operation_path,
 )
+from fs_tool.safety.validation import validate_write_path
 
 
 @dataclass(frozen=True)
@@ -226,6 +227,7 @@ def copy_path(
     yes: bool,
     symlinks: str = "error",
     parents: bool = False,
+    write_roots: tuple[Path, ...] | None = None,
 ) -> OperationReport:
     """Copy a regular file or directory tree without overwriting."""
     require_authorization(dry_run, yes)
@@ -235,8 +237,9 @@ def copy_path(
             code=ErrorCode.INVALID_ARGUMENT,
         )
 
+    effective_write_roots = write_roots if write_roots is not None else allowed_roots
     source_path = validate_operation_path(source, allowed_roots)
-    destination_path = validate_operation_path(destination, allowed_roots)
+    destination_path = validate_write_path(destination, allowed_roots, effective_write_roots)
     source_info = lstat_or_none(source_path)
     if source_info is None:
         raise FsToolError(
@@ -264,6 +267,7 @@ def copy_path(
         planned_parents = ensure_parent_directory(
             destination_path,
             allowed_roots=allowed_roots,
+            write_roots=effective_write_roots,
             dry_run=True,
             yes=False,
         )
@@ -300,6 +304,7 @@ def copy_path(
         created_parents = ensure_parent_directory(
             destination_path,
             allowed_roots=allowed_roots,
+            write_roots=effective_write_roots,
             dry_run=False,
             yes=True,
         )

@@ -615,3 +615,39 @@ def test_verify_tree_identical_symlink_targets(tmp_path: Path) -> None:
     code, data = run_json(argv_tree(source, destination))
     assert code == EXIT_SUCCESS
     assert data["result"]["changed"] == []
+
+
+def test_verify_tree_reports_counts_and_caps_lists(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    _write(source / "a.txt", "a")
+    _write(source / "b.txt", "b")
+    _write(source / "c.txt", "c")
+    _write(destination / "a.txt", "a")
+
+    code, data = run_json(argv_tree(source, destination, "--max-list", "1"))
+
+    assert code == EXIT_FAILURE
+    result = data["result"]
+    assert result["missing_count"] == 2
+    assert result["missing"] == ["b.txt"]
+    assert result["missing_truncated"] is True
+    assert result["unexpected_count"] == 0
+    assert result["changed_count"] == 0
+
+
+def test_verify_inventory_reports_counts(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    _write(root / "a.txt", "a")
+    inventory_file = _make_inventory(tmp_path, root)
+
+    code, data = run_json(argv_inventory(inventory_file, root))
+
+    assert code == EXIT_SUCCESS
+    result = data["result"]
+    assert result["missing_count"] == 0
+    assert result["unexpected_count"] == 0
+    assert result["changed_count"] == 0

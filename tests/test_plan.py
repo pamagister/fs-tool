@@ -273,10 +273,20 @@ def test_apply_continue_attempts_later_operations(tmp_path: Path, monkeypatch: A
     )
     original_execute = plan_module._execute_operation
 
-    def fail_first(operation: dict[str, Any], allowed_roots: tuple[Path, ...]) -> dict[str, Any]:
+    def fail_first(
+        operation: dict[str, Any],
+        allowed_roots: tuple[Path, ...],
+        write_roots: tuple[Path, ...],
+        allow_manipulate_originals: bool,
+    ) -> dict[str, Any]:
         if str(operation["destination"]).endswith("a.txt"):
             raise FsToolError("simulated runtime failure", code=ErrorCode.OPERATION_FAILED)
-        return original_execute(operation, allowed_roots)
+        return original_execute(
+            operation,
+            allowed_roots,
+            write_roots,
+            allow_manipulate_originals,
+        )
 
     monkeypatch.setattr(plan_module, "_execute_operation", fail_first)
 
@@ -457,3 +467,78 @@ def test_apply_example_reorganization_preserves_content(tmp_path: Path) -> None:
     assert sum(after_hashes.values()) == sum(before_hashes.values())
     assert all(isinstance(digest, str) for digest in after_hashes)
     assert all(len(digest) == 64 for digest in after_hashes)
+
+
+def test_apply_map_file_copies_entries(tmp_path: Path) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("content", encoding="utf-8")
+    target = tmp_path / "target"
+    target.mkdir()
+    map_file = tmp_path / "map.csv"
+    map_file.write_text(
+        f"source,destination\n{source},{target / 'a.txt'}\n",
+        encoding="utf-8",
+    )
+
+    code, data = run_json(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "apply",
+            "--map-file",
+            str(map_file),
+            "--yes",
+        ]
+    )
+
+    assert code == EXIT_SUCCESS
+    assert (target / "a.txt").read_text(encoding="utf-8") == "content"
+
+
+def test_apply_map_file_move_operation(tmp_path: Path) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("content", encoding="utf-8")
+    target = tmp_path / "target"
+    target.mkdir()
+    map_file = tmp_path / "map.csv"
+    map_file.write_text(
+        f"source,destination,op\n{source},{target / 'moved.txt'},move\n",
+        encoding="utf-8",
+    )
+
+    code, data = run_json(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "apply",
+            "--map-file",
+            str(map_file),
+            "--yes",
+        ]
+    )
+
+    assert code == EXIT_SUCCESS
+    assert not source.exists()
+    assert (target / "moved.txt").read_text(encoding="utf-8") == "content"
+
+
+def test_apply_map_file_rejects_missing_columns(tmp_path: Path) -> None:
+    map_file = tmp_path / "map.csv"
+    map_file.write_text("source,wrong\n/tmp/a,/tmp/b\n", encoding="utf-8")
+
+    code, data = run_json(
+        [
+            "--allow-root",
+            str(tmp_path),
+            "write",
+            "apply",
+            "--map-file",
+            str(map_file),
+            "--yes",
+        ]
+    )
+
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"

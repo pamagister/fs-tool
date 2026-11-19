@@ -12,8 +12,8 @@ from fs_tool.operations.common import (
     lstat_or_none,
     raise_operation_os_error,
     require_authorization,
-    validate_operation_path,
 )
+from fs_tool.safety.validation import validate_write_path
 
 
 def make_directory(
@@ -23,10 +23,12 @@ def make_directory(
     dry_run: bool,
     yes: bool,
     parents: bool = False,
+    write_roots: tuple[Path, ...] | None = None,
 ) -> OperationReport:
     """Create one directory, optionally creating missing parent directories."""
     require_authorization(dry_run, yes)
-    target = validate_operation_path(destination, allowed_roots)
+    effective_write_roots = write_roots if write_roots is not None else allowed_roots
+    target = validate_write_path(destination, allowed_roots, effective_write_roots)
     existing = lstat_or_none(target)
     if existing is not None:
         if stat.S_ISDIR(existing.st_mode) and not stat.S_ISLNK(existing.st_mode):

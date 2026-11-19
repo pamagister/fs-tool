@@ -118,6 +118,7 @@ name = "fs-tool-cli"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
+    { name = "platformdirs" },
     { name = "typer" },
 ]
 
@@ -153,6 +154,7 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'image'", specifier = ">=1.26" },
     { name = "onnxruntime", marker = "extra == 'image'", specifier = ">=1.18" },
     { name = "pillow", marker = "extra == 'image'", specifier = ">=10" },
+    { name = "platformdirs", specifier = ">=4.3.8" },
     { name = "pypdf", marker = "extra == 'metadata'", specifier = ">=5,<6" },
     { name = "typer", specifier = ">=0.12,<0.13" },
 ]

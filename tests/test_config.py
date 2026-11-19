@@ -57,7 +57,9 @@ def test_config_from_xdg_config_home(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert config.allowed_roots == (home,)
 
 
-def test_config_may_restrict_default_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_config_allowed_roots_are_authoritative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
@@ -69,10 +71,12 @@ def test_config_may_restrict_default_roots(tmp_path: Path, monkeypatch: pytest.M
         f'[fs-tool]\nallowed_roots = ["{home_root}", "/mnt/nas"]\n',
     )
     config = load_config(config_path)
-    assert config.allowed_roots == (home,)
+    # Without CLI roots the config defines the read roots, including
+    # roots outside home and CWD.
+    assert config.allowed_roots == (home, Path("/mnt/nas"))
 
 
-def test_config_never_expands_cli_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_roots_replace_config_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     config_path = tmp_path / "config.toml"
@@ -81,10 +85,11 @@ def test_config_never_expands_cli_roots(tmp_path: Path, monkeypatch: pytest.Monk
         '[fs-tool]\nallowed_roots = ["/elsewhere"]\n',
     )
     config = load_config(config_path, cli_roots=(tmp_path,))
-    assert config.allowed_roots == ()
+    # Explicit CLI roots replace the configured roots.
+    assert config.allowed_roots == (tmp_path,)
 
 
-def test_config_may_narrow_authorized_root_to_subdirectory(
+def test_cli_roots_ignore_config_allowed_roots(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -101,10 +106,11 @@ def test_config_may_narrow_authorized_root_to_subdirectory(
 
     config = load_config(config_path, cli_roots=(authorized,))
 
-    assert config.allowed_roots == (narrowed,)
+    # CLI roots take precedence; the configured narrowing is ignored.
+    assert config.allowed_roots == (authorized,)
 
 
-def test_config_ignores_broader_configured_root(
+def test_cli_roots_override_configured_roots(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -122,8 +128,8 @@ def test_config_ignores_broader_configured_root(
 
     config = load_config(config_path, cli_roots=(authorized,))
 
-    # The broader parent root is ignored; only the narrowing subdirectory remains.
-    assert config.allowed_roots == (narrowed,)
+    # CLI roots replace all configured roots.
+    assert config.allowed_roots == (authorized,)
 
 
 def test_cli_roots_replace_default_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,5 +154,60 @@ def test_invalid_toml_reports_config_error(tmp_path: Path) -> None:
 def test_allowed_roots_must_be_a_list(tmp_path: Path) -> None:
     config_path = tmp_path / "config.toml"
     config_path.write_text("[fs-tool]\nallowed_roots = 42\n", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+def test_write_roots_default_to_allowed_roots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    config_path = tmp_path / "config.toml"
+    root = str(tmp_path).replace("\\", "/")
+    _write_config(config_path, f'[fs-tool]\nallowed_roots = ["{root}"]\n')
+    config = load_config(config_path)
+    assert config.write_roots == config.allowed_roots
+
+
+def test_write_roots_must_be_within_allowed_roots(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    _write_config(
+        config_path,
+        '[fs-tool]\nallowed_roots = ["/data"]\nwrite_roots = ["/elsewhere"]\n',
+    )
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+def test_allow_manipulate_originals_defaults_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    config = load_config(tmp_path / "missing.toml")
+    assert config.allow_manipulate_originals is False
+
+
+def test_allow_manipulate_originals_true(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    _write_config(
+        config_path,
+        "[fs-tool]\nallow_manipulate_originals = true\n",
+    )
+    config = load_config(config_path)
+    assert config.allow_manipulate_originals is True
+
+
+def test_allow_manipulate_originals_must_be_bool(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[fs-tool]\nallow_manipulate_originals = 1\n", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+def test_unknown_fs_tool_key_is_rejected(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[fs-tool]\nunknown_key = true\n", encoding="utf-8")
     with pytest.raises(ConfigError):
         load_config(config_path)

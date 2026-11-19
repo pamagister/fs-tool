@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from fs_tool.cli import EXIT_INCOMPLETE, EXIT_SUCCESS, main
+from fs_tool.cli import EXIT_INCOMPLETE, EXIT_INVALID_ARGS, EXIT_SUCCESS, main
 
 
 def argv_for(source: Path, *extra: str) -> list[str]:
@@ -56,6 +56,28 @@ def test_tree_verbose_json_keeps_all_entry_fields(tmp_path: Path) -> None:
     assert entry["size"] == 1
     assert entry["modified"] is not None
     assert entry["type"] == "file"
+
+
+def test_tree_fields_projects_requested_columns(tmp_path: Path) -> None:
+    (tmp_path / "alpha.txt").write_text("a")
+    code, data = tree_json(tmp_path, "--fields", "rel_path,extension,size")
+    assert code == EXIT_SUCCESS
+    for entry in data["result"]["entries"]:
+        assert set(entry) == {"rel_path", "extension", "size"}
+
+
+def test_tree_fields_rejects_unknown_field(tmp_path: Path) -> None:
+    (tmp_path / "alpha.txt").write_text("a")
+    code, data = tree_json(tmp_path, "--fields", "nope")
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"
+
+
+def test_tree_fields_and_verbose_are_mutually_exclusive(tmp_path: Path) -> None:
+    (tmp_path / "alpha.txt").write_text("a")
+    code, data = tree_json(tmp_path, "--fields", "rel_path", "--verbose")
+    assert code == EXIT_INVALID_ARGS
+    assert data["errors"][0]["code"] == "INVALID_ARGUMENT"
 
 
 def test_tree_max_depth(tmp_path: Path) -> None:
